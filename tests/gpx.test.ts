@@ -84,3 +84,22 @@ describe('parseGpx', () => {
     expect(r.waypoints[0].name).toBe('ok');
   });
 });
+
+describe('gpx robustness', () => {
+  it('omits <time> for track points without a valid time', () => {
+    const bad: Track = { id: 'x', name: 'x', started: 0, points: [{ lat: 1, lon: 2, time: NaN }, { lat: 1, lon: 2, time: 8.64e15 + 1 }] };
+    const xml = toGpx({ tracks: [bad] });
+    expect(xml).not.toContain('<time>');
+    expect((xml.match(/<trkpt/g) || []).length).toBe(2);
+  });
+
+  it('reads a missing or non-numeric elevation as null', () => {
+    const xml = `<gpx version="1.1"><trk><trkseg>
+      <trkpt lat="1" lon="2"><time>2026-06-01T10:00:00Z</time></trkpt>
+      <trkpt lat="1" lon="2"><ele>abc</ele></trkpt>
+      <trkpt lat="1" lon="2"><ele>3.5</ele></trkpt>
+    </trkseg></trk></gpx>`;
+    const pts = parseGpx(xml).tracks[0].points;
+    expect(pts.map((p) => p.ele)).toEqual([null, null, 3.5]);
+  });
+});

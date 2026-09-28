@@ -52,7 +52,9 @@ export function toGpx(data: GpxData): string {
   for (const t of data.tracks ?? []) {
     const pts = t.points.map((p) => {
       const ele = p.ele != null ? `\n        <ele>${p.ele.toFixed(1)}</ele>` : '';
-      return `      <trkpt ${attrs(p)}>${ele}\n        <time>${new Date(p.time).toISOString()}</time>\n      </trkpt>`;
+      const d = Number.isFinite(p.time) ? new Date(p.time) : null;
+      const time = d && !Number.isNaN(d.getTime()) ? `\n        <time>${d.toISOString()}</time>` : '';
+      return `      <trkpt ${attrs(p)}>${ele}${time}\n      </trkpt>`;
     });
     out.push(
       `  <trk>${nameTag(t.name, '    ')}\n    <trkseg>\n${pts.join('\n')}${pts.length ? '\n' : ''}    </trkseg>\n  </trk>`,
@@ -131,7 +133,7 @@ export function parseGpx(xml: string, now = Date.now()): ParsedGpx {
         const t = childText(el, 'time');
         const ele = childText(el, 'ele');
         const time = t ? Date.parse(t) : NaN;
-        points.push({ ...p, time: Number.isFinite(time) ? time : now, ele: ele != null ? Number(ele) : null });
+        points.push({ ...p, time: Number.isFinite(time) ? time : now, ele: ele != null && Number.isFinite(Number(ele)) ? Number(ele) : null });
       }
     }
     tracks.push({

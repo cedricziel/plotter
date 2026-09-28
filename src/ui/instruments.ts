@@ -13,12 +13,19 @@ export function mountInstruments(app: App): () => void {
       h('div', { class: 'inst-value', 'data-value': key }),
     );
 
+  const toggleSpeedUnit = () => void app.updateSettings({ speedUnit: app.settings.speedUnit === 'kmh' ? 'kn' : 'kmh' });
+
   bar.replaceChildren(
     tile('sog', 'SOG', {
       role: 'button',
       tabindex: 0,
       title: 'Tap to switch km/h / knots',
-      onclick: () => void app.updateSettings({ speedUnit: app.settings.speedUnit === 'kmh' ? 'kn' : 'kmh' }),
+      onclick: toggleSpeedUnit,
+      onkeydown: (e: KeyboardEvent) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.key === ' ') e.preventDefault();
+        toggleSpeedUnit();
+      },
     }),
     tile('cog', 'COG'),
     tile('pos', 'POSITION'),

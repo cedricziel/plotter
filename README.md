@@ -41,7 +41,7 @@ host, or a Raspberry Pi on board.
 
 ## Quick start
 
-Requires Node.js ≥ 20.
+Requires Node.js 22.12 or newer.
 
 ```sh
 npm install

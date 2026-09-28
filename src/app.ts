@@ -449,6 +449,11 @@ export class App {
       this.progress = null;
       return;
     }
+    const clamped = Math.max(0, Math.min(pts.length - 1, this.nextIndex));
+    if (clamped !== this.nextIndex) {
+      this.nextIndex = clamped;
+      void db.setKv('nextIndex', clamped);
+    }
     const p = routeProgress(this.fix, pts, this.nextIndex, this.fix.sog, autoAdvance ? undefined : 0);
     if (p && p.nextIndex !== this.nextIndex) {
       this.nextIndex = p.nextIndex;
