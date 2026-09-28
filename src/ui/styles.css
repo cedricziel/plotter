@@ -16,6 +16,14 @@
   --radius: 12px;
   --inst-bg: #0b3d6b;
   --inst-fg: #ffffff;
+  --wp: #d6008a;
+  --wp-bg: #ffffff;
+  --wp-on: #ffffff;
+  --wp-next: #ffd43b;
+  --wp-label: #111111;
+  --wp-halo: #ffffff;
+  --ship-fill: #111111;
+  --ship-line: #ffffff;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
   color-scheme: light;
@@ -38,6 +46,14 @@
   --shadow: none;
   --inst-bg: #000000;
   --inst-fg: #e01e1e;
+  --wp: #b01818;
+  --wp-bg: #000000;
+  --wp-on: #000000;
+  --wp-next: #ff4d4d;
+  --wp-label: #b01818;
+  --wp-halo: #000000;
+  --ship-fill: #000000;
+  --ship-line: #e01e1e;
   color-scheme: dark;
 }
 
@@ -157,16 +173,6 @@ button {
   position: relative;
   min-height: 0;
 }
-.night-filter {
-  position: absolute;
-  inset: 0;
-  background: #ff0000;
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  display: none;
-  z-index: 1;
-}
-:root[data-theme='night'] .night-filter { display: block; }
 :root[data-theme='night'] .maplibregl-ctrl-attrib,
 :root[data-theme='night'] .maplibregl-ctrl-scale {
   background: #000 !important;
@@ -177,8 +183,8 @@ button {
 .maplibregl-ctrl-bottom-left { margin-bottom: 26px; }
 
 .ship { width: 40px; height: 56px; pointer-events: none; }
-.ship .hull { fill: #111; stroke: #fff; stroke-width: 3; }
-.ship .centre { fill: #fff; }
+.ship .hull { fill: var(--ship-fill); stroke: var(--ship-line); stroke-width: 3; }
+.ship .centre { fill: var(--ship-line); }
 .ship.no-cog svg { transform: scale(0.8); }
 
 .wp {
@@ -194,23 +200,24 @@ button {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #fff;
-  border: 4px solid #d6008a;
+  background: var(--wp-bg);
+  border: 4px solid var(--wp);
   font: 700 12px/18px system-ui, sans-serif;
   text-align: center;
-  color: #d6008a;
+  color: var(--wp);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
-.wp.in-route .wp-dot { background: #d6008a; color: #fff; }
-.wp.next .wp-dot { outline: 4px solid #ffd43b; }
+:root[data-theme='night'] .wp-dot { box-shadow: none; }
+.wp.in-route .wp-dot { background: var(--wp); color: var(--wp-on); }
+.wp.next .wp-dot { outline: 4px solid var(--wp-next); }
 .wp.dragging .wp-dot { transform: scale(1.4); }
 .wp-label {
   position: absolute;
   top: 38px;
   font: 700 13px system-ui, sans-serif;
   white-space: nowrap;
-  color: #111;
-  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+  color: var(--wp-label);
+  text-shadow: 0 0 3px var(--wp-halo), 0 0 3px var(--wp-halo), 0 0 3px var(--wp-halo);
   pointer-events: none;
 }
 
@@ -390,6 +397,7 @@ select {
 .stat.mono .stat-value { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 16px; }
 .stat.rec .stat-value { color: var(--danger); }
 .stat.anchor-alarm { background: var(--danger); color: #fff; }
+:root[data-theme='night'] .stat.anchor-alarm { color: #000; }
 .stat.anchor-warning .stat-value { color: var(--warn); }
 .stat.anchor-ok .stat-value { color: var(--ok); }
 
@@ -477,6 +485,8 @@ select {
 .alarm-card .btn { background: #fff; color: #000; border-color: #fff; }
 .alarm-card .btn + .btn { background: transparent; color: #fff; }
 :root[data-theme='night'] .alarm-card { color: #ff3030; border-color: #ff3030; }
+:root[data-theme='night'] .alarm-card .btn { background: #ff3030; color: #000; border-color: #ff3030; }
+:root[data-theme='night'] .alarm-card .btn + .btn { background: transparent; color: #ff3030; }
 @keyframes alarm-flash {
   0% { background: rgba(255, 0, 0, 0.85); }
   100% { background: rgba(80, 0, 0, 0.85); }

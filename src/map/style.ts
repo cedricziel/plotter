@@ -19,9 +19,8 @@ export interface StyleOptions {
 }
 
 /**
- * Palettes. The night palette is deliberately greyscale: in night mode the
- * whole map is multiplied with pure red by a CSS overlay (see styles.css),
- * so luminance is all that matters and nothing emits blue/green light.
+ * Palettes. The night palette is red on black, painted natively (no blend
+ * overlay: mobile Safari does not composite those over the WebGL canvas).
  */
 interface Palette {
   land: string;
@@ -70,26 +69,26 @@ const DAY: Palette = {
 };
 
 const NIGHT: Palette = {
-  land: '#0c0c0c',
-  water: '#2e2e2e',
-  waterway: '#5a5a5a',
-  waterwayCasing: '#777777',
-  waterLabel: '#a0a0a0',
-  park: '#101010',
-  urban: '#111111',
-  industrial: '#121212',
-  building: '#1a1a1a',
-  road: '#262626',
-  roadCasing: '#1a1a1a',
-  majorRoad: '#303030',
-  highway: '#3a3a3a',
-  bridge: '#b0b0b0',
-  rail: '#2a2a2a',
-  ferry: '#6a6a6a',
-  boundary: '#333333',
-  label: '#8c8c8c',
+  land: '#070000',
+  water: '#1a0000',
+  waterway: '#4a0000',
+  waterwayCasing: '#5c0000',
+  waterLabel: '#b01818',
+  park: '#0a0000',
+  urban: '#0a0000',
+  industrial: '#0c0000',
+  building: '#140000',
+  road: '#1f0000',
+  roadCasing: '#120000',
+  majorRoad: '#2a0000',
+  highway: '#330000',
+  bridge: '#8a1010',
+  rail: '#260000',
+  ferry: '#6a0a0a',
+  boundary: '#2a0000',
+  label: '#b01818',
   labelHalo: '#000000',
-  poiHarbour: '#c8c8c8',
+  poiHarbour: '#c41e1e',
 };
 
 export const palette = (t: Theme) => (t === 'night' ? NIGHT : DAY);

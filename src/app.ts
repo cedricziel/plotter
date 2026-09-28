@@ -97,10 +97,6 @@ export class App {
     this.map.addControl(new AttributionControl({ compact: true }), 'bottom-left');
     this.map.addControl(new ScaleControl({ unit: this.settings.distanceUnit }), 'bottom-left');
 
-    // Night mode: multiply the rendered chart (incl. markers) with pure red.
-    const night = h('div', { class: 'night-filter' });
-    container.insertBefore(night, container.querySelector('.maplibregl-control-container'));
-
     this.ship = new Marker({ element: shipElement(), rotationAlignment: 'map', pitchAlignment: 'map' });
 
     this.map.on('style.load', () => this.renderOverlays());

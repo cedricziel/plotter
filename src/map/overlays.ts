@@ -5,7 +5,7 @@ import type { Theme } from './style';
 /** Overlay colours are chosen to stand out against the waterway palette. */
 const OVERLAY = {
   day: { cog: '#000000', route: '#d6008a', track: '#e8590c', saved: '#8f5b2e', anchor: '#c92a2a', acc: '#1c7ed6' },
-  night: { cog: '#dddddd', route: '#bbbbbb', track: '#999999', saved: '#666666', anchor: '#ffffff', acc: '#777777' },
+  night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f' },
 };
 
 export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'track-live', 'tracks', 'anchor'] as const;
