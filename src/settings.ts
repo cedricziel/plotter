@@ -1,5 +1,6 @@
 import type { DistanceUnit, SpeedUnit } from './core/units';
 import type { Theme } from './map/style';
+import { DEFAULT_CHART_URL } from './services/chart';
 import { getKv, setKv } from './services/db';
 
 export type CogMinutes = 0 | 5 | 10 | 30;
@@ -25,7 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   seamarks: true,
   keepAwake: true,
   showTracks: true,
-  pmtilesUrl: import.meta.env.VITE_PMTILES_URL || './tiles/netherlands.pmtiles',
+  pmtilesUrl: import.meta.env.VITE_PMTILES_URL || DEFAULT_CHART_URL,
   // Latin glyph ranges are bundled in public/fonts so labels work offline.
   glyphsUrl: import.meta.env.VITE_GLYPHS_URL || './fonts/{fontstack}/{range}.pbf',
   activeRouteId: null,

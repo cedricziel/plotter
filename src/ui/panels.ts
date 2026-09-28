@@ -3,7 +3,7 @@ import { bearing, distance, routeLegs, timeToGo } from '../core/geo';
 import { parseGpx, toGpx } from '../core/gpx';
 import type { Route } from '../core/model';
 import { formatBearing, formatCoord, formatDistance, formatDuration, formatTime } from '../core/units';
-import type { CogMinutes } from '../settings';
+import { type CogMinutes, DEFAULT_SETTINGS } from '../settings';
 import { startPlacement } from './destination';
 import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
 import { download, fileStamp, h, pickFile, toast } from './dom';
@@ -504,7 +504,7 @@ function menuBody(app: App): HTMLElement {
       'div',
       { class: 'row' },
       url,
-      h('button', { class: 'btn', onclick: () => void app.updateSettings({ pmtilesUrl: url.value.trim() || './tiles/netherlands.pmtiles' }) }, 'Apply'),
+      h('button', { class: 'btn', onclick: () => void app.updateSettings({ pmtilesUrl: url.value.trim() || DEFAULT_SETTINGS.pmtilesUrl }) }, 'Apply'),
     ),
     h('button', { class: 'btn block', onclick: () => void clearTileCaches() }, 'Clear cached map tiles'),
 

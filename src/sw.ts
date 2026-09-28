@@ -4,7 +4,7 @@ import { clientsClaim } from 'workbox-core';
 import { CacheExpiration, ExpirationPlugin } from 'workbox-expiration';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -55,6 +55,16 @@ registerRoute(
     }
     return res;
   },
+);
+
+// The chart manifest names the current archive; keep the last one for offline starts.
+registerRoute(
+  ({ url }) => url.pathname.endsWith('/tiles/current.json'),
+  new NetworkFirst({
+    cacheName: 'chart-manifest',
+    networkTimeoutSeconds: 3,
+    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+  }),
 );
 
 // ---- visited raster tiles & fonts ---------------------------------------------

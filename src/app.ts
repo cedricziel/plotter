@@ -13,6 +13,7 @@ import { onLongPress } from './map/longpress';
 import { EMPTY, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
 import { Alarm } from './services/alarm';
+import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
 import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
 import { WakeLock } from './services/wakelock';
@@ -32,6 +33,7 @@ export class App {
   map!: MlMap;
   settings!: Settings;
   basemap: Basemap = 'pmtiles';
+  private chartUrl = DEFAULT_CHART_URL;
 
   fix: Fix | null = null;
   gpsStatus: GpsStatus = 'off';
@@ -76,7 +78,8 @@ export class App {
     setWorkerUrl(maplibreWorkerUrl);
     const protocol = new Protocol();
     addProtocol('pmtiles', protocol.tile);
-    this.basemap = (await probePmtiles(absUrl(this.settings.pmtilesUrl))) ? 'pmtiles' : 'osm';
+    this.chartUrl = await resolveChartUrl(this.settings.pmtilesUrl);
+    this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
     if (this.basemap === 'osm') toast('Offline chart not found – using online OpenStreetMap tiles', 6000);
 
     const view = await db.getKv<{ center: [number, number]; zoom: number }>('view').catch(() => undefined);
@@ -148,7 +151,7 @@ export class App {
     return buildStyle({
       theme: this.settings.theme,
       basemap: this.basemap,
-      pmtilesUrl: absUrl(this.settings.pmtilesUrl),
+      pmtilesUrl: absUrl(this.chartUrl),
       glyphsUrl: absUrl(this.settings.glyphsUrl),
       seamarks: this.settings.seamarks,
     });
@@ -159,7 +162,8 @@ export class App {
     this.settings = { ...prev, ...patch };
     await saveSettings(this.settings);
     if (patch.pmtilesUrl != null && patch.pmtilesUrl !== prev.pmtilesUrl) {
-      this.basemap = (await probePmtiles(absUrl(this.settings.pmtilesUrl))) ? 'pmtiles' : 'osm';
+      this.chartUrl = await resolveChartUrl(this.settings.pmtilesUrl);
+      this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
       if (this.basemap === 'osm') toast('PMTiles not reachable – using OpenStreetMap fallback');
     }
     const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl'].some(
