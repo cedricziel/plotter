@@ -13,6 +13,9 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 
+// Take over as soon as installed: a page from an older build never posts
+// SKIP_WAITING, and update.ts decides when to reload onto the new worker.
+self.addEventListener('install', () => void self.skipWaiting());
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') void self.skipWaiting();
 });
