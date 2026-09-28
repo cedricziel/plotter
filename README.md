@@ -177,6 +177,25 @@ and open `https://cloud.example.org/plotter/`. (If you prefer to manage files
 through Nextcloud, point the alias at a folder of a Nextcloud *external
 storage* / local mount instead; the web server serves the files directly.)
 
+### Docker / TrueNAS (self-building)
+
+`deploy/docker-compose.yml` is a self-contained stack with no image registry
+needed:
+
+- `build` (one-shot, `node:22-alpine`): clones `$REF` from GitHub, runs
+  `npm test` and `npm run build`, and publishes `dist/` to `/out/www`.
+- `tiles` (one-shot, `alpine`): creates the NL PMTiles extract in `/out/tiles`
+  on first start and is skipped afterwards (set `FORCE=1` to refresh).
+- `web` (`nginx`): serves both on host port **30250** with Range support, CORS
+  on `/tiles/` and `no-cache` for `sw.js`. Its healthcheck fetches the app
+  shell, a font and a PMTiles range through nginx.
+
+On TrueNAS, create a dataset (e.g. `hive/apps/plotter`), then install the file
+as a *Custom App*. nginx workers run as uid 568 (`apps`), which TrueNAS app
+datasets grant access to. **Redeploy** (or restart the app) to rebuild from
+the latest commit. Put a reverse proxy/tunnel with TLS in front, e.g.
+Pangolin/newt with target `http://<host>:30250`; the app needs HTTPS for GPS.
+
 ### Any other static host
 
 Upload `dist/` (plus `tiles/`) to Netlify, Cloudflare Pages, GitHub Pages, an
