@@ -186,24 +186,48 @@ and open `https://cloud.example.org/plotter/`. (If you prefer to manage files
 through Nextcloud, point the alias at a folder of a Nextcloud *external
 storage* / local mount instead; the web server serves the files directly.)
 
-### Docker / TrueNAS (self-building)
+### Docker / TrueNAS
 
-`deploy/docker-compose.yml` is a self-contained stack with no image registry
-needed:
+The image **`ghcr.io/cedricziel/plotter`** (nginx + the built app, `linux/amd64`
+and `linux/arm64`) is built by `.github/workflows/docker.yml`; tests run inside
+the build. Tags: `latest` (default branch), `main` / the sanitised branch name
+(e.g. `claude-virtual-chartplotter-pwa-ggfvjo`), `sha-<short>`, and `v1.2.3`,
+`1.2` for release tags. Pull requests build without pushing.
 
-- `build` (one-shot, `node:22-alpine`): clones `$REF` from GitHub, runs
-  `npm test` and `npm run build`, and publishes `dist/` to `/out/www`.
-- `tiles` (one-shot, `alpine`): creates the NL PMTiles extract in `/out/tiles`
-  on first start and is skipped afterwards (set `FORCE=1` to refresh).
-- `web` (`nginx`): serves both on host port **30250** with Range support, CORS
-  on `/tiles/` and `no-cache` for `sw.js`. Its healthcheck fetches the app
-  shell, a font and a PMTiles range through nginx.
+`deploy/docker-compose.yml` is the stack used on the TrueNAS host "hive" (also
+fine with plain `docker compose up -d`):
 
-On TrueNAS, create a dataset (e.g. `hive/apps/plotter`), then install the file
-as a *Custom App*. nginx workers run as uid 568 (`apps`), which TrueNAS app
-datasets grant access to. **Redeploy** (or restart the app) to rebuild from
-the latest commit. Put a reverse proxy/tunnel with TLS in front, e.g.
-Pangolin/newt with target `http://<host>:30250`; the app needs HTTPS for GPS.
+- `tiles` (one-shot, same image, entrypoint `plotter-tiles`): extracts the NL
+  PMTiles chart into `/mnt/hive/apps/plotter/tiles` as
+  `netherlands-<build>.pmtiles` plus `current.json` (the app follows it, so a
+  refreshed chart gets a new URL and clients never mix cached ranges). It exits
+  immediately when a chart exists; run it with `FORCE=1` to refresh and it
+  removes older files after publishing.
+- `web`: nginx on host port **30250**, waits for `tiles`, mounts the tiles
+  directory read-only at `/srv/tiles`; Range support, CORS on `/tiles/`,
+  `no-cache` for `sw.js`, `index.html` and `current.json`. Workers run as uid
+  568 (`apps`), the only uid the TrueNAS dataset ACL grants access to. The
+  image healthcheck fetches the app shell and a bundled font (tiles may be
+  absent, so they are not checked).
+
+Set `PLOTTER_TAG` to pin a version (default `latest`); redeploy/pull to update.
+**The GHCR package must be public** (GitHub -> Packages -> plotter -> Package
+settings -> Change visibility), otherwise the host needs registry credentials
+(`docker login ghcr.io` with a token that has `read:packages`). On TrueNAS,
+create the dataset (e.g. `hive/apps/plotter`) and install the compose file as a
+*Custom App*. Put a reverse proxy/tunnel with TLS in front, e.g. Pangolin/newt
+with target `http://<host>:30250`; the app needs HTTPS for GPS.
+
+Local build: `docker build --build-arg BUILD_ID=$(git rev-parse --short HEAD) -t plotter .`,
+then `docker run -p 8080:80 -v $PWD/public/tiles:/srv/tiles:ro plotter` (the
+mounted files must be readable by uid 568).
+
+The running build is shown in *Menu → About* (and in `data-build` on `<html>`).
+The service worker checks for a new version hourly, when the page becomes
+visible and when the device comes online, then applies it and reloads. While an
+anchor watch is armed, an alarm is sounding or a sheet input has focus, the
+reload waits: tap the "Update ready" toast, or it happens when the page is
+hidden.
 
 ### Any other static host
 
