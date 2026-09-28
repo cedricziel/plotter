@@ -376,10 +376,11 @@ export class App {
     const n = this.waypoints.size + 1;
     const w: Waypoint = { id: uid(), name: `WP ${String(n).padStart(2, '0')}`, lat: p.lat, lon: p.lon, created: Date.now() };
     this.waypoints.set(w.id, w);
-    await db.put('waypoints', w);
+    // Give immediate feedback on the long-press; persist afterwards.
     this.renderWaypointMarkers();
     if (openEditor) this.onWaypointTap(w.id);
     this.emit();
+    await db.put('waypoints', w);
     return w;
   }
 
