@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+.git
+.github
+.claude
+public/tiles/*.pmtiles
+*.log
+.DS_Store
+deploy/docker-compose.yml

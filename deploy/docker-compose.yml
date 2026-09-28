@@ -1,0 +1,26 @@
+# Image-based deployment (ghcr.io/cedricziel/plotter, built by .github/workflows/docker.yml):
+# a one-shot job that extracts the NL chart once, and nginx serving app + chart on host port 30250.
+# Used as a TrueNAS custom app on "hive"; works with plain `docker compose up -d`.
+# Pin a version with PLOTTER_TAG (e.g. main, v1.0.0, sha-1234567); default is latest.
+services:
+  tiles:
+    image: ghcr.io/cedricziel/plotter:${PLOTTER_TAG:-latest}
+    restart: "no"
+    # Same image, different entrypoint; exits 0 at once if a chart is already published.
+    entrypoint: ["plotter-tiles"]
+    environment:
+      OUT: /out/tiles
+      MAXZOOM: "14"
+    volumes:
+      - /mnt/hive/apps/plotter/tiles:/out/tiles
+  web:
+    image: ghcr.io/cedricziel/plotter:${PLOTTER_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      tiles:
+        condition: service_completed_successfully
+    # nginx workers run as uid 568 ("apps" on TrueNAS); the image ships a healthcheck.
+    ports:
+      - "30250:80"
+    volumes:
+      - /mnt/hive/apps/plotter/tiles:/srv/tiles:ro
