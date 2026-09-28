@@ -413,10 +413,10 @@ export class App {
     const w = this.waypoints.get(id);
     if (!w) return;
     Object.assign(w, patch);
-    await db.put('waypoints', w);
     this.renderRoute();
     this.updateProgress();
     this.emit();
+    await db.put('waypoints', w);
   }
 
   private moveWaypoint(id: string, ll: LatLon): Promise<void> {
@@ -462,8 +462,12 @@ export class App {
 
   /** "Go to": a one-waypoint route, reused between calls. */
   async goTo(id: string): Promise<void> {
-    let r = [...this.routes.values()].find((x) => x.name === 'Go to');
-    if (!r) r = await this.createRoute('Go to');
+    const stored = await db.getKv<string>('gotoRouteId').catch(() => undefined);
+    let r = stored ? this.routes.get(stored) : undefined;
+    if (!r) {
+      r = { id: uid(), name: 'Go to', waypointIds: [], created: Date.now() };
+      await db.setKv('gotoRouteId', r.id);
+    }
     r.waypointIds = [id];
     await this.saveRoute(r);
     await this.updateSettings({ activeRouteId: r.id });

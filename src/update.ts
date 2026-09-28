@@ -8,7 +8,8 @@ document.documentElement.dataset.build = __BUILD_ID__;
 
 /** True while a reload would lose something the user is doing right now. */
 function busy(app: App): boolean {
-  if (app.anchor?.armed || app.alarmReason) return true;
+  if (app.anchor?.armed || app.alarmReason || app.recording) return true;
+  if (app.settings.activeRouteId && app.progress && !app.progress.finished) return true;
   const a = document.activeElement;
   return !!a?.closest('#sheet') && (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement);
 }
@@ -50,9 +51,15 @@ export function initUpdates(app: App): void {
     })
     .catch(() => {});
 
+  // Apply a deferred update as soon as nothing is in progress any more.
+  const applyIfIdle = () => {
+    if (pending && !busy(app)) reload();
+  };
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && pending) reload();
+    if (document.visibilityState === 'hidden') applyIfIdle();
   });
+  document.addEventListener('focusout', () => setTimeout(applyIfIdle, 0));
+  app.subscribe(applyIfIdle);
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!upgrade) {
