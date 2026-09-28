@@ -1,6 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './ui/styles.css';
 import { App } from './app';
+import { startPlacement, showTipOnce } from './ui/destination';
 import { showDisclaimerOnce } from './ui/disclaimer';
 import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
@@ -23,6 +24,7 @@ async function main() {
   $('#btn-anchor').onclick = toggle('anchor', () => openAnchor(app));
   $('#btn-menu').onclick = toggle('menu', () => openMenu(app));
   $('#btn-night').onclick = () => void app.updateSettings({ theme: app.settings.theme === 'night' ? 'day' : 'night' });
+  $('#btn-dest').onclick = () => startPlacement(app);
   $('#btn-follow').onclick = () => {
     if (!app.fix) return toast('Waiting for GPS fix…');
     app.setFollow(true);
@@ -52,6 +54,8 @@ async function main() {
   app.emit();
 
   initUpdates(app);
+  if (new URLSearchParams(location.search).has('sim')) (window as unknown as { __plotter: App }).__plotter = app;
+  showTipOnce();
 }
 
 void main();

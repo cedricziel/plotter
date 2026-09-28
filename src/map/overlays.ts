@@ -4,11 +4,11 @@ import type { Theme } from './style';
 
 /** Overlay colours are chosen to stand out against the waterway palette. */
 const OVERLAY = {
-  day: { cog: '#000000', route: '#d6008a', track: '#e8590c', saved: '#8f5b2e', anchor: '#c92a2a', acc: '#1c7ed6' },
-  night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f' },
+  day: { cog: '#000000', route: '#d6008a', track: '#e8590c', saved: '#8f5b2e', anchor: '#c92a2a', acc: '#1c7ed6', nav: '#7b2cbf' },
+  night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f', nav: '#ff3b3b' },
 };
 
-export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'track-live', 'tracks', 'anchor'] as const;
+export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor'] as const;
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number];
 
 export const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -51,8 +51,34 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpec
       id: 'route',
       type: 'line',
       source: 'route',
-      filter: ['==', ['geometry-type'], 'LineString'],
-      paint: { 'line-color': c.route, 'line-width': 4, 'line-dasharray': [2, 1] },
+      filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'state'], 'active']],
+      paint: {
+        'line-color': c.route,
+        'line-width': 4,
+        'line-dasharray': [2, 1],
+        'line-opacity': ['match', ['get', 'state'], 'done', 0.35, 1],
+      },
+    },
+    {
+      id: 'route-active',
+      type: 'line',
+      source: 'route',
+      filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'state'], 'active']],
+      layout: { 'line-cap': 'round' },
+      paint: { 'line-color': c.route, 'line-width': 7 },
+    },
+    {
+      id: 'nav-line-casing',
+      type: 'line',
+      source: 'nav-line',
+      paint: { 'line-color': p.labelHalo, 'line-width': 9 },
+    },
+    {
+      id: 'nav-line',
+      type: 'line',
+      source: 'nav-line',
+      layout: { 'line-cap': 'butt' },
+      paint: { 'line-color': c.nav, 'line-width': 5, 'line-dasharray': [1.5, 1] },
     },
     {
       id: 'route-leg-label',

@@ -57,6 +57,15 @@ for trying the app on a desktop.
 Without a PMTiles file the app falls back to online OpenStreetMap raster tiles
 and says so; put the chart in place as described next.
 
+## How to navigate to a destination
+
+1. Tap **⚑+** (map button) or open **Route → ⌖ Set destination**. A crosshair appears at the map centre.
+2. Pan the map until the crosshair is on the target; the bar shows live distance and bearing from your boat.
+3. Tap **Go here** to steer to it, or **Add as stop** to append it to the active route (a new route is started if none is active).
+4. The strip under the instruments shows the waypoint, steering cue (◀ 12° / 12° ▶), DTW, BTW, cross-track error, ETA and the remaining route; a dashed course line is drawn from your boat to the waypoint. Stop with **✕** on the strip or **■ Stop navigation** in the Route sheet.
+
+Holding a finger on the map still drops a waypoint; a single tap does nothing.
+
 ## Creating the Netherlands PMTiles extract
 
 The basemap is a vector tile archive in [PMTiles](https://docs.protomaps.com/pmtiles/)

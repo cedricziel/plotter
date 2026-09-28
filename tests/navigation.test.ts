@@ -40,3 +40,38 @@ describe('routeProgress', () => {
     expect(routeProgress(a, [a, b], 0, 0)!.ttg).toBeNull();
   });
 });
+
+describe('guidance', () => {
+  const start = { lat: 52.0, lon: 5.0 };
+  const end = destination(start, 90, 2000);
+
+  it('has no cross-track error on the first waypoint', () => {
+    expect(routeProgress(start, [end], 0, 2, undefined, 90)!.xte).toBeNull();
+  });
+
+  it('reports signed cross-track error: positive when right of the leg', () => {
+    const onLine = destination(start, 90, 1000);
+    const right = destination(onLine, 180, 25);
+    const left = destination(onLine, 0, 40);
+    expect(routeProgress(onLine, [start, end], 1, 2)!.xte!).toBeCloseTo(0, 0);
+    expect(routeProgress(right, [start, end], 1, 2)!.xte!).toBeCloseTo(25, 0);
+    expect(routeProgress(left, [start, end], 1, 2)!.xte!).toBeCloseTo(-40, 0);
+  });
+
+  it('computes the steering cue as a normalised turn', () => {
+    const pos = destination(start, 90, 500);
+    expect(routeProgress(pos, [start, end], 1, 2, undefined, 60)!.steer!).toBeCloseTo(30, 0);
+    expect(routeProgress(pos, [start, end], 1, 2, undefined, 120)!.steer!).toBeCloseTo(-30, 0);
+    expect(routeProgress(pos, [start, end], 1, 2, undefined, 350)!.steer!).toBeCloseTo(100, 0);
+    expect(routeProgress(pos, [start, end], 1, 2, undefined, 271)!.steer!).toBeCloseTo(179, 0);
+    expect(routeProgress(pos, [start, end], 1, 2)!.steer).toBeNull();
+  });
+
+  it('computes VMG toward the waypoint', () => {
+    const pos = destination(start, 90, 500);
+    expect(routeProgress(pos, [start, end], 1, 4, undefined, 90)!.vmg!).toBeCloseTo(4, 3);
+    expect(routeProgress(pos, [start, end], 1, 4, undefined, 0)!.vmg!).toBeCloseTo(0, 3);
+    expect(routeProgress(pos, [start, end], 1, 4, undefined, 180 + 90)!.vmg!).toBeCloseTo(-4, 3);
+    expect(routeProgress(pos, [start, end], 1, null, undefined, 90)!.vmg).toBeNull();
+  });
+});

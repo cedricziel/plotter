@@ -53,6 +53,20 @@ export function destination(start: LatLon, brg: number, dist: number): LatLon {
   return { lat: toDeg(φ2), lon: ((toDeg(λ2) + 540) % 360) - 180 };
 }
 
+/** Signed cross-track distance in metres of `pos` from the great circle a→b; positive = right of the course. */
+export function crossTrack(pos: LatLon, a: LatLon, b: LatLon): number {
+  const d13 = distance(a, pos) / EARTH_RADIUS_M;
+  const θ13 = toRad(bearing(a, pos));
+  const θ12 = toRad(bearing(a, b));
+  return Math.asin(Math.sin(d13) * Math.sin(θ13 - θ12)) * EARTH_RADIUS_M;
+}
+
+/** Smallest signed turn from heading `from` to heading `to`, in (-180, 180]; positive = clockwise (starboard). */
+export function angleDiff(from: number, to: number): number {
+  const d = normalizeBearing(to - from);
+  return d > 180 ? d - 360 : d;
+}
+
 export interface Leg {
   from: LatLon;
   to: LatLon;

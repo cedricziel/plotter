@@ -1,4 +1,4 @@
-import { bearing, distance, routeLegs, timeToGo, type LatLon } from './geo';
+import { angleDiff, bearing, crossTrack, distance, routeLegs, timeToGo, type LatLon } from './geo';
 
 /** Waypoint counts as reached within this distance (m). */
 export const ARRIVAL_RADIUS = 30;
@@ -16,6 +16,12 @@ export interface RouteProgress {
   ttg: number | null;
   /** seconds to next waypoint at the given speed, or null */
   ttgNext: number | null;
+  /** signed cross-track error from the active leg, m (positive = right of course); null on the first waypoint */
+  xte: number | null;
+  /** velocity made good toward the next waypoint, m/s; null without speed and course */
+  vmg: number | null;
+  /** turn needed to head for the next waypoint, degrees in (-180, 180] (positive = starboard); null without course */
+  steer: number | null;
   /** true when the final waypoint has been reached */
   finished: boolean;
 }
@@ -30,6 +36,7 @@ export function routeProgress(
   nextIndex: number,
   speedMps: number | null,
   arrivalRadius = ARRIVAL_RADIUS,
+  cog?: number | null,
 ): RouteProgress | null {
   if (points.length === 0) return null;
   let idx = Math.max(0, Math.min(nextIndex, points.length - 1));
@@ -38,13 +45,17 @@ export function routeProgress(
   const dtw = distance(pos, next);
   const remaining = dtw + routeLegs(points.slice(idx)).total;
   const finished = idx === points.length - 1 && dtw <= arrivalRadius;
+  const btw = bearing(pos, next);
   return {
     nextIndex: idx,
     dtw,
-    btw: bearing(pos, next),
+    btw,
     remaining,
     ttg: timeToGo(remaining, speedMps),
     ttgNext: timeToGo(dtw, speedMps),
+    xte: idx > 0 ? crossTrack(pos, points[idx - 1], next) : null,
+    vmg: cog != null && speedMps != null ? speedMps * Math.cos(((cog - btw) * Math.PI) / 180) : null,
+    steer: cog != null ? angleDiff(cog, btw) : null,
     finished,
   };
 }

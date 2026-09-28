@@ -1,6 +1,17 @@
 import type { App } from '../app';
-import { formatBearing, formatCoord, formatDistance, formatDuration, formatSpeed, formatTime, speedLabel } from '../core/units';
+import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
 import { $, h } from './dom';
+
+const cell = (label: string, value: string, cls = '') =>
+  h('div', { class: `nav-cell ${cls}` }, h('small', null, label), h('b', null, value));
+
+/** Turn needed to reach the waypoint; hidden while COG is unknown or the boat is (nearly) stationary. */
+function steerCue(steer: number | null, sog: number | null | undefined): HTMLElement | null {
+  if (steer == null || sog == null || sog < 0.5) return null;
+  const deg = Math.round(Math.abs(steer));
+  if (deg <= 5) return h('span', { class: 'nav-steer on' }, '▲ on course');
+  return h('span', { class: `nav-steer${deg > 20 ? ' far' : ''}` }, steer < 0 ? `◀ ${deg}°` : `${deg}° ▶`);
+}
 
 /** Top instrument bar + navigation strip. Built once, updated in place. */
 export function mountInstruments(app: App): () => void {
@@ -64,22 +75,28 @@ export function mountInstruments(app: App): () => void {
       const du = app.settings.distanceUnit;
       const now = Date.now();
       nav.hidden = false;
-      const parts = [
-        h('span', { class: 'nav-to' }, p.finished ? '⚑ Arrived' : `➤ ${pts[p.nextIndex].name}`),
-        h('span', null, h('small', null, 'DTW '), formatDistance(p.dtw, du)),
-        h('span', null, h('small', null, 'BTW '), formatBearing(p.btw)),
-        h('span', null, h('small', null, 'ETA '), p.ttgNext != null ? formatTime(new Date(now + p.ttgNext * 1000)) : '--:--'),
-        pts.length - p.nextIndex > 1
-          ? h(
-              'span',
-              { class: 'nav-total' },
-              h('small', null, 'END '),
-              `${formatDistance(p.remaining, du)} · ${p.ttg != null ? formatTime(new Date(now + p.ttg * 1000)) : '--:--'}`,
-              h('small', null, p.ttg != null ? ` (${formatDuration(p.ttg)})` : ''),
-            )
-          : null,
-      ];
-      nav.replaceChildren(...parts.filter((x): x is HTMLSpanElement => !!x));
+      nav.replaceChildren(
+        h(
+          'div',
+          { class: 'nav-top' },
+          h('span', { class: 'nav-to' }, p.finished ? '⚑ Arrived' : `➤ ${pts[p.nextIndex].name}`),
+          steerCue(p.steer, f?.sog),
+          h('button', { class: 'nav-stop', 'aria-label': 'Stop navigation', title: 'Stop navigation', onclick: () => void app.stopNavigation() }, '✕'),
+        ),
+        h(
+          'div',
+          { class: 'nav-cells' },
+          cell('DTW', formatDistance(p.dtw, du)),
+          cell('BTW', formatBearing(p.btw)),
+          p.xte != null
+            ? cell(`XTE ${p.xte > 0 ? '◀' : '▶'}`, formatDistance(Math.abs(p.xte), du), Math.abs(p.xte) > 50 ? 'warn' : '')
+            : cell('VMG', formatSpeed(p.vmg != null ? Math.max(0, p.vmg) : null, app.settings.speedUnit)),
+          cell('ETA', p.ttgNext != null ? formatTime(new Date(now + p.ttgNext * 1000)) : '--:--'),
+          pts.length - p.nextIndex > 1
+            ? cell(`END ${p.ttg != null ? formatTime(new Date(now + p.ttg * 1000)) : '--:--'}`, formatDistance(p.remaining, du))
+            : null,
+        ),
+      );
     } else {
       nav.hidden = true;
     }

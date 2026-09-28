@@ -4,6 +4,7 @@ import { parseGpx, toGpx } from '../core/gpx';
 import type { Route } from '../core/model';
 import { formatBearing, formatCoord, formatDistance, formatDuration, formatTime } from '../core/units';
 import type { CogMinutes } from '../settings';
+import { startPlacement } from './destination';
 import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
 import { download, fileStamp, h, pickFile, toast } from './dom';
 import { closeSheet, openSheet, sheetOpen, updateSheet } from './sheet';
@@ -77,7 +78,11 @@ function routeBody(app: App): HTMLElement {
     h('button', { class: 'btn', onclick: () => void app.createRoute() }, '+ New'),
   );
 
-  const parts: HTMLElement[] = [picker];
+  const parts: (HTMLElement | null)[] = [
+    h('button', { class: 'btn primary block', onclick: () => startPlacement(app) }, '⌖ Set destination'),
+    route ? h('button', { class: 'btn danger block', onclick: () => void app.stopNavigation() }, '■ Stop navigation') : null,
+    picker,
+  ];
 
   if (route) {
     const pts = app.routePoints(route);
@@ -262,12 +267,7 @@ function waypointBody(app: App, id: string): HTMLElement {
         {
           class: 'btn primary',
           onclick: async () => {
-            // "Go to": a one-waypoint route, reused between calls.
-            let r = [...app.routes.values()].find((x) => x.name === 'Go to');
-            if (!r) r = await app.createRoute('Go to');
-            r.waypointIds = [id];
-            await app.saveRoute(r);
-            await app.updateSettings({ activeRouteId: r.id });
+            await app.goTo(id);
             closeSheet();
           },
         },

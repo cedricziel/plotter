@@ -49,6 +49,7 @@ export class App {
 
   progress: RouteProgress | null = null;
   nextIndex = 0;
+  private routeNext = -1;
 
   follow = true;
   private ship!: Marker;
@@ -175,6 +176,7 @@ export class App {
     if ('activeRouteId' in patch) {
       this.nextIndex = 0;
       void db.setKv('nextIndex', 0);
+      this.updateProgress();
     }
     this.renderOverlays();
     this.emit();
@@ -231,6 +233,7 @@ export class App {
     if (!this.map.isStyleLoaded() && !this.map.getSource('cog')) return;
     this.renderPositionOverlays();
     this.renderRoute();
+    this.renderNavLine();
     this.renderTracks();
     this.renderAnchor();
   }
@@ -278,15 +281,37 @@ export class App {
     return (this.settings.activeRouteId && this.routes.get(this.settings.activeRouteId)) || null;
   }
 
+  /** Course line from own ship to the waypoint being steered to. */
+  private renderNavLine(): void {
+    if (!this.map.getSource('nav-line')) return;
+    const pts = this.routePoints(this.activeRoute);
+    const to = this.fix && this.progress ? pts[this.progress.nextIndex] : null;
+    setOverlay(
+      this.map,
+      'nav-line',
+      to && this.fix
+        ? {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: [[this.fix.lon, this.fix.lat], [to.lon, to.lat]] },
+          }
+        : EMPTY,
+    );
+  }
+
   renderRoute(): void {
     if (!this.map.getSource('route')) return;
+    this.routeNext = this.nextIndex;
     const pts = this.routePoints(this.activeRoute);
     const { legs } = routeLegs(pts);
     setOverlay(this.map, 'route', {
       type: 'FeatureCollection',
-      features: legs.map((l) => ({
+      features: legs.map((l, i) => ({
         type: 'Feature',
-        properties: { label: `${formatDistance(l.distance, this.settings.distanceUnit)} · ${Math.round(l.bearing)}°` },
+        properties: {
+          label: `${formatDistance(l.distance, this.settings.distanceUnit)} · ${Math.round(l.bearing)}°`,
+          state: i + 1 === this.nextIndex ? 'active' : i + 1 < this.nextIndex ? 'done' : 'ahead',
+        },
         geometry: {
           type: 'LineString',
           coordinates: [
@@ -431,6 +456,28 @@ export class App {
     this.emit();
   }
 
+  /** "Go to": a one-waypoint route, reused between calls. */
+  async goTo(id: string): Promise<void> {
+    let r = [...this.routes.values()].find((x) => x.name === 'Go to');
+    if (!r) r = await this.createRoute('Go to');
+    r.waypointIds = [id];
+    await this.saveRoute(r);
+    await this.updateSettings({ activeRouteId: r.id });
+  }
+
+  /** Append a waypoint to the active route, starting a new one if none is active. */
+  async addStop(id: string): Promise<Route> {
+    const r = this.activeRoute ?? (await this.createRoute());
+    r.waypointIds.push(id);
+    await this.saveRoute(r);
+    return r;
+  }
+
+  /** Deselect the active route/destination. */
+  stopNavigation(): Promise<void> {
+    return this.updateSettings({ activeRouteId: null });
+  }
+
   setNextIndex(i: number): void {
     this.nextIndex = i;
     void db.setKv('nextIndex', i);
@@ -443,6 +490,7 @@ export class App {
     const pts = this.routePoints(this.activeRoute);
     if (!this.fix || pts.length === 0) {
       this.progress = null;
+      this.renderNavLine();
       return;
     }
     const clamped = Math.max(0, Math.min(pts.length - 1, this.nextIndex));
@@ -450,7 +498,7 @@ export class App {
       this.nextIndex = clamped;
       void db.setKv('nextIndex', clamped);
     }
-    const p = routeProgress(this.fix, pts, this.nextIndex, this.fix.sog, autoAdvance ? undefined : 0);
+    const p = routeProgress(this.fix, pts, this.nextIndex, this.fix.sog, autoAdvance ? undefined : 0, this.fix.cog);
     if (p && p.nextIndex !== this.nextIndex) {
       this.nextIndex = p.nextIndex;
       void db.setKv('nextIndex', p.nextIndex);
@@ -459,6 +507,8 @@ export class App {
       this.renderWaypointMarkers();
     }
     this.progress = p;
+    if (this.routeNext !== this.nextIndex) this.renderRoute();
+    this.renderNavLine();
   }
 
   async importData(data: { waypoints: Waypoint[]; routes: Route[]; tracks: Track[] }): Promise<void> {
