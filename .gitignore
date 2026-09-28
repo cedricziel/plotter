@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dev-dist/
+*.log
+.DS_Store
+# PMTiles extracts are large; build them locally (see README)
+public/tiles/*.pmtiles
