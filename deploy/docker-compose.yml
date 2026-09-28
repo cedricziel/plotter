@@ -1,0 +1,41 @@
+# Self-contained deployment: builds the app from git, creates the NL chart
+# extract once, and serves both with nginx on host port 30250.
+# Used as a TrueNAS custom app on "hive"; works with plain `docker compose up -d`.
+services:
+  build:
+    image: node:22-alpine
+    restart: "no"
+    environment:
+      REPO: https://github.com/cedricziel/plotter.git
+      REF: main
+      OUT: /out/www
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - apk add --no-cache curl >/dev/null && curl -fsSL "https://raw.githubusercontent.com/cedricziel/plotter/$$REF/deploy/build.sh" | sh
+    volumes:
+      - /mnt/hive/apps/plotter:/out
+  tiles:
+    image: alpine:3.22
+    restart: "no"
+    environment:
+      REF: main
+      OUT: /out/tiles
+      MAXZOOM: "14"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - apk add --no-cache curl >/dev/null && curl -fsSL "https://raw.githubusercontent.com/cedricziel/plotter/$$REF/deploy/tiles.sh" | sh
+    volumes:
+      - /mnt/hive/apps/plotter:/out
+  web:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    depends_on:
+      build:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - cp /out/www/.nginx.conf /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'
+    ports:
+      - "30250:80"
+    volumes:
+      - /mnt/hive/apps/plotter:/out:ro
