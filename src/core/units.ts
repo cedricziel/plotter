@@ -56,5 +56,5 @@ export function formatDuration(seconds: number | null): string {
 
 export function formatTime(d: Date | null): string {
   if (!d) return '--:--';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
