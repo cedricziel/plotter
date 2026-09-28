@@ -1,13 +1,24 @@
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
+// Identifies one build so a redeploy is visible in the running app (Menu → About).
+function buildId(): string {
+  if (process.env.BUILD_ID) return process.env.BUILD_ID;
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return String(Date.now());
+  }
+}
+
 export default defineConfig({
   // Relative base so the build works from any sub-directory (e.g. /apps/plotter/).
   base: './',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_ID__: JSON.stringify(buildId()) },
   build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
   server: { host: true },
   worker: { format: 'es' },

@@ -502,6 +502,7 @@ select {
 }
 :root[data-theme='night'] #toast { background: #1a0000; color: #ff3030; border: 1px solid #5c0000; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.tap.show { pointer-events: auto; cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   #alarm { animation: none; background: rgba(255, 0, 0, 0.85); }

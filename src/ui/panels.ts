@@ -511,7 +511,7 @@ function menuBody(app: App): HTMLElement {
     h('h3', null, 'About'),
     h('p', { class: 'hint' }, DISCLAIMER),
     h('button', { class: 'btn block', onclick: () => showDisclaimerOnce(true) }, 'Show disclaimer'),
-    h('p', { class: 'hint' }, `GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${__APP_VERSION__}`),
+    h('p', { class: 'hint' }, `GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${__APP_VERSION__} (${__BUILD_ID__})`),
   );
 }
 

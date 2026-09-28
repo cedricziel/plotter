@@ -1,12 +1,12 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './ui/styles.css';
-import { registerSW } from 'virtual:pwa-register';
 import { App } from './app';
 import { showDisclaimerOnce } from './ui/disclaimer';
 import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
 import { openAnchor, openMenu, openRoute, openTrack, openWaypoint, refresh } from './ui/panels';
 import { closeSheet, sheetOpen } from './ui/sheet';
+import { initUpdates } from './update';
 
 async function main() {
   showDisclaimerOnce();
@@ -51,15 +51,7 @@ async function main() {
   });
   app.emit();
 
-  registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      toast('Update available – reload to apply', 8000);
-    },
-    onOfflineReady() {
-      toast('Ready to work offline');
-    },
-  });
+  initUpdates(app);
 }
 
 void main();
