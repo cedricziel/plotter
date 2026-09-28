@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "Virtual chartplotter PWA for inland navigation in the Netherlands",
   "type": "module",
-  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -17,6 +16,7 @@
     "idb": "^8.0.3",
     "maplibre-gl": "^6.11.2",
     "pmtiles": "^4.5.0",
+    "workbox-cacheable-response": "^7.4.1",
     "workbox-core": "^7.4.1",
     "workbox-expiration": "^7.4.1",
     "workbox-precaching": "^7.4.1",
@@ -24,6 +24,8 @@
     "workbox-strategies": "^7.4.1"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
+    "@types/geojson": "^7946.0.16",
     "happy-dom": "^20.14.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
