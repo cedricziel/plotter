@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { language, plural, resolveLanguage, setLanguage, t } from '../src/i18n';
+import { language, num, plural, resolveLanguage, setLanguage, t } from '../src/i18n';
 import { de } from '../src/i18n/de';
 import { en } from '../src/i18n/en';
 
@@ -72,6 +72,13 @@ describe('t', () => {
     setLanguage('de');
     expect(t('maneuver.turnLeftInto', { name: 'IJ' })).toBe('Links abbiegen in IJ');
     expect(t('maneuver.turnLeftInto')).toBe('Links abbiegen in {name}');
+  });
+
+  it('formats a number with fixed decimals in the current language', () => {
+    expect(num(2.345, 1)).toBe('2.3');
+    setLanguage('de');
+    expect(num(2.345, 1)).toBe('2,3');
+    expect(num(1250, 0)).toBe('1250');
   });
 
   it('picks the one or other form by count', () => {

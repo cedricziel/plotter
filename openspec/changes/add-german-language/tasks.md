@@ -8,7 +8,7 @@
 
 ## 2. Numbers and times
 
-- [ ] 2.1 **German formatting (test first).** Extend `tests/units.test.ts` with German cases: `9,7`, `1,25 km`, `0,53 NM`, `53°05,288′N`, `005°50,524′E`, `1 h 05 min`, and a 24-hour `13:46`. Keep the existing English expectations unchanged. Implement the `locale` argument in `src/core/units.ts`. Verify: all unit tests pass with unchanged English output.
+- [x] 2.1 **German formatting (test first).** Extend `tests/units.test.ts` with German cases: `9,7`, `1,25 km`, `0,53 NM`, `53°05,288′N`, `005°50,524′E`, `1 h 05 min`, and a 24-hour `13:46`. Keep the existing English expectations unchanged. Implement the `locale` argument in `src/core/units.ts`. Verify: all unit tests pass with unchanged English output.
 
 ## 3. Maneuvers and voice
 

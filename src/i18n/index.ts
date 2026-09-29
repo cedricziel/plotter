@@ -1,3 +1,4 @@
+import { fixed } from '../core/units';
 import { de } from './de';
 import { en } from './en';
 
@@ -46,3 +47,6 @@ export function plural(key: PluralKey, count: number, params?: Params): string {
   const form = rules.select(count) === 'one' ? 'one' : 'other';
   return t(`${key}.${form}` as MessageKey, { count, ...params });
 }
+
+/** `value` with `digits` decimals and the current language's decimal mark. */
+export const num = (value: number, digits: number): string => fixed(value, digits, current);
