@@ -1,7 +1,9 @@
 import { Marker } from 'maplibre-gl';
 import type { App } from '../app';
 import { shapeInfo } from '../core/course';
+import { FIS_SOURCE } from '../core/fis';
 import { bearing, distance } from '../core/geo';
+import { bridgeLabel, noteParts } from '../core/place-info';
 import { formatBearing, formatDistance } from '../core/units';
 import type { Place, PlaceInfo } from '../core/waterway-data';
 import { $, h, toast } from './dom';
@@ -10,6 +12,7 @@ import { resetSearch, searchBox } from './search';
 import { closeSheet } from './sheet';
 
 const TIP_KEY = 'plotter.tip.destination';
+const NOTE_CHARS = 80;
 
 let wired = false;
 let placing = false;
@@ -163,7 +166,7 @@ export function showDestinationCard(app: App, place: Place): void {
   const f = app.fix;
   const du = app.settings.distanceUnit;
   const sub = [
-    KIND_LABEL[place.kind],
+    bridgeLabel(place.info) ?? KIND_LABEL[place.kind],
     f ? `${formatDistance(distance(f, place), du)} · ${formatBearing(bearing(f, place))}` : null,
   ]
     .filter(Boolean)
@@ -236,13 +239,27 @@ export function showDestinationCard(app: App, place: Place): void {
   wire(app);
 }
 
+/** The first line of a note, with the rest (or the untruncated first line) one tap away. */
+function noteRow(text: string): string | HTMLElement {
+  const { first, rest } = noteParts(text);
+  const short = first.length > NOTE_CHARS ? `${first.slice(0, NOTE_CHARS).trimEnd()}…` : first;
+  if (!rest && short === first) return first;
+  return h(
+    'details',
+    { class: 'dest-note' },
+    h('summary', null, short),
+    h('div', null, short === first ? rest : [first, rest].filter(Boolean).join('\n')),
+  );
+}
+
 function infoRows(info: PlaceInfo | undefined): HTMLElement | null {
   if (!info) return null;
   const rows: [string, string | HTMLElement][] = [];
   if (info.vhf) rows.push(['VHF', `channel ${info.vhf}`]);
   if (info.berths) rows.push(['Berths', String(info.berths)]);
-  if (info.clearance) rows.push(['Clearance', `${info.clearance} m`]);
-  if (info.openingHours) rows.push(['Hours', info.openingHours]);
+  if (info.clearance) rows.push(['Clearance', `${info.clearance} m${info.canOpen ? ' (closed)' : ''}`]);
+  if (info.width) rows.push(['Width', `${info.width} m`]);
+  if (info.openingHours) rows.push([info.source ? 'Operation' : 'Hours', noteRow(info.openingHours)]);
   if (info.operator) rows.push(['Operator', info.operator]);
   if (info.phone) {
     const digits = info.phone.replace(/[^\d+]/g, '');
@@ -252,6 +269,7 @@ function infoRows(info: PlaceInfo | undefined): HTMLElement | null {
     const host = new URL(info.website).hostname.replace(/^www\./, '');
     rows.push(['Web', h('a', { href: info.website, target: '_blank', rel: 'noopener' }, host)]);
   }
+  if (info.source === FIS_SOURCE) rows.push(['Source', 'Vaarweginformatie']);
   if (!rows.length) return null;
   return h('dl', { class: 'dest-info' }, ...rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)]));
 }
