@@ -9,9 +9,11 @@ import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
 import { openAnchor, openMenu, openRoute, openTrack, openWaypoint, refresh } from './ui/panels';
 import { closeSheet, sheetOpen } from './ui/sheet';
+import { fitStandaloneViewport } from './ui/viewport';
 import { initUpdates } from './update';
 
 async function main() {
+  fitStandaloneViewport();
   showDisclaimerOnce();
 
   const app = new App();
