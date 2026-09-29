@@ -1,6 +1,18 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment happy-dom
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { App } from '../src/app';
 import { PlaceIndex, normalize } from '../src/core/search';
 import type { Place } from '../src/core/waterway-data';
+import { DEFAULT_SETTINGS } from '../src/settings';
+
+const search = vi.hoisted(() => vi.fn());
+vi.mock('../src/services/api', async (orig) => ({
+  ...(await orig<typeof import('../src/services/api')>()),
+  api: { search },
+}));
+const { SearchBox, resetSearch } = await import('../src/ui/search');
+const { ApiError } = await import('../src/services/api');
 
 const places: Place[] = [
   { name: 'Hoorn', kind: 'town', lat: 52.65, lon: 5.07 },
@@ -71,5 +83,93 @@ describe('PlaceIndex.search', () => {
   it('reports distance only when a position is given', () => {
     expect(index.search('alkmaar')[0].distance).toBeUndefined();
     expect(index.search('alkmaar', { near: { lat: 52.63, lon: 4.75 } })[0].distance).toBeCloseTo(0, 0);
+  });
+});
+
+describe('SearchBox', () => {
+  const recent: Place = {
+    name: 'Jachthaven Hoorn',
+    kind: 'marina',
+    lat: 52.64,
+    lon: 5.06,
+  };
+  const app = {
+    fix: null,
+    settings: DEFAULT_SETTINGS,
+    recents: [recent],
+    waypoints: new Map(),
+    trips: [],
+    map: { getCenter: () => ({ lat: 52, lng: 5 }) },
+  } as unknown as App;
+  const onPick = vi.fn();
+  const box = () => <SearchBox app={app} scope="sheet" onPick={onPick} />;
+  const input = () => screen.getByLabelText('Search destination') as HTMLInputElement;
+  const type = (v: string) => fireEvent.change(input(), { target: { value: v } });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    search.mockReset();
+    onPick.mockReset();
+  });
+  afterEach(() => {
+    cleanup();
+    act(() => resetSearch('sheet'));
+    vi.useRealTimers();
+  });
+
+  it('renders the field with its attributes and a polite note', () => {
+    const { container } = render(box());
+    expect(container.querySelector('.search')?.getAttribute('data-scope')).toBe('sheet');
+    expect(input().getAttribute('enterkeyhint')).toBe('search');
+    expect(input().getAttribute('autocomplete')).toBe('off');
+    expect(container.querySelector('.search-note')?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('lists recent destinations on focus', () => {
+    render(box());
+    fireEvent.focus(input());
+    expect(screen.getByText('Recent destinations')).toBeTruthy();
+    fireEvent.click(screen.getByText('Jachthaven Hoorn').closest('button')!);
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ name: 'Jachthaven Hoorn' }));
+  });
+
+  it('asks for two letters before searching', () => {
+    render(box());
+    type('h');
+    expect(screen.getByText('Type at least 2 letters')).toBeTruthy();
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('debounces the lookup and shows the results', async () => {
+    search.mockResolvedValue([{ name: 'Hoorn', kind: 'town', lat: 52.65, lon: 5.07 }]);
+    render(box());
+    type('ho');
+    type('hoo');
+    expect(search).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(search.mock.calls[0][0]).toBe('hoo');
+    expect(screen.getByText('Hoorn')).toBeTruthy();
+  });
+
+  it('falls back to saved places when the service is unreachable', async () => {
+    search.mockRejectedValue(new ApiError('unavailable', 0, 'down'));
+    render(box());
+    type('jacht');
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(screen.getByText('Search service not reachable – showing saved places')).toBeTruthy();
+    expect(screen.getByText('Jachthaven Hoorn')).toBeTruthy();
+  });
+
+  it('keeps the query when the box remounts and clears it on reset', () => {
+    const { unmount } = render(box());
+    type('hoorn');
+    unmount();
+    render(box());
+    expect(input().value).toBe('hoorn');
+    cleanup();
+    act(() => resetSearch('sheet'));
+    render(box());
+    expect(input().value).toBe('');
   });
 });

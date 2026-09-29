@@ -6,28 +6,35 @@ import { searchTrips } from '../core/trips';
 import { formatDistance } from '../core/units';
 import type { Place } from '../core/waterway-data';
 import { ApiError, api } from '../services/api';
-import { h } from './dom';
-import { KIND_LABEL, kindIcon, iconEl } from './icons';
+import { KIND_LABEL, KindIcon } from './icons';
+import { createStore, useStore, type Store } from './store';
 
 const DEBOUNCE_MS = 250;
 const MIN_CHARS = 2;
 
-type ScopeName = 'sheet' | 'bar';
+export type ScopeName = 'sheet' | 'bar';
 
-interface Scope {
-  root: string;
+interface State {
   query: string;
   rows: ApiSearchResult[];
   heading: string;
   note: string;
+}
+
+interface Scope {
+  state: Store<State>;
   timer: number | undefined;
   abort: AbortController | null;
 }
 
+const EMPTY: State = { query: '', rows: [], heading: '', note: '' };
+
 const scopes: Record<ScopeName, Scope> = {
-  sheet: { root: '#sheet .search', query: '', rows: [], heading: '', note: '', timer: undefined, abort: null },
-  bar: { root: '#dest-bar .search', query: '', rows: [], heading: '', note: '', timer: undefined, abort: null },
+  sheet: { state: createStore(EMPTY), timer: undefined, abort: null },
+  bar: { state: createStore(EMPTY), timer: undefined, abort: null },
 };
+
+const patch = (s: Scope, p: Partial<State>) => s.state.set({ ...s.state.get(), ...p });
 
 /** Saved waypoints, recent destinations and places of saved corridors, for when the service is out of reach. */
 function localMatches(app: App, q: string): ApiSearchResult[] {
@@ -35,7 +42,10 @@ function localMatches(app: App, q: string): ApiSearchResult[] {
   const waypoints: Place[] = [...app.waypoints.values()]
     .filter((w) => !w.hidden)
     .map((w) => ({ name: w.name, kind: 'waypoint', lat: w.lat, lon: w.lon }));
-  const own = new PlaceIndex([...app.recents, ...waypoints]).search(q, { near, limit: 12 });
+  const own = new PlaceIndex([...app.recents, ...waypoints]).search(q, {
+    near,
+    limit: 12,
+  });
   const saved = searchTrips(app.trips, q, near, 12).map((p) => (near ? { ...p, distance: distance(near, p) } : p));
   const seen = new Set<string>();
   return [...own, ...saved].filter((p) => {
@@ -49,117 +59,113 @@ function recentRows(app: App): ApiSearchResult[] {
   return app.recents.map((p) => (f ? { ...p, distance: distance(f, p) } : p));
 }
 
-function renderRows(app: App, s: Scope, onPick: (p: Place) => void, root = document.querySelector(s.root)): void {
-  if (!root) return;
-  const du = app.settings.distanceUnit;
-  root.querySelector('.search-note')!.textContent = s.note;
-  const list = root.querySelector('.search-results')!;
-  const rows = s.rows.map((r) =>
-    h(
-      'li',
-      null,
-      h(
-        'button',
-        { class: 'result', type: 'button', onclick: () => onPick(r) },
-        iconEl(kindIcon(r.kind), 'result-ico'),
-        h(
-          'span',
-          { class: 'result-text' },
-          h('b', null, r.name),
-          h(
-            'small',
-            null,
-            [KIND_LABEL[r.kind], r.distance != null ? formatDistance(r.distance, du) : null]
-              .filter(Boolean)
-              .join(' · '),
-          ),
-        ),
-      ),
-    ),
-  );
-  list.replaceChildren(...(s.heading && rows.length ? [h('li', { class: 'result-heading' }, s.heading)] : []), ...rows);
-}
-
-async function lookup(app: App, s: Scope, q: string, onPick: (p: Place) => void): Promise<void> {
+async function lookup(app: App, s: Scope, q: string): Promise<void> {
   s.abort?.abort();
   const ac = (s.abort = new AbortController());
-  s.note = 'Searching…';
-  renderRows(app, s, onPick);
+  patch(s, { note: 'Searching…' });
   const near = app.fix
     ? { lat: app.fix.lat, lon: app.fix.lon }
     : app.map
       ? { lat: app.map.getCenter().lat, lon: app.map.getCenter().lng }
       : null;
   try {
-    s.rows = await api.search(q, near, ac.signal);
-    s.heading = '';
-    s.note = s.rows.length ? '' : 'No harbour, lock, town or waterway found';
+    const rows = await api.search(q, near, ac.signal);
+    if (ac.signal.aborted) return;
+    patch(s, {
+      rows,
+      heading: '',
+      note: rows.length ? '' : 'No harbour, lock, town or waterway found',
+    });
   } catch (e) {
-    if ((e as Error).name === 'AbortError') return;
-    s.rows = localMatches(app, q);
-    s.heading = '';
-    s.note =
-      e instanceof ApiError && e.kind === 'rejected'
-        ? e.message
-        : `Search service not reachable – ${s.rows.length ? 'showing saved places' : 'no saved places match'}`;
+    if ((e as Error).name === 'AbortError' || ac.signal.aborted) return;
+    const rows = localMatches(app, q);
+    patch(s, {
+      rows,
+      heading: '',
+      note:
+        e instanceof ApiError && e.kind === 'rejected'
+          ? e.message
+          : `Search service not reachable – ${rows.length ? 'showing saved places' : 'no saved places match'}`,
+    });
   }
-  if (ac.signal.aborted) return;
-  renderRows(app, s, onPick);
 }
 
 /**
  * Destination search field with result rows. State lives in the module so the field
  * survives the Route sheet being re-rendered every second; `onPick` receives the chosen place.
  */
-export function searchBox(app: App, name: ScopeName, onPick: (p: Place) => void): HTMLElement {
-  const s = scopes[name];
-  const input = h('input', {
-    type: 'search',
-    class: 'search-input',
-    placeholder: 'Search harbour, lock, town, waterway…',
-    'aria-label': 'Search destination',
-    autocomplete: 'off',
-    autocapitalize: 'off',
-    spellcheck: false,
-    enterkeyhint: 'search',
-    oninput: () => {
-      s.query = input.value;
-      clearTimeout(s.timer);
-      const q = input.value.trim();
-      if (q.length < MIN_CHARS) {
-        s.abort?.abort();
-        s.rows = q ? [] : recentRows(app);
-        s.heading = q ? '' : 'Recent destinations';
-        s.note = q ? `Type at least ${MIN_CHARS} letters` : '';
-        renderRows(app, s, onPick);
-        return;
-      }
-      s.timer = window.setTimeout(() => void lookup(app, s, q, onPick), DEBOUNCE_MS);
-    },
-    onfocus: () => {
-      if (!input.value.trim() && !s.rows.length) {
-        s.rows = recentRows(app);
-        s.heading = 'Recent destinations';
-        renderRows(app, s, onPick);
-      }
-    },
-  });
-  input.value = s.query;
-  const results = h('ul', { class: 'search-results list' });
-  const box = h(
-    'div',
-    { class: 'search', 'data-scope': name },
-    input,
-    h('div', { class: 'search-note', 'aria-live': 'polite' }),
-    results,
+export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; onPick: (p: Place) => void }) {
+  const s = scopes[scope];
+  const { query, rows, heading, note } = useStore(s.state);
+  const du = app.settings.distanceUnit;
+
+  return (
+    <div className="search" data-scope={scope}>
+      <input
+        type="search"
+        className="search-input"
+        placeholder="Search harbour, lock, town, waterway…"
+        aria-label="Search destination"
+        autoComplete="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        value={query}
+        onChange={(e) => {
+          const value = e.target.value;
+          clearTimeout(s.timer);
+          const q = value.trim();
+          if (q.length < MIN_CHARS) {
+            s.abort?.abort();
+            patch(s, {
+              query: value,
+              rows: q ? [] : recentRows(app),
+              heading: q ? '' : 'Recent destinations',
+              note: q ? `Type at least ${MIN_CHARS} letters` : '',
+            });
+            return;
+          }
+          patch(s, { query: value });
+          s.timer = window.setTimeout(() => void lookup(app, s, q), DEBOUNCE_MS);
+        }}
+        onFocus={() => {
+          if (!query.trim() && !rows.length) patch(s, { rows: recentRows(app), heading: 'Recent destinations' });
+        }}
+      />
+      <div className="search-note" aria-live="polite">
+        {note}
+      </div>
+      <ul className="search-results list">
+        {heading && rows.length > 0 && <li className="result-heading">{heading}</li>}
+        {rows.map((r, i) => (
+          <li key={`${r.name}|${r.lat}|${r.lon}|${i}`}>
+            <button className="result" type="button" onClick={() => onPick(r)}>
+              <KindIcon kind={r.kind} className="result-ico" />
+              <span className="result-text">
+                <b>{r.name}</b>
+                <small>
+                  {[KIND_LABEL[r.kind], r.distance != null ? formatDistance(r.distance, du) : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </small>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
-  renderRows(app, s, onPick, box);
-  return box;
 }
 
 export function resetSearch(name: ScopeName): void {
   const s = scopes[name];
   s.abort?.abort();
   clearTimeout(s.timer);
-  Object.assign(s, { query: '', rows: [], heading: '', note: '', abort: null });
+  s.abort = null;
+  s.state.set(EMPTY);
+}
+
+/** Puts a scope into a given state without typing, for stories. */
+export function seedSearch(name: ScopeName, state: Partial<State>): void {
+  scopes[name].state.set({ ...EMPTY, ...state });
 }
