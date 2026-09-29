@@ -107,6 +107,20 @@ describe('viewportLoader', () => {
     expect(load).toHaveBeenCalledTimes(3);
   });
 
+  it('does not start a second request while one covering the view is still loading', async () => {
+    let finish: (items: string[]) => void = () => {};
+    load.mockImplementationOnce(() => new Promise<string[]>((resolve) => (finish = resolve)));
+    const loader = mount();
+    await loader.refresh();
+    await loader.refresh();
+    expect(load).toHaveBeenCalledTimes(1);
+    finish(['a']);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(render).toHaveBeenLastCalledWith(['a']);
+    await loader.refresh();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
   it('waits for the pan to settle', async () => {
     mount();
     await vi.advanceTimersByTimeAsync(0);

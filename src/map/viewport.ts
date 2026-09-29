@@ -32,6 +32,7 @@ export interface ViewportLoaderOptions<T> {
 export function viewportLoader<T>(map: MlMap, o: ViewportLoaderOptions<T>): { refresh: () => Promise<void> } {
   let shown: T[] = [];
   let fetched: { box: Box; zoom: number } | null = null;
+  let loading: { box: Box; zoom: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AbortController | undefined;
 
@@ -40,10 +41,12 @@ export function viewportLoader<T>(map: MlMap, o: ViewportLoaderOptions<T>): { re
     if (zoom < o.minZoom || o.enabled?.() === false) return;
     const b = map.getBounds();
     const view: Box = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-    if (fetched && inside(view, fetched.box) && Math.abs(zoom - fetched.zoom) < 1) return;
+    const covers = (c: { box: Box; zoom: number } | null) => c && inside(view, c.box) && Math.abs(zoom - c.zoom) < 1;
+    if (covers(fetched) || covers(loading)) return;
     pending?.abort();
     const ctl = (pending = new AbortController());
     const box = padded(view, o.pad, o.maxSpan);
+    loading = { box, zoom };
     try {
       shown = await o.load(box, ctl.signal);
       fetched = { box, zoom };
@@ -51,6 +54,8 @@ export function viewportLoader<T>(map: MlMap, o: ViewportLoaderOptions<T>): { re
       if ((e as Error).name === 'AbortError') return;
       shown = o.fallback(view);
       fetched = null;
+    } finally {
+      if (pending === ctl) loading = null;
     }
     o.render(shown);
   };
