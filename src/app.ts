@@ -1,21 +1,28 @@
 import { AttributionControl, Map as MlMap, Marker, ScaleControl, addProtocol, setWorkerUrl } from 'maplibre-gl';
 // MapLibre 6 locates its module worker at runtime; let Vite bundle it explicitly.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
-import { Protocol } from 'pmtiles';
+import { PMTiles, Protocol } from 'pmtiles';
 import { alarmDebounce, checkAnchor, type AnchorCheck, type AnchorWatch } from './core/anchor';
-import { circlePolygon, destination, routeLegs, type LatLon } from './core/geo';
-import type { Route, Track, Waypoint } from './core/model';
+import { Announcer, OffCourseMonitor, pointAlong, shapeInfo, shapeProgress, withConnectors, type ShapeInfo } from './core/course';
+import { circlePolygon, destination, routeLegs, timeToGo, type LatLon } from './core/geo';
+import type { CourseDestination, CourseManeuver, Route, Track, Waypoint } from './core/model';
 import { uid } from './core/model';
 import { routeProgress, type RouteProgress } from './core/navigation';
+import { decodePolyline, encodePolyline } from './core/polyline';
+import type { Maneuver } from './core/routing';
+import { TripRouter, type Trip } from './core/trips';
+import type { Place } from './core/waterway-data';
 import { shouldLogPoint } from './core/track';
 import { formatDistance, formatDuration } from './core/units';
 import { onLongPress } from './map/longpress';
 import { EMPTY, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
 import { Alarm } from './services/alarm';
+import { ApiError, api } from './services/api';
 import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
 import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
+import { speak } from './services/voice';
 import { WakeLock } from './services/wakelock';
 import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
 import { $, h, toast } from './ui/dom';
@@ -52,6 +59,20 @@ export class App {
   progress: RouteProgress | null = null;
   nextIndex = 0;
   private routeNext = -1;
+  private renderedAlong = -1;
+  private along: number | undefined;
+  private shapes = new WeakMap<Route, ShapeInfo>();
+
+  trips: Trip[] = [];
+  recents: Place[] = [];
+  private tripRouter = new TripRouter();
+  private protocol!: Protocol;
+  /** set while a saved-corridor download runs */
+  offline: { routeId: string; phase: 'estimating' | 'downloading'; done: number; total: number; cancel: () => void } | null = null;
+  private offMonitor = new OffCourseMonitor();
+  private announcer = new Announcer();
+  offCourse = false;
+  recalculating = false;
 
   follow = true;
   private ship!: Marker;
@@ -71,12 +92,15 @@ export class App {
     const [wps, rts, trks] = await Promise.all([db.all('waypoints'), db.all('routes'), db.all('tracks')]).catch(
       () => [[], [], []] as [Waypoint[], Route[], Track[]],
     );
+    this.trips = await db.all('trips').catch(() => []);
+    this.recents = (await db.getKv<Place[]>('recents').catch(() => undefined)) ?? [];
     wps.forEach((w) => this.waypoints.set(w.id, w));
     rts.forEach((r) => this.routes.set(r.id, r));
     trks.forEach((t) => this.tracks.set(t.id, t));
 
     setWorkerUrl(maplibreWorkerUrl);
     const protocol = new Protocol();
+    this.protocol = protocol;
     addProtocol('pmtiles', protocol.tile);
     this.chartUrl = await resolveChartUrl(this.settings.pmtilesUrl);
     this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
@@ -179,6 +203,7 @@ export class App {
     if ('keepAwake' in patch) void this.updateWakeLock();
     if ('activeRouteId' in patch) {
       this.nextIndex = 0;
+      this.resetCourseTracking();
       void db.setKv('nextIndex', 0);
       this.updateProgress();
     }
@@ -285,11 +310,16 @@ export class App {
     return (this.settings.activeRouteId && this.routes.get(this.settings.activeRouteId)) || null;
   }
 
-  /** Course line from own ship to the waypoint being steered to. */
+  /** Course line from own ship to the waypoint being steered to (to the course, once well off a charted one). */
   private renderNavLine(): void {
     if (!this.map.getSource('nav-line')) return;
-    const pts = this.routePoints(this.activeRoute);
-    const to = this.fix && this.progress ? pts[this.progress.nextIndex] : null;
+    const route = this.activeRoute;
+    const pts = this.routePoints(route);
+    let to: LatLon | null | undefined = this.fix && this.progress ? pts[this.progress.nextIndex] : null;
+    if (route?.shape) {
+      const off = this.progress?.xte != null ? Math.abs(this.progress.xte) : 0;
+      to = this.fix && this.progress && this.along != null && off > 60 ? pointAlong(this.shapeOf(route), this.along + 100) : null;
+    }
     setOverlay(
       this.map,
       'nav-line',
@@ -306,7 +336,14 @@ export class App {
   renderRoute(): void {
     if (!this.map.getSource('route')) return;
     this.routeNext = this.nextIndex;
-    const pts = this.routePoints(this.activeRoute);
+    const route = this.activeRoute;
+    if (route?.shape) {
+      this.renderCourse(route);
+      this.renderWaypointMarkers();
+      return;
+    }
+    setOverlay(this.map, 'maneuvers', EMPTY);
+    const pts = this.routePoints(route);
     const { legs } = routeLegs(pts);
     setOverlay(this.map, 'route', {
       type: 'FeatureCollection',
@@ -326,6 +363,45 @@ export class App {
       })),
     });
     this.renderWaypointMarkers();
+  }
+
+  /** A charted course follows its shape: the part behind the boat dimmed, the rest solid, maneuvers as dots. */
+  private renderCourse(route: Route): void {
+    const shape = route.shape!;
+    const info = this.shapeOf(route);
+    const along = this.fix && this.along != null ? this.along : 0;
+    this.renderedAlong = along;
+    const split = along > 0 ? pointAlong(info, along) : null;
+    let cut = 1;
+    while (cut < info.cum.length - 1 && info.cum[cut] < along) cut++;
+    const done = split ? [...shape.slice(0, cut), [split.lon, split.lat]] : [];
+    const rest = split ? [[split.lon, split.lat], ...shape.slice(cut)] : shape;
+    const line = (coordinates: number[][], state: string): GeoJSON.Feature => ({
+      type: 'Feature',
+      properties: { state },
+      geometry: { type: 'LineString', coordinates },
+    });
+    setOverlay(this.map, 'route', {
+      type: 'FeatureCollection',
+      features: [...(done.length > 1 ? [line(done, 'done')] : []), ...(rest.length > 1 ? [line(rest, 'active')] : [])],
+    });
+    const nextWp = route.waypointIds[this.nextIndex];
+    setOverlay(this.map, 'maneuvers', {
+      type: 'FeatureCollection',
+      features: (route.maneuvers ?? [])
+        .filter((m) => m.type !== 'depart' && m.type !== 'arrive')
+        .map((m) => ({
+          type: 'Feature',
+          properties: { type: m.type, next: m.wp === nextWp },
+          geometry: { type: 'Point', coordinates: [m.lon, m.lat] },
+        })),
+    });
+  }
+
+  private shapeOf(route: Route): ShapeInfo {
+    let info = this.shapes.get(route);
+    if (!info) this.shapes.set(route, (info = shapeInfo(route.shape!)));
+    return info;
   }
 
   renderTracks(): void {
@@ -372,6 +448,11 @@ export class App {
       }
     }
     for (const w of this.waypoints.values()) {
+      if (w.hidden) {
+        this.wpMarkers.get(w.id)?.remove();
+        this.wpMarkers.delete(w.id);
+        continue;
+      }
       let m = this.wpMarkers.get(w.id);
       if (!m) {
         m = createWaypointMarker(w, {
@@ -397,9 +478,9 @@ export class App {
 
   // ---- waypoints & routes -----------------------------------------------
 
-  async addWaypoint(p: LatLon, openEditor = false): Promise<Waypoint> {
+  async addWaypoint(p: LatLon, openEditor = false, name?: string): Promise<Waypoint> {
     const n = this.waypoints.size + 1;
-    const w: Waypoint = { id: uid(), name: `WP ${String(n).padStart(2, '0')}`, lat: p.lat, lon: p.lon, created: Date.now() };
+    const w: Waypoint = { id: uid(), name: name ?? `WP ${String(n).padStart(2, '0')}`, lat: p.lat, lon: p.lon, created: Date.now() };
     this.waypoints.set(w.id, w);
     // Give immediate feedback on the long-press; persist afterwards.
     this.renderWaypointMarkers();
@@ -475,7 +556,13 @@ export class App {
 
   /** Append a waypoint to the active route, starting a new one if none is active. */
   async addStop(id: string): Promise<Route> {
-    const r = this.activeRoute ?? (await this.createRoute());
+    const active = this.activeRoute;
+    const stop = this.waypoints.get(id);
+    if (active?.shape && active.dest && stop) {
+      await this.chartCourse({ name: stop.name, lat: stop.lat, lon: stop.lon }, { via: [active.dest] });
+      return this.activeRoute ?? active;
+    }
+    const r = active ?? (await this.createRoute());
     r.waypointIds.push(id);
     await this.saveRoute(r);
     return r;
@@ -494,8 +581,17 @@ export class App {
     this.emit();
   }
 
+  private resetCourseTracking(): void {
+    this.along = undefined;
+    this.renderedAlong = -1;
+    this.offMonitor.reset();
+    this.offCourse = false;
+    this.announcer = new Announcer();
+  }
+
   private updateProgress(autoAdvance = true): void {
-    const pts = this.routePoints(this.activeRoute);
+    const route = this.activeRoute;
+    const pts = this.routePoints(route);
     if (!this.fix || pts.length === 0) {
       this.progress = null;
       this.renderNavLine();
@@ -506,17 +602,64 @@ export class App {
       this.nextIndex = clamped;
       void db.setKv('nextIndex', clamped);
     }
-    const p = routeProgress(this.fix, pts, this.nextIndex, this.fix.sog, autoAdvance ? undefined : 0, this.fix.cog);
+    const charted = !!(route?.shape && route.maneuvers);
+    let p: RouteProgress | null;
+    if (charted) {
+      const sp = shapeProgress(this.shapeOf(route!), route!.maneuvers!, this.fix, {
+        speed: this.fix.sog,
+        cog: this.fix.cog,
+        index: this.nextIndex,
+        hint: this.along,
+      });
+      this.along = sp?.along;
+      p = sp;
+    } else {
+      p = routeProgress(this.fix, pts, this.nextIndex, this.fix.sog, autoAdvance ? undefined : 0, this.fix.cog);
+    }
+    if (p && !(this.fix.sog != null && this.fix.sog >= 0.5)) {
+      p.ttg = timeToGo(p.remaining, this.settings.cruiseSpeed);
+      p.ttgNext = timeToGo(p.dtw, this.settings.cruiseSpeed);
+    }
     if (p && p.nextIndex !== this.nextIndex) {
       this.nextIndex = p.nextIndex;
       void db.setKv('nextIndex', p.nextIndex);
       navigator.vibrate?.(150);
-      toast(`Waypoint reached – next: ${pts[p.nextIndex].name}`);
+      if (!charted) toast(`Waypoint reached – next: ${pts[p.nextIndex].name}`);
       this.renderWaypointMarkers();
     }
     this.progress = p;
-    if (this.routeNext !== this.nextIndex) this.renderRoute();
+    if (charted && p) this.followCourse(route!, p);
+    else if (this.offCourse || this.along != null) this.resetCourseTracking();
+    const moved = charted && this.along != null && Math.abs(this.along - this.renderedAlong) >= 50;
+    if (this.routeNext !== this.nextIndex || moved) this.renderRoute();
     this.renderNavLine();
+  }
+
+  /** The maneuver the strip and the voice prompts are counting down to. */
+  nextManeuver(route: Route | null = this.activeRoute): CourseManeuver | null {
+    if (!route?.maneuvers) return null;
+    const wp = route.waypointIds[this.progress?.nextIndex ?? this.nextIndex];
+    return route.maneuvers.find((m) => m.wp === wp) ?? null;
+  }
+
+  private followCourse(route: Route, p: RouteProgress): void {
+    const next = this.nextManeuver(route);
+    if (next && this.settings.voicePrompts && !p.finished) {
+      const said = this.announcer.update(next.wp ?? next.text, p.dtw, next.text);
+      if (said) speak(said);
+    }
+    const realFix = this.gpsStatus === 'ok' && (this.fix?.accuracy ?? Infinity) <= 50;
+    const state = this.offMonitor.update(Date.now(), p.finished ? null : p.xte, realFix);
+    if (state.off && !this.offCourse) {
+      this.offCourse = true;
+      toast('Off course – tap to recalculate', 10_000, () => void this.recalculate());
+      if (this.settings.voicePrompts) speak('Off course');
+      this.emit();
+    } else if (!state.off && this.offCourse) {
+      this.offCourse = false;
+      this.emit();
+    }
+    if (state.recalc) void this.recalculate(true);
   }
 
   async importData(data: { waypoints: Waypoint[]; routes: Route[]; tracks: Track[] }): Promise<void> {
@@ -528,6 +671,250 @@ export class App {
     data.tracks.forEach((t) => this.tracks.set(t.id, t));
     this.renderOverlays();
     this.renderWaypointMarkers();
+    this.emit();
+  }
+
+  // ---- charted courses ---------------------------------------------------
+
+  vesselProfile() {
+    const s = this.settings;
+    return { airDraft: s.airDraft, draft: s.draft, beam: s.beam };
+  }
+
+  /** Remember a destination for the empty search box and the offline search. */
+  rememberPlace(p: Place): void {
+    const key = (q: Place) => `${q.name}|${q.lat.toFixed(4)}|${q.lon.toFixed(4)}`;
+    this.recents = [{ name: p.name, kind: p.kind, lat: p.lat, lon: p.lon }, ...this.recents.filter((q) => key(q) !== key(p))].slice(0, 20);
+    void db.setKv('recents', this.recents);
+  }
+
+  /** Straight line to a place: "Go to" on a new waypoint named after it. */
+  async goStraight(p: CourseDestination): Promise<void> {
+    if (p.kind) this.rememberPlace({ name: p.name, kind: p.kind, lat: p.lat, lon: p.lon });
+    const w = await this.addWaypoint(p, false, p.name);
+    await this.goTo(w.id);
+  }
+
+  /**
+   * Chart a course from the boat to `dest`: from the routing service, from a saved
+   * corridor when the service cannot be reached, else a straight line (unless `keep`
+   * asks to leave the current course alone). Returns whether a course was charted.
+   */
+  async chartCourse(dest: CourseDestination, opts: { via?: LatLon[]; keep?: boolean } = {}): Promise<boolean> {
+    const f = this.fix;
+    if (!f) {
+      toast('Waiting for a GPS fix before a course can be charted');
+      return false;
+    }
+    const from = { lat: f.lat, lon: f.lon };
+    const via = opts.via ?? [];
+    if (dest.kind) this.rememberPlace({ name: dest.name, kind: dest.kind, lat: dest.lat, lon: dest.lon });
+    const vessel = this.vesselProfile();
+    const speed = this.settings.cruiseSpeed;
+    let charted: Charted | null = null;
+    let problem = '';
+    try {
+      const r = await api.route({ from, to: dest, via: via.length ? via : undefined, vessel, speed, destName: dest.name });
+      charted = {
+        shape: decodePolyline(r.polyline),
+        maneuvers: r.maneuvers,
+        warnings: r.warnings,
+        source: 'online',
+        snap: r.snap,
+      };
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      if (e.kind === 'unavailable') {
+        const off = this.tripRouter.route(this.trips, from, dest, { profile: vessel, speed, destName: dest.name }, via);
+        if (off) {
+          charted = {
+            shape: off.result.shape,
+            maneuvers: off.result.maneuvers,
+            warnings: off.result.warnings,
+            source: 'offline',
+            snap: { from: off.result.snapStart.dist, to: off.result.snapEnd.dist },
+            tripId: off.trip.id,
+          };
+        } else {
+          problem = e.status === 503 ? 'Routing data not available yet' : 'Routing service not reachable';
+        }
+      } else {
+        problem = e.message;
+      }
+    }
+    if (!charted) {
+      if (opts.keep) {
+        toast(`${problem} – keeping the current course`, 6000);
+      } else {
+        toast(`${problem} — using straight line`, 6000);
+        await this.goStraight(dest);
+      }
+      return false;
+    }
+    await this.installCourse(dest, charted);
+    return true;
+  }
+
+  private async installCourse(dest: CourseDestination, c: Charted): Promise<void> {
+    const f = this.fix!;
+    const du = this.settings.distanceUnit;
+    const linked = withConnectors(c.shape, c.maneuvers, { lat: f.lat, lon: f.lon }, dest);
+    const warnings = [...c.warnings];
+    if (c.snap.from > 250) warnings.push(`Start is ${formatDistance(c.snap.from, du)} from the nearest charted waterway`);
+    if (c.snap.to > 250) warnings.push(`Destination is ${formatDistance(c.snap.to, du)} from the waterway, the last part is a straight line`);
+
+    const storedId = await db.getKv<string>('courseRouteId').catch(() => undefined);
+    const old = storedId ? this.routes.get(storedId) : undefined;
+    if (old) await this.dropCourseWaypoints(old);
+
+    const now = Date.now();
+    const maneuvers: CourseManeuver[] = linked.maneuvers.map((m) => ({ ...m }));
+    const created: Waypoint[] = maneuvers.slice(1).map((m) => {
+      const arrive = m.type === 'arrive';
+      const w: Waypoint = { id: uid(), name: arrive ? dest.name : m.text, lat: m.lat, lon: m.lon, created: now };
+      if (!arrive) w.hidden = true;
+      m.wp = w.id;
+      return w;
+    });
+    created.forEach((w) => this.waypoints.set(w.id, w));
+    await db.putMany('waypoints', created);
+    const route: Route = {
+      id: old?.id ?? uid(),
+      name: `To ${dest.name}`,
+      created: now,
+      waypointIds: created.map((w) => w.id),
+      shape: linked.shape,
+      maneuvers,
+      dest: { name: dest.name, lat: dest.lat, lon: dest.lon, kind: dest.kind },
+      warnings,
+      source: c.source,
+      tripId: c.tripId,
+    };
+    if (!old) await db.setKv('courseRouteId', route.id);
+    await this.saveRoute(route);
+    await this.updateSettings({ activeRouteId: route.id });
+    this.emit();
+  }
+
+  private async dropCourseWaypoints(route: Route): Promise<void> {
+    for (const id of route.waypointIds) {
+      this.wpMarkers.get(id)?.remove();
+      this.wpMarkers.delete(id);
+      this.waypoints.delete(id);
+      await db.remove('waypoints', id);
+    }
+    route.waypointIds = [];
+  }
+
+  /** Chart the active course again from the current position. */
+  async recalculate(auto = false): Promise<void> {
+    const route = this.activeRoute;
+    if (!route?.dest || this.recalculating) return;
+    this.recalculating = true;
+    this.emit();
+    try {
+      toast(auto ? 'Off course – recalculating…' : 'Recalculating…', 2500);
+      const { name, lat, lon, kind } = route.dest;
+      const ok = await this.chartCourse({ name, lat, lon, kind: kind ?? 'waterway' }, { keep: true });
+      if (ok && this.settings.voicePrompts) speak('New course charted');
+    } finally {
+      this.recalculating = false;
+      this.emit();
+    }
+  }
+
+  // ---- saved corridors ---------------------------------------------------
+
+  private pmtiles(): PMTiles {
+    const url = absUrl(this.chartUrl);
+    let pm = this.protocol.get(url);
+    if (!pm) {
+      pm = new PMTiles(url);
+      this.protocol.add(pm);
+    }
+    return pm;
+  }
+
+  /**
+   * Save the corridor along a charted course for offline use: asks the service what it takes,
+   * confirms the size, then loads the map tiles through the PMTiles client (the service worker
+   * caches the ranges) and keeps the routing graph and places in IndexedDB.
+   */
+  async saveForOffline(route: Route): Promise<void> {
+    if (this.offline || !route.shape) return;
+    const ac = new AbortController();
+    const job = { routeId: route.id, phase: 'estimating' as const, done: 0, total: 0, cancel: () => ac.abort() };
+    this.offline = job;
+    this.emit();
+    try {
+      const corridor = await api.corridor({ polyline: encodePolyline(route.shape), bufferMeters: 1000, minZoom: 8, maxZoom: 14 }, ac.signal);
+      const withTiles = this.basemap === 'pmtiles';
+      const tiles = withTiles ? corridor.tiles : [];
+      const mb = (corridor.estimatedBytes / 1e6).toFixed(1);
+      const what = withTiles
+        ? `${tiles.length} map tiles, about ${mb} MB${corridor.estimate === 'average' ? ' (estimated)' : ''}, plus the routing data`
+        : 'the routing data (the offline chart is not in use, so no map tiles)';
+      if (!confirm(`Save “${route.dest?.name ?? route.name}” for offline use?\n\n${what}.`)) return;
+
+      this.offline = { ...job, phase: 'downloading', total: tiles.length };
+      this.emit();
+      let bytes = 0;
+      let failed = 0;
+      const pm = this.pmtiles();
+      const queue = [...tiles];
+      const worker = async () => {
+        while (queue.length && !ac.signal.aborted) {
+          const [z, x, y] = queue.shift()!;
+          let got: number | null = null;
+          for (let attempt = 0; attempt < 3 && got == null && !ac.signal.aborted; attempt++) {
+            try {
+              got = (await pm.getZxy(z, x, y, ac.signal))?.data.byteLength ?? 0;
+            } catch (e) {
+              if (ac.signal.aborted) return;
+              if (attempt === 2) failed++;
+              void e;
+            }
+          }
+          bytes += got ?? 0;
+          job.done++;
+          this.offline = { ...job, phase: 'downloading', total: tiles.length, done: job.done };
+          if (job.done % 10 === 0) this.emit();
+        }
+      };
+      await Promise.all(Array.from({ length: 6 }, worker));
+      if (ac.signal.aborted) throw new DOMException('cancelled', 'AbortError');
+      if (failed > Math.max(2, tiles.length * 0.02)) throw new Error(`${failed} map tiles could not be downloaded`);
+
+      const trip: Trip = {
+        id: uid(),
+        name: route.dest?.name ?? route.name,
+        savedAt: Date.now(),
+        bufferMeters: 1000,
+        polyline: encodePolyline(route.shape),
+        tileCount: tiles.length,
+        bytes,
+        graph: corridor.graph,
+        places: corridor.places,
+      };
+      await db.put('trips', trip);
+      this.trips.push(trip);
+      route.tripId = trip.id;
+      await this.saveRoute(route);
+      toast(`Saved for offline: ${trip.name}, ${(bytes / 1e6).toFixed(1)} MB`);
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') toast('Offline save cancelled');
+      else toast(`Offline save failed: ${(e as Error).message}`, 6000);
+    } finally {
+      this.offline = null;
+      this.emit();
+    }
+  }
+
+  async deleteTrip(id: string): Promise<void> {
+    await db.remove('trips', id);
+    this.trips = this.trips.filter((t) => t.id !== id);
+    this.tripRouter.forget(id);
+    for (const r of this.routes.values()) if (r.tripId === id) delete r.tripId;
     this.emit();
   }
 
@@ -670,6 +1057,16 @@ export class App {
 }
 
 // ---- helpers ---------------------------------------------------------------
+
+interface Charted {
+  shape: [number, number][];
+  maneuvers: Maneuver[];
+  warnings: string[];
+  source: 'online' | 'offline';
+  /** metres between the requested start and destination and the waterway */
+  snap: { from: number; to: number };
+  tripId?: string;
+}
 
 function trackDistance(t: Track): number {
   return routeLegs(t.points).total;

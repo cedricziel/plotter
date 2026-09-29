@@ -1,6 +1,7 @@
 import type { App } from '../app';
 import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
 import { $, h } from './dom';
+import { maneuverIcon } from './icons';
 
 const cell = (label: string, value: string, cls = '') =>
   h('div', { class: `nav-cell ${cls}` }, h('small', null, label), h('b', null, value));
@@ -74,15 +75,32 @@ export function mountInstruments(app: App): () => void {
     if (p && pts[p.nextIndex]) {
       const du = app.settings.distanceUnit;
       const now = Date.now();
+      const m = app.nextManeuver();
       nav.hidden = false;
       nav.replaceChildren(
         h(
           'div',
           { class: 'nav-top' },
-          h('span', { class: 'nav-to' }, p.finished ? '⚑ Arrived' : `➤ ${pts[p.nextIndex].name}`),
+          m && !p.finished
+            ? h(
+                'span',
+                { class: 'nav-to nav-maneuver' },
+                h('span', { class: 'nav-ico', innerHTML: maneuverIcon(m.type) }),
+                p.dtw > 40 ? `In ${formatDistance(p.dtw, du)} — ${m.text}` : m.text,
+              )
+            : h('span', { class: 'nav-to' }, p.finished ? '⚑ Arrived' : `➤ ${pts[p.nextIndex].name}`),
           steerCue(p.steer, f?.sog),
           h('button', { class: 'nav-stop', 'aria-label': 'Stop navigation', title: 'Stop navigation', onclick: () => void app.stopNavigation() }, '✕'),
         ),
+        ...(app.offCourse || app.recalculating
+          ? [
+              h(
+                'button',
+                { class: 'nav-off', disabled: app.recalculating, onclick: () => void app.recalculate() },
+                app.recalculating ? 'Recalculating…' : 'Off course — Recalculate',
+              ),
+            ]
+          : []),
         h(
           'div',
           { class: 'nav-cells' },

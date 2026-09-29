@@ -191,3 +191,38 @@ export class Announcer {
     return null;
   }
 }
+
+export interface Connected {
+  shape: [number, number][];
+  maneuvers: { dist: number; lat: number; lon: number }[];
+}
+
+/**
+ * Extends a route that starts and ends on a waterway to the real start and
+ * destination with straight connectors; departure and arrival stay in place
+ * and everything in between shifts by the length of the start connector.
+ */
+export function withConnectors<M extends { type: string; dist: number; lat: number; lon: number }>(
+  shape: [number, number][],
+  maneuvers: M[],
+  from: LatLon,
+  to: LatLon,
+  minGap = 30,
+): { shape: [number, number][]; maneuvers: M[] } {
+  const first = { lat: shape[0][1], lon: shape[0][0] };
+  const last = { lat: shape[shape.length - 1][1], lon: shape[shape.length - 1][0] };
+  const head = distance(from, first) > minGap ? distance(from, first) : 0;
+  const tail = distance(last, to) > minGap ? distance(last, to) : 0;
+  const out = [...shape];
+  if (head) out.unshift([from.lon, from.lat]);
+  if (tail) out.push([to.lon, to.lat]);
+  const total = maneuvers[maneuvers.length - 1].dist + head + tail;
+  return {
+    shape: out,
+    maneuvers: maneuvers.map((m) => {
+      if (m.type === 'depart') return head ? { ...m, lat: from.lat, lon: from.lon } : m;
+      if (m.type === 'arrive') return { ...m, dist: total, ...(tail ? { lat: to.lat, lon: to.lon } : {}) };
+      return { ...m, dist: m.dist + head };
+    }),
+  };
+}
