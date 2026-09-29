@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { language, num, plural, resolveLanguage, setLanguage, t } from '../src/i18n';
+import { language, num, plural, resolveLanguage, setLanguage, subscribeLanguage, t } from '../src/i18n';
 import { de } from '../src/i18n/de';
 import { en } from '../src/i18n/en';
 
@@ -102,5 +102,20 @@ describe('language setting', () => {
   it('keeps an explicit choice', async () => {
     await saveSettings({ ...DEFAULT_SETTINGS, language: 'de' });
     expect((await loadSettings()).language).toBe('de');
+  });
+});
+
+describe('language changes', () => {
+  afterEach(() => setLanguage('en'));
+
+  it('tells subscribers once per change', () => {
+    const seen: string[] = [];
+    const stop = subscribeLanguage(() => seen.push(language()));
+    setLanguage('de');
+    setLanguage('de');
+    setLanguage('en');
+    stop();
+    setLanguage('de');
+    expect(seen).toEqual(['de', 'en']);
   });
 });

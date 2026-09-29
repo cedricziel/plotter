@@ -14,11 +14,21 @@ export const LANGUAGES: Language[] = ['en', 'de'];
 const DICTIONARIES: Record<Language, Record<MessageKey, string>> = { en, de };
 
 let current: Language = 'en';
+const listeners = new Set<() => void>();
 
 export const language = (): Language => current;
 
+/** Switches the texts and the page's declared language (for VoiceOver and hyphenation), and tells subscribers. */
 export function setLanguage(lang: Language): void {
+  if (typeof document !== 'undefined') document.documentElement.lang = lang;
+  if (lang === current) return;
   current = lang;
+  listeners.forEach((l) => l());
+}
+
+export function subscribeLanguage(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => void listeners.delete(fn);
 }
 
 /** An explicit choice wins; Auto takes the first of the device's preferred languages we have, else English. */
@@ -30,6 +40,8 @@ export function resolveLanguage(choice: LanguageChoice, preferred: readonly stri
   }
   return 'en';
 }
+
+export const hasKey = (key: string): key is MessageKey => key in en;
 
 /** The text for `key` in the current language, with `{placeholders}` filled from `params`. */
 export function t(key: MessageKey, params?: Params): string {
@@ -48,5 +60,6 @@ export function plural(key: PluralKey, count: number, params?: Params): string {
   return t(`${key}.${form}` as MessageKey, { count, ...params });
 }
 
-/** `value` with `digits` decimals and the current language's decimal mark. */
-export const num = (value: number, digits: number): string => fixed(value, digits, current);
+/** `value` with `digits` decimals (as given when omitted) and the current language's decimal mark. */
+export const num = (value: number, digits?: number): string =>
+  digits == null ? (current === 'de' ? String(value).replace('.', ',') : String(value)) : fixed(value, digits, current);

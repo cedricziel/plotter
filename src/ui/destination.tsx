@@ -7,11 +7,12 @@ import { bearing, distance } from '../core/geo';
 import { bridgeLabel, noteParts } from '../core/place-info';
 import { formatBearing, formatDistance } from '../core/units';
 import type { Place, PlaceInfo } from '../core/waterway-data';
+import { t } from '../i18n';
 import { h } from './dom';
 import { KIND_LABEL, KindIcon } from './icons';
 import { resetSearch, SearchBox } from './search';
 import { closeSheet } from './sheet';
-import { createStore, useStore } from './store';
+import { createStore, useLanguage, useStore } from './store';
 import { toast } from './toast';
 
 const TIP_KEY = 'plotter.tip.destination';
@@ -176,6 +177,8 @@ export function DestinationCard({
   place: Place;
   chart: () => Promise<void>;
 }) {
+  // Kept as an element in the bar's store, so it follows the language itself.
+  useLanguage();
   const [charting, setCharting] = useState(false);
   const f = app.fix;
   const du = app.settings.distanceUnit;
@@ -204,7 +207,7 @@ export function DestinationCard({
           await chart();
         }}
       >
-        {charting ? 'Charting…' : 'Chart course'}
+        {charting ? t('dest.charting') : t('wp.chartCourse')}
       </button>
       <div className="row">
         <button

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { language, subscribeLanguage, type Language } from '../i18n';
 
 export interface Store<T> {
   get(): T;
@@ -34,3 +35,6 @@ export interface Observable {
 
 export const useVersion = (app: Observable): number =>
   useSyncExternalStore(app.subscribe, () => app.version, () => app.version);
+
+/** The UI language; the caller re-renders when it changes. */
+export const useLanguage = (): Language => useSyncExternalStore(subscribeLanguage, language, language);

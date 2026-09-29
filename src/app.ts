@@ -15,6 +15,7 @@ import { TripRouter, type Trip } from './core/trips';
 import type { Place } from './core/waterway-data';
 import { shouldLogPoint } from './core/track';
 import { formatDistance, formatDuration } from './core/units';
+import { resolveLanguage, setLanguage } from './i18n';
 import { onLongPress } from './map/longpress';
 import { EMPTY, SEAMARK_LAYERS, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
@@ -107,6 +108,7 @@ export class App {
 
   async init(container: HTMLElement): Promise<void> {
     this.settings = await loadSettings();
+    this.applyLanguage();
     const [wps, rts, trks] = await Promise.all([db.all('waypoints'), db.all('routes'), db.all('tracks')]).catch(
       () => [[], [], []] as [Waypoint[], Route[], Track[]],
     );
@@ -239,6 +241,7 @@ export class App {
       }
     }
     if ('theme' in patch) this.applyTheme();
+    if ('language' in patch) this.applyLanguage();
     if ('keepAwake' in patch) void this.updateWakeLock();
     if (patch.compass === false) this.compass.disable();
     if ('activeRouteId' in patch) {
@@ -249,6 +252,11 @@ export class App {
     }
     this.renderOverlays();
     this.emit();
+  }
+
+  /** Sets the UI language from the setting; Auto follows the device. */
+  private applyLanguage(): void {
+    setLanguage(resolveLanguage(this.settings.language, navigator.languages ?? []));
   }
 
   private applyTheme(): void {

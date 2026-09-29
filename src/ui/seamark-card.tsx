@@ -3,9 +3,12 @@ import { kindLabel, seamarkRows, symbolSpec } from '../core/seamark-symbol';
 import type { Seamark } from '../core/waterway-data';
 import { symbolSvg } from '../map/seamark-svg';
 import type { Theme } from '../map/style';
+import { useLanguage } from './store';
 
 /** The compact card for a tapped seamark: what it is, its name, colours, topmark and light. */
 export function SeamarkCard({ seamark, theme, onClose }: { seamark: Seamark; theme: Theme; onClose: () => void }) {
+  // Kept as an element in the destination bar's store, so it follows the language itself.
+  useLanguage();
   const rows = seamarkRows(seamark);
   const symbol = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(symbolSvg(symbolSpec(seamark), theme))}`;
   return (

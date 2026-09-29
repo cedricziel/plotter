@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from 'react';
-import { createStore, useStore } from './store';
+import { createStore, useLanguage, useStore } from './store';
 
 const KEY = 'plotter.disclaimer.ack';
 const ACK_MS = 12 * 60 * 60 * 1000;
@@ -46,6 +46,8 @@ function dismiss(e: SyntheticEvent) {
 
 /** The not-for-navigation modal, while `showDisclaimerOnce()` asks for it or always with `open`. */
 export function Disclaimer({ open = false }: { open?: boolean }) {
+  // Shown before the App has loaded, outside the shell's re-renders.
+  useLanguage();
   const shown = useStore(disclaimerState);
   const state = open && shown === 'hidden' ? 'open' : shown;
   if (state === 'hidden') return null;

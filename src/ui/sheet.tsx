@@ -1,9 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { t } from '../i18n';
 import { createStore, useStore } from './store';
 
 interface OpenSheet {
   key: string;
-  title: string;
+  /** a function when the title is worded per language, so an open sheet relabels */
+  title: string | (() => string);
   render: () => ReactNode;
   onClose?: () => void;
 }
@@ -11,7 +13,12 @@ interface OpenSheet {
 export const sheetStore = createStore<OpenSheet | null>(null);
 
 /** Bottom sheet: one at a time, thumb-reachable, dismissed by ✕ or re-tapping its tool. */
-export function openSheet(key: string, title: string, render: () => ReactNode, onClose?: () => void): void {
+export function openSheet(
+  key: string,
+  title: string | (() => string),
+  render: () => ReactNode,
+  onClose?: () => void,
+): void {
   sheetStore.get()?.onClose?.();
   sheetStore.set({ key, title, render, onClose });
 }
@@ -41,7 +48,12 @@ export function Sheet() {
   }, [open]);
 
   return (
-    <SheetFrame open={!!open} title={shown?.title} bodyKey={shown?.key} onClose={closeSheet}>
+    <SheetFrame
+      open={!!open}
+      title={typeof shown?.title === 'function' ? shown.title() : shown?.title}
+      bodyKey={shown?.key}
+      onClose={closeSheet}
+    >
       {shown?.render()}
     </SheetFrame>
   );
@@ -67,7 +79,7 @@ export function SheetFrame({
         <>
           <div className="sheet-head">
             <h2>{title}</h2>
-            <button className="icon-btn" aria-label="Close" onClick={onClose}>
+            <button className="icon-btn" aria-label={t('sheet.close')} onClick={onClose}>
               ✕
             </button>
           </div>

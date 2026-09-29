@@ -4,6 +4,7 @@ import { bearing, distance, routeLegs, timeToGo } from '../../core/geo';
 import { parseGpx, toGpx } from '../../core/gpx';
 import type { Route } from '../../core/model';
 import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../../core/units';
+import { t } from '../../i18n';
 import { type CogMinutes, DEFAULT_SETTINGS } from '../../settings';
 import { chartAndShow, showDestinationCard, startPlacement } from '../destination';
 import { DISCLAIMER, showDisclaimerOnce } from '../disclaimer';
@@ -508,7 +509,7 @@ function exportRoute(app: Pick<App, 'routePoints'>, route: Route): void {
 }
 
 export function openRoute(app: App): void {
-  openSheet('route', 'Route & waypoints', () => (
+  openSheet('route', () => t('sheet.route'), () => (
     <RoutePanel app={app} search={<SearchBox app={app} scope="sheet" onPick={(p) => showDestinationCard(app, p)} />} />
   ));
 }
@@ -616,7 +617,7 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
 }
 
 export function openWaypoint(app: App, id: string): void {
-  openSheet('wp', app.waypoints.get(id)?.name ?? 'Waypoint', () => <WaypointPanel app={app} id={id} />);
+  openSheet('wp', () => app.waypoints.get(id)?.name ?? t('sheet.waypoint'), () => <WaypointPanel app={app} id={id} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -705,7 +706,7 @@ export function TrackPanel({ app }: { app: TrackApp }) {
 }
 
 export function openTrack(app: App): void {
-  openSheet('track', 'Track recording', () => <TrackPanel app={app} />);
+  openSheet('track', () => t('sheet.track'), () => <TrackPanel app={app} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -802,7 +803,7 @@ export function AnchorPanel({ app }: { app: AnchorApp }) {
 }
 
 export function openAnchor(app: App): void {
-  openSheet('anchor', 'Anchor alarm', () => <AnchorPanel app={app} />);
+  openSheet('anchor', () => t('sheet.anchor'), () => <AnchorPanel app={app} />);
 }
 
 // ---------------------------------------------------------------------------

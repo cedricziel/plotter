@@ -1,6 +1,7 @@
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import type { App } from '../app';
 import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
+import { t } from '../i18n';
 import { ManeuverIcon } from './icons';
 
 export type InstrumentsApp = Pick<
@@ -90,17 +91,17 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
         value={formatSpeed(f?.sog, unit)}
         role="button"
         tabIndex={0}
-        title="Tap to switch km/h / knots"
+        title={t('inst.sogTitle')}
         onClick={toggleSpeedUnit}
         onKeyDown={onKeyDown}
       />
       <Tile id="cog" label="COG" value={formatBearing(f?.cog)} />
       <Tile
         id="pos"
-        label="POSITION"
+        label={t('inst.position')}
         value={f ? `${formatCoord(f.lat, 'lat')}\n${formatCoord(f.lon, 'lon')}` : '--°--.---′\n---°--.---′'}
       />
-      <Tile id="time" label="TIME" value={formatTime(new Date())} />
+      <Tile id="time" label={t('inst.time')} value={formatTime(new Date())} />
       <Tile
         id="acc"
         label="GPS"

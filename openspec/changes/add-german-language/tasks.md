@@ -28,7 +28,7 @@
 
 ## 4. Live switching
 
-- [ ] 4.1 **Switching test first.** Write `tests/language-switch.test.tsx` (happy-dom, Testing Library), rendering `<Shell>` over a real `App` with a stub map. Setting German through `App.updateSettings` must:
+- [x] 4.1 **Switching test first.** Write `tests/language-switch.test.tsx` (happy-dom, Testing Library), rendering `<Shell>` over a real `App` with a stub map. Setting German through `App.updateSettings` must:
   - relabel the toolbar to Route, Track, Anker, Nacht and Menü, with German `aria-label`s on the floating buttons
   - relabel the chart notice to "Nur Navigationshilfe – nicht zur Navigation"
   - set `<html lang="de">`
@@ -38,7 +38,7 @@
 
   Show it failing.
 
-- [ ] 4.2 **Language value and wiring.** Give `src/i18n` a subscribable language (`setLanguage` also sets `<html lang>`), add `useLanguage()` to `src/ui/store.ts`, let `openSheet` take a title function, subscribe the shell, the destination card, the seamark card and the disclaimer, and wire `App.init` and `App.updateSettings` to resolve and set the language before `emit`. Translate the shell's own texts (toolbar, floating buttons, notice, alarm) and the sheet heads. In `src/main.tsx`, set the language from the stored setting before `showDisclaimerOnce()`. Verify: the 4.1 tests pass.
+- [x] 4.2 **Language value and wiring.** Give `src/i18n` a subscribable language (`setLanguage` also sets `<html lang>`), add `useLanguage()` to `src/ui/store.ts`, let `openSheet` take a title function, subscribe the shell, the destination card, the seamark card and the disclaimer, and wire `App.init` and `App.updateSettings` to resolve and set the language before `emit`. Translate the shell's own texts (toolbar, floating buttons, notice, alarm) and the sheet heads. In `src/main.tsx`, set the language from the stored setting before `showDisclaimerOnce()`. Verify: the 4.1 tests pass.
 
 ## 5. Translate the UI (each task: strings to `t()`, German entries, stories)
 
