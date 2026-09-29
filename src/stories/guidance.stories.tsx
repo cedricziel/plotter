@@ -32,3 +32,16 @@ export const GpsDenied: Story = {
 export const GpsSearching: Story = {
   render: guidance({ status: 'searching', fix: null, progress: null }),
 };
+
+export const GermanLongManeuver: Story = {
+  globals: { language: 'de' },
+  render: guidance({ maneuver: { type: 'sharp-right', name: 'Amsterdam-Rijnkanaal' } }),
+};
+export const GermanOffCourse: Story = {
+  globals: { language: 'de' },
+  render: guidance({ offCourse: true, progress: { xte: 180, steer: 65 } }),
+};
+export const GermanWaitingForGps: Story = {
+  globals: { language: 'de' },
+  render: guidance({ status: 'denied', fix: null, progress: null }),
+};

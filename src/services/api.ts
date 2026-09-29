@@ -9,6 +9,7 @@ import type {
   ApiSeamarksResponse,
 } from '../core/api';
 import type { Place, Seamark } from '../core/waterway-data';
+import { t } from '../i18n';
 import { absUrl } from '../settings';
 
 /** `unavailable`: the service could not be reached or has no data yet; `rejected`: it answered and said no. */
@@ -30,7 +31,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     res = await fetch(absUrl(`${BASE}${path}`), init);
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
-    throw new ApiError('unavailable', 0, 'Routing service not reachable');
+    throw new ApiError('unavailable', 0, t('plan.unreachable'));
   }
   if (res.ok) {
     try {
@@ -39,7 +40,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
       throw new ApiError('unavailable', res.status, 'Routing service sent an unreadable answer');
     }
   }
-  let message = `Request failed (${res.status})`;
+  let message = t('api.requestFailed', { status: res.status });
   try {
     message = ((await res.json()) as { error?: string }).error ?? message;
   } catch {

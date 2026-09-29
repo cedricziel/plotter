@@ -46,17 +46,17 @@
   - Translate `src/ui/instruments.tsx`, including the waiting/denied texts, stop and recalculate. Use `maneuverText` and `language()` for numbers.
   - Add the stories `Navigation/Instruments / German good fix` and `Navigation/Guidance strip / German long maneuver`, `German off course` and `German waiting for GPS`.
   - Verify: `tests/stories.test.tsx` and `tests/instruments.test.tsx` pass, and the German stories show no horizontal overflow at 360 px in day and night themes.
-- [ ] 5.2 **Sheets.**
+- [x] 5.2 **Sheets.**
   - Translate route, track, anchor, waypoint and settings (`src/ui/panels/bodies.tsx`), including the route sheet's maneuver list through `maneuverText`.
   - Add the Language control (Auto / English / Deutsch) to Settings, with a hint that spoken prompts use the device's voice, and a `Sheets/Settings / German` story.
   - Extend `tests/panels.test.tsx` so the Language control saves `language`.
   - Verify: the tests pass.
-- [ ] 5.3 **Destination card, search, seamark card, disclaimer, alarm, toasts and update prompt.**
+- [x] 5.3 **Destination card, search, seamark card, disclaimer, alarm, toasts and update prompt.**
   - Translate `src/ui/destination.tsx`, `search.tsx`, `seamark-card.tsx`, `disclaimer.tsx`, the alarm reason, the toasts in `src/app.ts`, `src/update.ts` and the shell, and the texts from services and map labels.
   - Add the stories `Destination card / German opening bridge` and `Disclaimer / German`.
   - Verify: `tests/stories.test.tsx` passes.
-- [ ] 5.4 **Voice wiring.** In `src/app.ts`, pass the i18n phrase function and `language()` to the announcer and `speak`. Verify: extend `tests/course.test.ts` or an app-level unit test to assert the German prompt is passed with `de-DE`.
-- [ ] 5.5 **Guard against missed strings.** Add `tests/untranslated.test.ts`, which parses `src/ui/**/*.tsx` with Vite's `parseAst` and fails on JSX text with an English letter or an English string literal (or template text) in a `title`, `aria-label`, `placeholder` or `alt` attribute, with an allowlist for symbols, units and instrument abbreviations. Verify: the test passes after 5.1–5.3 and fails when an English literal is added.
+- [x] 5.4 **Voice wiring.** In `src/app.ts`, pass the i18n phrase function and `language()` to the announcer and `speak`. Verify: extend `tests/course.test.ts` or an app-level unit test to assert the German prompt is passed with `de-DE`.
+- [x] 5.5 **Guard against missed strings.** Add `tests/untranslated.test.ts`, which parses `src/ui/**/*.tsx` with Vite's `parseAst` and fails on JSX text with an English letter or an English string literal (or template text) in a `title`, `aria-label`, `placeholder` or `alt` attribute, with an allowlist for symbols, units and instrument abbreviations. Verify: the test passes after 5.1–5.3 and fails when an English literal is added.
 
 ## 6. Storybook language global
 

@@ -1,5 +1,5 @@
 import type { Maneuver } from '../core/routing';
-import { language, num, t, type MessageKey } from './index';
+import { language, num, plural, t, type MessageKey } from './index';
 
 /**
  * The maneuver in the current language, from its type and name. A maneuver stored before the router sent names
@@ -24,4 +24,12 @@ const GERMAN_LOWER = /^(Links|Rechts|Leicht|Scharf|Weiter|Geradeaus|Feste)\b/;
 export function announcement(metres: 100 | 500, text: string): string {
   const said = language() === 'de' && GERMAN_LOWER.test(text) ? text[0].toLowerCase() + text.slice(1) : text;
   return t('voice.in', { metres, text: said });
+}
+
+const UNKNOWN_BRIDGES = /^(\d+) fixed bridges? with unknown clearance$/;
+
+/** A route warning in the current language; the router writes them in English, so known ones are matched. */
+export function warningText(warning: string): string {
+  const bridges = UNKNOWN_BRIDGES.exec(warning);
+  return bridges ? plural('course.unknownBridges', Number(bridges[1])) : warning;
 }

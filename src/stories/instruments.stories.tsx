@@ -18,3 +18,8 @@ export const Stale: Story = {
 export const Denied: Story = {
   render: instruments({ status: 'denied', fix: null }),
 };
+
+export const GermanGoodFix: Story = {
+  globals: { language: 'de' },
+  render: instruments({ fix: makeFix({ lat: 53 + 5.288 / 60, lon: 5 + 50.524 / 60, sog: 9.7 / 3.6 }) }),
+};

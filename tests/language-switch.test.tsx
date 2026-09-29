@@ -134,3 +134,59 @@ describe('switching the language', () => {
     expect(toolbar()).toContain('Anker');
   });
 });
+
+describe('voice prompts', () => {
+  it('speaks the next maneuver in German with a German voice', async () => {
+    const spoken: { text: string; lang: string }[] = [];
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        lang = '';
+        constructor(public text: string) {}
+      },
+    );
+    vi.stubGlobal('speechSynthesis', {
+      cancel: () => {},
+      speak: (u: { text: string; lang: string }) => spoken.push(u),
+    });
+    const app = makeApp();
+    await act(() => app.updateSettings({ language: 'de', voicePrompts: true }));
+    const route = {
+      id: 'r',
+      name: 'Nach Pikmar',
+      created: 0,
+      waypointIds: ['w1', 'w2'],
+      maneuvers: [
+        { type: 'depart' as const, lat: 53, lon: 5.8, dist: 0, text: 'Depart', name: null },
+        {
+          type: 'turn-right' as const,
+          lat: 53,
+          lon: 5.8,
+          dist: 900,
+          text: 'Turn right into Pikmar',
+          name: 'Pikmar',
+          wp: 'w1',
+        },
+        { type: 'arrive' as const, lat: 53, lon: 5.8, dist: 2000, text: 'Arrive', name: null, wp: 'w2' },
+      ],
+    };
+    const progress = {
+      nextIndex: 0,
+      dtw: 480,
+      btw: 0,
+      remaining: 1500,
+      ttg: null,
+      ttgNext: null,
+      xte: 0,
+      vmg: null,
+      steer: null,
+      finished: false,
+    };
+    (app as unknown as { followCourse: (r: unknown, p: unknown) => void }).followCourse(route, progress);
+
+    expect(spoken.map((u) => [u.text, u.lang])).toEqual([['In 500 Metern, rechts abbiegen in Pikmar', 'de-DE']]);
+    vi.unstubAllGlobals();
+    vi.stubGlobal('__APP_VERSION__', 'test');
+    vi.stubGlobal('__BUILD_ID__', 'test');
+  });
+});

@@ -1,14 +1,11 @@
 import type { SyntheticEvent } from 'react';
+import { t } from '../i18n';
 import { createStore, useLanguage, useStore } from './store';
 
 const KEY = 'plotter.disclaimer.ack';
 const ACK_MS = 12 * 60 * 60 * 1000;
 
-export const DISCLAIMER =
-  'Navigation aid only. This app is not a substitute for official charts (e.g. Rijkswaterstaat / ANWB ' +
-  'waterkaarten, Vaarweginformatie), the BPR/Scheepvaartreglement, local notices, or proper seamanship. ' +
-  'GPS positions, map data and derived values may be wrong, delayed or unavailable. The skipper remains ' +
-  'responsible at all times.';
+export const disclaimerText = () => t('disclaimer.text');
 
 // localStorage, not sessionStorage: Safari drops session writes when a crashed tab reloads,
 // which brought the modal back mid-trip.
@@ -62,9 +59,9 @@ export function Disclaimer({ open = false }: { open?: boolean }) {
       onClick={dismiss}
     >
       <div className="modal-card">
-        <h2 id="disc-title">Not for navigation</h2>
-        <p>{DISCLAIMER}</p>
-        <button className="btn primary block">I understand</button>
+        <h2 id="disc-title">{t('disclaimer.title')}</h2>
+        <p>{disclaimerText()}</p>
+        <button className="btn primary block">{t('disclaimer.ok')}</button>
       </div>
     </div>
   );

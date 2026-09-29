@@ -4,12 +4,14 @@ import type { App } from '../app';
 import { shapeInfo } from '../core/course';
 import { FIS_SOURCE } from '../core/fis';
 import { bearing, distance } from '../core/geo';
-import { bridgeLabel, noteParts } from '../core/place-info';
+import { noteParts } from '../core/place-info';
 import { formatBearing, formatDistance } from '../core/units';
 import type { Place, PlaceInfo } from '../core/waterway-data';
-import { t } from '../i18n';
+import { language, num, plural, t } from '../i18n';
+import { warningText } from '../i18n/maneuvers';
+import { placeLabel } from '../i18n/texts';
 import { h } from './dom';
-import { KIND_LABEL, KindIcon } from './icons';
+import { KindIcon } from './icons';
 import { resetSearch, SearchBox } from './search';
 import { closeSheet } from './sheet';
 import { createStore, useLanguage, useStore } from './store';
@@ -33,7 +35,7 @@ export function showTipOnce(): void {
     /* storage unavailable: skip the hint rather than repeat it */
     return;
   }
-  setTimeout(() => toast('Tip: search a destination or use ⚑+ to set one', 7000), 4000);
+  setTimeout(() => toast(t('dest.tip'), 7000), 4000);
 }
 
 export const isPlacing = () => bar.get().kind === 'placing';
@@ -89,7 +91,7 @@ function Placement({ app }: { app: App }) {
   };
   const chart = async () => {
     setCharting(true);
-    const to = { ...at(), name: 'Map point' };
+    const to = { ...at(), name: t('dest.mapPoint') };
     closeDestination();
     await chartAndShow(app, to);
   };
@@ -99,26 +101,26 @@ function Placement({ app }: { app: App }) {
       <SearchBox app={app} scope="bar" onPick={(p) => showDestinationCard(app, p)} />
       <div className="dest-read">
         {f
-          ? `${formatDistance(distance(f, here), app.settings.distanceUnit)} · ${formatBearing(bearing(f, here))}`
-          : 'Pan the map to place the crosshair'}
+          ? `${formatDistance(distance(f, here), app.settings.distanceUnit, language())} · ${formatBearing(bearing(f, here))}`
+          : t('dest.panHint')}
       </div>
       <div className="row">
         <button className="btn primary grow big" disabled={charting} onClick={() => void chart()}>
-          {charting ? 'Charting…' : 'Chart course'}
+          {charting ? t('dest.charting') : t('wp.chartCourse')}
         </button>
       </div>
       <div className="row">
         <button className="btn grow big" onClick={() => void place((id) => app.goTo(id))}>
-          Go here
+          {t('dest.goHere')}
         </button>
         <button
           className="btn grow big"
-          onClick={() => void place(async (id) => toast(`Added to ${(await app.addStop(id)).name}`))}
+          onClick={() => void place(async (id) => toast(t('wp.addedTo', { name: (await app.addStop(id)).name })))}
         >
-          Add as stop
+          {t('dest.addStop')}
         </button>
         <button className="btn big" onClick={closeDestination}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </>
@@ -158,11 +160,9 @@ export async function chartAndShow(app: App, to: Place | { lat: number; lon: num
   );
   app.resumeFollowAfter(5000);
   const total = shapeInfo(route.shape).total;
-  const note = route.warnings?.length ? ` · ${route.warnings[0]}` : '';
-  toast(
-    `Course charted: ${formatDistance(total, app.settings.distanceUnit)}, ${(route.maneuvers?.length ?? 2) - 2} maneuvers${note}`,
-    6000,
-  );
+  const note = route.warnings?.length ? ` · ${warningText(route.warnings[0])}` : '';
+  const distance = formatDistance(total, app.settings.distanceUnit, language());
+  toast(`${plural('dest.charted', (route.maneuvers?.length ?? 2) - 2, { distance })}${note}`, 6000);
 }
 
 export type DestinationCardApp = Pick<App, 'fix' | 'settings' | 'goStraight' | 'addWaypoint' | 'addStop'>;
@@ -183,8 +183,8 @@ export function DestinationCard({
   const f = app.fix;
   const du = app.settings.distanceUnit;
   const sub = [
-    bridgeLabel(place.info) ?? KIND_LABEL[place.kind],
-    f ? `${formatDistance(distance(f, place), du)} · ${formatBearing(bearing(f, place))}` : null,
+    placeLabel(place),
+    f ? `${formatDistance(distance(f, place), du, language())} · ${formatBearing(bearing(f, place))}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -217,19 +217,19 @@ export function DestinationCard({
             await app.goStraight({ ...place });
           }}
         >
-          Go straight here
+          {t('dest.goStraight')}
         </button>
         <button
           className="btn grow big"
           onClick={async () => {
             closeDestination();
             const w = await app.addWaypoint(place, false, place.name);
-            toast(`Added to ${(await app.addStop(w.id)).name}`);
+            toast(t('wp.addedTo', { name: (await app.addStop(w.id)).name }));
           }}
         >
-          Add as stop
+          {t('dest.addStop')}
         </button>
-        <button className="btn big" aria-label="Close" onClick={closeDestination}>
+        <button className="btn big" aria-label={t('sheet.close')} onClick={closeDestination}>
           ✕
         </button>
       </div>
@@ -276,26 +276,30 @@ function NoteRow({ text }: { text: string }) {
 function InfoRows({ info }: { info: PlaceInfo | undefined }) {
   if (!info) return null;
   const rows: [string, ReactNode][] = [];
-  if (info.vhf) rows.push(['VHF', `channel ${info.vhf}`]);
-  if (info.berths) rows.push(['Berths', String(info.berths)]);
-  if (info.clearance) rows.push(['Clearance', `${info.clearance} m${info.canOpen ? ' (closed)' : ''}`]);
-  if (info.width) rows.push(['Width', `${info.width} m`]);
-  if (info.openingHours) rows.push([info.source ? 'Operation' : 'Hours', <NoteRow text={info.openingHours} />]);
-  if (info.operator) rows.push(['Operator', info.operator]);
+  if (info.vhf) rows.push([t('info.vhf'), t('info.channel', { channel: info.vhf })]);
+  if (info.berths) rows.push([t('info.berths'), String(info.berths)]);
+  if (info.clearance) {
+    rows.push([t('info.clearance'), `${num(info.clearance)} m${info.canOpen ? ` ${t('info.closed')}` : ''}`]);
+  }
+  if (info.width) rows.push([t('info.width'), `${num(info.width)} m`]);
+  if (info.openingHours) {
+    rows.push([t(info.source ? 'info.operation' : 'info.hours'), <NoteRow text={info.openingHours} />]);
+  }
+  if (info.operator) rows.push([t('info.operator'), info.operator]);
   if (info.phone) {
     const digits = info.phone.replace(/[^\d+]/g, '');
-    rows.push(['Phone', digits ? <a href={`tel:${digits}`}>{info.phone}</a> : info.phone]);
+    rows.push([t('info.phone'), digits ? <a href={`tel:${digits}`}>{info.phone}</a> : info.phone]);
   }
   if (info.website && /^https?:\/\//i.test(info.website)) {
     const host = new URL(info.website).hostname.replace(/^www\./, '');
     rows.push([
-      'Web',
+      t('info.web'),
       <a href={info.website} target="_blank" rel="noopener">
         {host}
       </a>,
     ]);
   }
-  if (info.source === FIS_SOURCE) rows.push(['Source', 'Vaarweginformatie']);
+  if (info.source === FIS_SOURCE) rows.push([t('info.source'), 'Vaarweginformatie']);
   if (!rows.length) return null;
   return (
     <dl className="dest-info">

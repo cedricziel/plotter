@@ -9,5 +9,11 @@ export { openAnchor, openRoute, openTrack, openWaypoint } from './bodies';
 const telemetry: Telemetry = { enabled: telemetryEnabled, set: setTelemetryEnabled };
 
 export function openMenu(app: App): void {
-  openSheet('menu', () => t('sheet.settings'), () => <SettingsPanel app={app} telemetry={telemetry} version={`${__APP_VERSION__} (${__BUILD_ID__})`} />);
+  openSheet(
+    'menu',
+    () => t('sheet.settings'),
+    () => (
+      <SettingsPanel app={app} telemetry={telemetry} version={`${__APP_VERSION__} (${__BUILD_ID__})`} />
+    ),
+  );
 }

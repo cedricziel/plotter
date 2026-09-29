@@ -1,7 +1,7 @@
 // The component library the app is built from; the design-sync bundle's entry.
 export { DestinationCard } from './destination';
 export { Disclaimer } from './disclaimer';
-export { KIND_LABEL, KindIcon, ManeuverIcon } from './icons';
+export { KindIcon, ManeuverIcon, PLACE_KINDS } from './icons';
 export { Instruments, NavStrip } from './instruments';
 export { AnchorPanel, RoutePanel, SettingsPanel, TrackPanel, WaypointPanel } from './panels/bodies';
 export { SeamarkCard } from './seamark-card';

@@ -1,4 +1,5 @@
 import type { App } from './app';
+import { t } from './i18n';
 import { toast } from './ui/dom';
 
 const CHECK_MS = 60 * 60 * 1000;
@@ -39,7 +40,7 @@ export function initUpdates(app: App): void {
         w?.addEventListener('statechange', () => {
           if (w.state !== 'installed') return;
           if (navigator.serviceWorker.controller) activate(w);
-          else toast('Ready to work offline');
+          else toast(t('toast.readyOffline'));
         });
       });
       const check = () => void reg.update().catch(() => {});
@@ -69,7 +70,7 @@ export function initUpdates(app: App): void {
     if (reloading || pending) return;
     if (busy(app)) {
       pending = true;
-      toast('Update ready – tap to reload', 120_000, reload);
+      toast(t('toast.updateReady'), 120_000, reload);
     } else reload();
   });
 }

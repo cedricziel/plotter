@@ -59,7 +59,8 @@ export interface GuidanceOptions {
   status?: GpsStatus;
   fix?: Fix | null;
   progress?: Partial<RouteProgress> | null;
-  maneuver?: string | null;
+  /** A text alone is a maneuver stored before the router sent names; fields make a structured one. */
+  maneuver?: string | Partial<CourseManeuver> | null;
   offCourse?: boolean;
   recalculating?: boolean;
 }
@@ -84,8 +85,9 @@ export function makeGuidanceApp({
         lat: 52.38,
         lon: 4.99,
         dist: 3000,
-        text: maneuver,
+        text: typeof maneuver === 'string' ? maneuver : '',
         wp: 'b',
+        ...(typeof maneuver === 'string' ? {} : { name: null, ...maneuver }),
       }
     : null;
   return {

@@ -3,6 +3,8 @@ import { kindLabel, seamarkRows, symbolSpec } from '../core/seamark-symbol';
 import type { Seamark } from '../core/waterway-data';
 import { symbolSvg } from '../map/seamark-svg';
 import type { Theme } from '../map/style';
+import { t } from '../i18n';
+import { seamarkKind, seamarkRowLabel } from '../i18n/texts';
 import { useLanguage } from './store';
 
 /** The compact card for a tapped seamark: what it is, its name, colours, topmark and light. */
@@ -18,9 +20,9 @@ export function SeamarkCard({ seamark, theme, onClose }: { seamark: Seamark; the
           <img src={symbol} alt="" width={32} height={32} />
         </span>
         <span className="result-text">
-          <b>{kindLabel(seamark)}</b>
+          <b>{seamarkKind(seamark, kindLabel(seamark))}</b>
         </span>
-        <button className="btn big" aria-label="Close" onClick={onClose}>
+        <button className="btn big" aria-label={t('sheet.close')} onClick={onClose}>
           ✕
         </button>
       </div>
@@ -28,7 +30,7 @@ export function SeamarkCard({ seamark, theme, onClose }: { seamark: Seamark; the
         <dl className="dest-info">
           {rows.map(([k, v]) => (
             <Fragment key={k}>
-              <dt>{k}</dt>
+              <dt>{seamarkRowLabel(k)}</dt>
               <dd>{v}</dd>
             </Fragment>
           ))}

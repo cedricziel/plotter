@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { App } from '../app';
 import { t } from '../i18n';
+import { alarmText } from '../i18n/texts';
 import { DestBar, closeDestination, startPlacement } from './destination';
 import { Disclaimer } from './disclaimer';
 import { Instruments, NavStrip } from './instruments';
@@ -153,7 +154,7 @@ export function Shell({ app }: { app: App }) {
       <div id="alarm" role="alertdialog" aria-labelledby="alarm-title" hidden={!app.alarmReason}>
         <div className="alarm-card">
           <h1 id="alarm-title">{`⚓ ${t('alarm.title')}`}</h1>
-          <p id="alarm-reason">{app.alarmReason ?? ''}</p>
+          <p id="alarm-reason">{app.alarmReason ? alarmText(app.alarmReason) : ''}</p>
           <button id="alarm-silence" className="btn block big" onClick={() => app.silenceAlarm()}>
             {t('alarm.silence')}
           </button>

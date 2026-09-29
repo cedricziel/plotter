@@ -65,3 +65,22 @@ export const VeryLongName: Story = {
     info: { vhf: '9', berths: 12 },
   }),
 };
+
+export const GermanOpeningBridge: Story = {
+  globals: { language: 'de' },
+  render: card({
+    name: 'Schellingwouderbrug',
+    kind: 'bridge',
+    lat: 52.38,
+    lon: 4.99,
+    info: {
+      source: 'vaarweginformatie',
+      canOpen: true,
+      clearance: 2.9,
+      width: 11.5,
+      vhf: '18',
+      openingHours:
+        'Bediening op verzoek, werkdagen 06:00-22:00\nGeen bediening tijdens de spits (07:00-09:00 en 16:00-18:00)',
+    },
+  }),
+};

@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { bridgeLabel, noteParts } from '../src/core/place-info';
+import { noteParts } from '../src/core/place-info';
+import { placeLabel } from '../src/i18n/texts';
 
-describe('bridgeLabel', () => {
+describe('placeLabel', () => {
   it('tells opening from fixed bridges when the source knows', () => {
-    expect(bridgeLabel({ canOpen: true })).toBe('Opening bridge');
-    expect(bridgeLabel({ canOpen: false })).toBe('Fixed bridge');
+    expect(placeLabel({ kind: 'bridge', info: { canOpen: true } })).toBe('Opening bridge');
+    expect(placeLabel({ kind: 'bridge', info: { canOpen: false } })).toBe('Fixed bridge');
   });
 
-  it('says nothing when it does not', () => {
-    expect(bridgeLabel({ clearance: 3 })).toBeNull();
-    expect(bridgeLabel(undefined)).toBeNull();
+  it('names the kind when it does not', () => {
+    expect(placeLabel({ kind: 'bridge', info: { clearance: 3 } })).toBe('Bridge');
+    expect(placeLabel({ kind: 'bridge' })).toBe('Bridge');
   });
 });
 
