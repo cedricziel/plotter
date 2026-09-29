@@ -9,9 +9,11 @@ import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
 import { openAnchor, openMenu, openRoute, openTrack, openWaypoint, refresh } from './ui/panels';
 import { closeSheet, sheetOpen } from './ui/sheet';
+import { mountTapLog } from './ui/taplog';
 import { initUpdates } from './update';
 
 async function main() {
+  if (new URLSearchParams(location.search).has('taplog')) mountTapLog();
   showDisclaimerOnce();
 
   const app = new App();
