@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Virtual chartplotter PWA for inland navigation in the Netherlands",
   "type": "module",
+  "types": "types/index.d.ts",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

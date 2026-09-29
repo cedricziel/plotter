@@ -44,8 +44,10 @@ function dismiss(e: SyntheticEvent) {
   }, 500);
 }
 
-export function Disclaimer() {
-  const state = useStore(disclaimerState);
+/** The not-for-navigation modal, while `showDisclaimerOnce()` asks for it or always with `open`. */
+export function Disclaimer({ open = false }: { open?: boolean }) {
+  const shown = useStore(disclaimerState);
+  const state = open && shown === 'hidden' ? 'open' : shown;
   if (state === 'hidden') return null;
   // Dismiss on pointerup anywhere on the modal: a click can be lost on iOS while the map is busy.
   return (

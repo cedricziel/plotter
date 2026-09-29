@@ -1,13 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useEffect } from 'react';
-import { Disclaimer, showDisclaimerOnce } from '../ui/disclaimer';
+import { Disclaimer } from '../ui/disclaimer';
+import { Screen } from './screen';
 
-const meta: Meta = { title: 'Disclaimer' };
+const meta: Meta<typeof Disclaimer> = { title: 'Disclaimer', component: Disclaimer };
 export default meta;
 
-export const Modal: StoryObj = {
-  render: () => {
-    useEffect(() => showDisclaimerOnce(true), []);
-    return <Disclaimer />;
-  },
+export const Modal: StoryObj<typeof Disclaimer> = {
+  render: () => (
+    <Screen>
+      <Disclaimer open />
+    </Screen>
+  ),
 };

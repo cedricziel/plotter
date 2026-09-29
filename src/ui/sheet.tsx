@@ -41,17 +41,38 @@ export function Sheet() {
   }, [open]);
 
   return (
+    <SheetFrame open={!!open} title={shown?.title} bodyKey={shown?.key} onClose={closeSheet}>
+      {shown?.render()}
+    </SheetFrame>
+  );
+}
+
+/** The sheet's chrome: a titled bottom panel with a close button. Empty without a title. */
+export function SheetFrame({
+  open = true,
+  title,
+  onClose,
+  bodyKey,
+  children,
+}: {
+  open?: boolean;
+  title?: string;
+  onClose?: () => void;
+  bodyKey?: string;
+  children?: ReactNode;
+}) {
+  return (
     <section id="sheet" aria-live="polite" className={open ? 'open' : undefined}>
-      {shown && (
+      {title != null && (
         <>
           <div className="sheet-head">
-            <h2>{shown.title}</h2>
-            <button className="icon-btn" aria-label="Close" onClick={closeSheet}>
+            <h2>{title}</h2>
+            <button className="icon-btn" aria-label="Close" onClick={onClose}>
               ✕
             </button>
           </div>
-          <div className="sheet-body" key={shown.key}>
-            {shown.render()}
+          <div className="sheet-body" key={bodyKey}>
+            {children}
           </div>
         </>
       )}

@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ApiSearchResult } from '../core/api';
 import { SearchBox, seedSearch, type ScopeName } from '../ui/search';
 import { makeSearchApp } from './fakes';
+import { Screen } from './screen';
 
 const SCOPE: ScopeName = 'sheet';
 
@@ -27,15 +28,17 @@ const RESULTS: ApiSearchResult[] = [
 const box = (state: Parameters<typeof seedSearch>[1]) => () => {
   seedSearch(SCOPE, state);
   return (
-    <div id="sheet" className="open">
-      <div className="sheet-body">
-        <SearchBox app={makeSearchApp()} scope={SCOPE} onPick={() => {}} />
+    <Screen>
+      <div id="sheet" className="open">
+        <div className="sheet-body">
+          <SearchBox app={makeSearchApp()} scope={SCOPE} onPick={() => {}} />
+        </div>
       </div>
-    </div>
+    </Screen>
   );
 };
 
-const meta: Meta = { title: 'Search' };
+const meta: Meta<typeof SearchBox> = { title: 'Search', component: SearchBox };
 export default meta;
 
 type Story = StoryObj;

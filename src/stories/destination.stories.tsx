@@ -2,14 +2,17 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Place } from '../core/waterway-data';
 import { DestinationCard } from '../ui/destination';
 import { makeCardApp } from './fakes';
+import { Screen } from './screen';
 
 const card = (place: Place) => () => (
-  <div id="dest-bar">
-    <DestinationCard app={makeCardApp()} place={place} chart={async () => {}} />
-  </div>
+  <Screen>
+    <div id="dest-bar">
+      <DestinationCard app={makeCardApp()} place={place} chart={async () => {}} />
+    </div>
+  </Screen>
 );
 
-const meta: Meta = { title: 'Destination card' };
+const meta: Meta<typeof DestinationCard> = { title: 'Destination card', component: DestinationCard };
 export default meta;
 
 type Story = StoryObj;

@@ -1,3 +1,61 @@
 {
-  "projectId": "3360e45d-a30c-4a1b-bd3b-a15e70f6024f"
+  "projectId": "3360e45d-a30c-4a1b-bd3b-a15e70f6024f",
+  "pkg": "plotter",
+  "globalName": "Plotter",
+  "shape": "storybook",
+  "storybookStatic": ".design-sync/sb-reference",
+  "cssEntry": "src/ui/styles.css",
+  "buildCmd": ".design-sync/build.sh",
+  "titleMap": {
+    "Anchor": "AnchorPanel",
+    "Destinationcard": "DestinationCard",
+    "Guidancestrip": "NavStrip",
+    "Icons": "KindIcon",
+    "Route": "RoutePanel",
+    "Seamarkcard": "SeamarkCard",
+    "Search": "SearchBox",
+    "Settings": "SettingsPanel",
+    "Track": "TrackPanel",
+    "Waypoint": "WaypointPanel",
+    "Disclaimer": null
+  },
+  "overrides": {
+    "Toast": {
+      "cardMode": "single",
+      "primaryStory": "WithAction"
+    },
+    "SearchBox": {
+      "cardMode": "single",
+      "primaryStory": "Results"
+    },
+    "AnchorPanel": {
+      "cardMode": "single",
+      "primaryStory": "Armed"
+    },
+    "RoutePanel": {
+      "cardMode": "single",
+      "primaryStory": "Active"
+    },
+    "SettingsPanel": {
+      "cardMode": "single",
+      "primaryStory": "Default"
+    },
+    "TrackPanel": {
+      "cardMode": "single",
+      "primaryStory": "Recording"
+    },
+    "WaypointPanel": {
+      "cardMode": "single",
+      "primaryStory": "Saved"
+    },
+    "Instruments": {
+      "cardMode": "column"
+    },
+    "DestinationCard": {
+      "cardMode": "single",
+      "primaryStory": "MarinaWithFullInfo"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md",
+  "entry": "./src/ui/index.ts"
 }

@@ -19,9 +19,13 @@ export function toast(msg: string, ms = 3500, onTap?: () => void): void {
   timer = setTimeout(() => toastStore.set({ ...toastStore.get(), shown: false }), ms);
 }
 
-/** The one-line status message above the toolbar; tappable when the toast carries an action. */
-export function Toast() {
-  const { msg, onTap, shown } = useStore(toastStore);
+/**
+ * The one-line status message above the toolbar; tappable when the toast carries an action. Shows what `toast()`
+ * sent, or `message` when given.
+ */
+export function Toast(props: { message?: string; onTap?: () => void }) {
+  const state = useStore(toastStore);
+  const { msg, onTap, shown } = props.message != null ? { msg: props.message, onTap: props.onTap, shown: true } : state;
   const cls = [shown && 'show', onTap && 'tap'].filter(Boolean).join(' ');
   return (
     <div id="toast" role="status" className={cls || undefined} onClick={onTap}>
