@@ -111,8 +111,9 @@
       "viewport": "1200x1200"
     },
     "PlotterScreen": {
-      "cardMode": "column",
-      "viewport": "1200x1200"
+      "cardMode": "single",
+      "viewport": "1200x1200",
+      "primaryStory": "Overview"
     }
   },
   "readmeHeader": ".design-sync/conventions.md",
