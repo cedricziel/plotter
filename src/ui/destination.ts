@@ -5,7 +5,7 @@ import { bearing, distance } from '../core/geo';
 import { formatBearing, formatDistance } from '../core/units';
 import type { Place } from '../core/waterway-data';
 import { $, h, toast } from './dom';
-import { KIND_LABEL, kindIcon } from './icons';
+import { KIND_LABEL, kindIcon, iconEl } from './icons';
 import { resetSearch, searchBox } from './search';
 import { closeSheet } from './sheet';
 
@@ -187,7 +187,7 @@ export function showDestinationCard(app: App, place: Place): void {
       h(
         'div',
         { class: 'dest-title' },
-        h('span', { class: 'result-ico', innerHTML: kindIcon(place.kind) }),
+        iconEl(kindIcon(place.kind), 'result-ico'),
         h('span', { class: 'result-text' }, h('b', null, place.name), h('small', null, sub)),
       ),
       chartBtn,

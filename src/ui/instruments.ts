@@ -1,7 +1,7 @@
 import type { App } from '../app';
 import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
 import { $, h } from './dom';
-import { maneuverIcon } from './icons';
+import { maneuverIcon, iconEl } from './icons';
 
 const cell = (label: string, value: string, cls = '') =>
   h('div', { class: `nav-cell ${cls}` }, h('small', null, label), h('b', null, value));
@@ -85,8 +85,8 @@ export function mountInstruments(app: App): () => void {
             ? h(
                 'span',
                 { class: 'nav-to nav-maneuver' },
-                h('span', { class: 'nav-ico', innerHTML: maneuverIcon(m.type) }),
-                p.dtw > 40 ? `In ${formatDistance(p.dtw, du)} — ${m.text}` : m.text,
+                iconEl(maneuverIcon(m.type), 'nav-ico'),
+                h('span', { class: 'nav-text' }, p.dtw > 40 ? `In ${formatDistance(p.dtw, du)} — ${m.text}` : m.text),
               )
             : h('span', { class: 'nav-to' }, p.finished ? '⚑ Arrived' : `➤ ${pts[p.nextIndex].name}`),
           steerCue(p.steer, f?.sog),

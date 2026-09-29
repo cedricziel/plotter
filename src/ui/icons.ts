@@ -2,7 +2,7 @@ import type { ManeuverType } from '../core/routing';
 import type { PlaceKind } from '../core/waterway-data';
 
 const svg = (paths: string, cls = 'ico') =>
-  `<svg class="${cls}" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  `<svg class="${cls}" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths}"/></svg>`;
 
 const MANEUVER: Record<ManeuverType, string> = {
   depart: 'M12 4 L18 19 L12 16 L6 19 Z',
@@ -53,4 +53,12 @@ export const KIND_LABEL: Record<PlaceKind, string> = {
 
 export function kindIcon(kind: PlaceKind): string {
   return svg(KIND[kind] ?? KIND.waypoint, 'ico ki');
+}
+
+/** An element holding an icon; `h()` sets a string `innerHTML` as an attribute, so this builds it by hand. */
+export function iconEl(markup: string, cls: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = cls;
+  el.innerHTML = markup;
+  return el;
 }

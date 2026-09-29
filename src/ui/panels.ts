@@ -7,7 +7,7 @@ import { type CogMinutes, DEFAULT_SETTINGS } from '../settings';
 import { chartAndShow, showDestinationCard, startPlacement } from './destination';
 import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
 import { download, fileStamp, h, pickFile, toast } from './dom';
-import { maneuverIcon } from './icons';
+import { maneuverIcon, iconEl } from './icons';
 import { searchBox } from './search';
 import { closeSheet, openSheet, sheetOpen, updateSheet } from './sheet';
 
@@ -245,7 +245,7 @@ function courseBlock(app: App, route: Route): HTMLElement {
             app.map.easeTo({ center: [m.lon, m.lat], zoom: Math.max(app.map.getZoom(), 15) });
           },
         },
-        h('span', { class: 'maneuver-ico', innerHTML: maneuverIcon(m.type) }),
+        iconEl(maneuverIcon(m.type), 'maneuver-ico'),
         h(
           'span',
           { class: 'maneuver-text' },

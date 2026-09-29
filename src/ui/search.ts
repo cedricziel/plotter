@@ -7,7 +7,7 @@ import { formatDistance } from '../core/units';
 import type { Place } from '../core/waterway-data';
 import { ApiError, api } from '../services/api';
 import { h } from './dom';
-import { KIND_LABEL, kindIcon } from './icons';
+import { KIND_LABEL, kindIcon, iconEl } from './icons';
 
 const DEBOUNCE_MS = 250;
 const MIN_CHARS = 2;
@@ -61,7 +61,7 @@ function renderRows(app: App, s: Scope, onPick: (p: Place) => void, root = docum
       h(
         'button',
         { class: 'result', type: 'button', onclick: () => onPick(r) },
-        h('span', { class: 'result-ico', innerHTML: kindIcon(r.kind) }),
+        iconEl(kindIcon(r.kind), 'result-ico'),
         h(
           'span',
           { class: 'result-text' },
