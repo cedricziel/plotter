@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { Announcer, OffCourseMonitor, pointAlong, projectOnShape, shapeInfo, shapeProgress } from '../src/core/course';
+import {
+  Announcer,
+  OffCourseMonitor,
+  pointAlong,
+  projectOnShape,
+  shapeInfo,
+  shapeProgress,
+  withConnectors,
+} from '../src/core/course';
 import { destination, distance } from '../src/core/geo';
 
 const origin = { lat: 52.0, lon: 5.0 };
@@ -132,5 +140,28 @@ describe('Announcer', () => {
     expect(a.update('m1', 90, 'Pass Sluis (lock)')).toBe('In 100 metres, Pass Sluis (lock)');
     expect(a.update('m1', 80, 'Pass Sluis (lock)')).toBeNull();
     expect(a.update('m2', 480, 'Arrive')).toBe('In 500 metres, Arrive');
+  });
+});
+
+describe('withConnectors', () => {
+  const m = [
+    { type: 'depart', dist: 0, ...at(0, 0) },
+    { type: 'turn-left', dist: 1000, ...at(1000, 0) },
+    { type: 'arrive', dist: 3000, ...at(2000, 1000) },
+  ];
+
+  it('adds straight connectors and shifts the maneuvers', () => {
+    const r = withConnectors(shape, m, at(-100, 0), at(2000, 1200));
+    expect(r.shape).toHaveLength(shape.length + 2);
+    expect(r.maneuvers[0]).toMatchObject({ dist: 0, lat: at(-100, 0).lat });
+    expect(r.maneuvers[1].dist).toBeCloseTo(1100, -1);
+    expect(r.maneuvers[2].dist).toBeCloseTo(3300, -1);
+    expect(r.maneuvers[2].lat).toBeCloseTo(at(2000, 1200).lat, 6);
+  });
+
+  it('leaves the route alone when start and destination are on the waterway', () => {
+    const r = withConnectors(shape, m, at(5, 0), at(2000, 1010));
+    expect(r.shape).toHaveLength(shape.length);
+    expect(r.maneuvers[1].dist).toBe(1000);
   });
 });
