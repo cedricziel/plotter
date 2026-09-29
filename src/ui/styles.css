@@ -152,6 +152,8 @@ button {
 }
 
 #navstrip {
+  min-width: 0;
+  overflow: hidden;
   padding: 4px 12px 6px;
   background: var(--panel);
   color: var(--fg);
@@ -177,9 +179,9 @@ button {
   line-height: 1;
   padding: 0;
 }
-.nav-cells { display: flex; gap: 6px; margin-top: 2px; }
-.nav-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
-.nav-cell b { font-size: 20px; font-weight: 800; white-space: nowrap; }
+.nav-cells { display: flex; flex-wrap: wrap; gap: 0 6px; margin-top: 2px; }
+.nav-cell { flex: 1 1 60px; min-width: 0; display: flex; flex-direction: column; }
+.nav-cell b { font-size: clamp(13px, 4.2vw, 20px); font-weight: 800; white-space: nowrap; }
 .nav-cell.warn b { color: var(--warn); }
 #navstrip[hidden] { display: none; }
 
@@ -632,7 +634,7 @@ progress { height: 14px; }
 .nav-maneuver { display: flex; align-items: center; gap: 8px; white-space: normal; overflow: visible; }
 .nav-text {
   min-width: 0;
-  font-size: 19px;
+  font-size: clamp(15px, 4.6vw, 19px);
   line-height: 1.15;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -640,6 +642,7 @@ progress { height: 14px; }
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+.nav-top:has(.nav-maneuver) .nav-steer { font-size: 20px; }
 .nav-ico { flex: none; display: grid; place-items: center; }
 .nav-ico .ico { width: 30px; height: 30px; }
 .nav-off {
