@@ -14,6 +14,7 @@ import { h } from './dom';
 import { KindIcon } from './icons';
 import { resetSearch, SearchBox } from './search';
 import { closeSheet } from './sheet';
+import type { ScreenBottom } from './screen';
 import { createStore, useLanguage, useStore } from './store';
 import { toast } from './toast';
 
@@ -23,7 +24,8 @@ const NOTE_CHARS = 80;
 type Bar = { kind: 'none' } | { kind: 'placing' } | { kind: 'card'; card: ReactNode };
 
 const NONE: Bar = { kind: 'none' };
-const bar = createStore<Bar>(NONE);
+export const destBar = createStore<Bar>(NONE);
+const bar = destBar;
 let pin: Marker | null = null;
 
 /** One-time hint (per browser) that explains how to set a destination. */
@@ -40,22 +42,18 @@ export function showTipOnce(): void {
 
 export const isPlacing = () => bar.get().kind === 'placing';
 
-/** The bottom bar: placement controls or a card, hidden when neither is up. */
-export function DestBar({ app }: { app: App }) {
+/** What the bottom bar shows: placement controls, a card, or nothing. */
+export function useDestBar(app: App): ScreenBottom | null {
   const state = useStore(bar);
-  return (
-    <div id="dest-bar" hidden={state.kind === 'none'}>
-      {state.kind === 'placing' && <Placement app={app} />}
-      {state.kind === 'card' && state.card}
-    </div>
-  );
+  if (state.kind === 'placing') return { kind: 'placing', content: <Placement app={app} /> };
+  if (state.kind === 'card') return { kind: 'card', content: state.card };
+  return null;
 }
 
 /** Puts a card in the bottom bar in place of any sheet, placement bar or other card; a toolbar tool closes it. */
 export function showCard(_app: App, card: ReactNode): void {
   closeSheet();
   closeDestination();
-  document.body.classList.add('destcard');
   bar.set({ kind: 'card', card });
 }
 
@@ -64,9 +62,6 @@ export function startPlacement(app: App): void {
   closeSheet();
   closeDestination();
   app.setFollow(false);
-  document.body.classList.add('placing');
-  const map = document.querySelector('#map');
-  if (map && !map.querySelector('#crosshair')) map.append(h('div', { id: 'crosshair', 'aria-hidden': 'true' }));
   bar.set({ kind: 'placing' });
 }
 
@@ -78,48 +73,75 @@ function Placement({ app }: { app: App }) {
     return () => void app.map.off('move', refresh);
   }, [app]);
 
-  const c = app.map.getCenter();
   const at = () => {
     const c = app.map.getCenter();
     return { lat: c.lat, lon: c.lng };
   };
   const f = app.fix;
+  const here = at();
   const place = async (then: (id: string) => Promise<void>) => {
     const w = await app.addWaypoint(at(), false);
     closeDestination();
     await then(w.id);
   };
-  const chart = async () => {
-    setCharting(true);
-    const to = { ...at(), name: t('dest.mapPoint') };
-    closeDestination();
-    await chartAndShow(app, to);
-  };
-  const here = { lat: c.lat, lon: c.lng };
+  return (
+    <PlacementBar
+      search={<SearchBox app={app} scope="bar" onPick={(p) => showDestinationCard(app, p)} />}
+      readout={
+        f
+          ? `${formatDistance(distance(f, here), app.settings.distanceUnit, language())} · ${formatBearing(bearing(f, here))}`
+          : null
+      }
+      charting={charting}
+      onChart={async () => {
+        setCharting(true);
+        closeDestination();
+        await chartAndShow(app, { ...at(), name: t('dest.mapPoint') });
+      }}
+      onGoHere={() => void place((id) => app.goTo(id))}
+      onAddStop={() => void place(async (id) => toast(t('wp.addedTo', { name: (await app.addStop(id)).name })))}
+      onCancel={closeDestination}
+    />
+  );
+}
+
+/** Crosshair-mode controls: search, distance and bearing to the crosshair, and what to do with that point. */
+export function PlacementBar({
+  search,
+  readout,
+  charting = false,
+  onChart,
+  onGoHere,
+  onAddStop,
+  onCancel,
+}: {
+  search?: ReactNode;
+  /** distance · bearing from the boat to the crosshair; null without a fix */
+  readout: string | null;
+  charting?: boolean;
+  onChart?: () => void;
+  onGoHere?: () => void;
+  onAddStop?: () => void;
+  onCancel?: () => void;
+}) {
+  useLanguage();
   return (
     <>
-      <SearchBox app={app} scope="bar" onPick={(p) => showDestinationCard(app, p)} />
-      <div className="dest-read">
-        {f
-          ? `${formatDistance(distance(f, here), app.settings.distanceUnit, language())} · ${formatBearing(bearing(f, here))}`
-          : t('dest.panHint')}
-      </div>
+      {search}
+      <div className="dest-read">{readout ?? t('dest.panHint')}</div>
       <div className="row">
-        <button className="btn primary grow big" disabled={charting} onClick={() => void chart()}>
+        <button className="btn primary grow big" disabled={charting} onClick={onChart}>
           {charting ? t('dest.charting') : t('wp.chartCourse')}
         </button>
       </div>
       <div className="row">
-        <button className="btn grow big" onClick={() => void place((id) => app.goTo(id))}>
+        <button className="btn grow big" onClick={onGoHere}>
           {t('dest.goHere')}
         </button>
-        <button
-          className="btn grow big"
-          onClick={() => void place(async (id) => toast(t('wp.addedTo', { name: (await app.addStop(id)).name })))}
-        >
+        <button className="btn grow big" onClick={onAddStop}>
           {t('dest.addStop')}
         </button>
-        <button className="btn big" onClick={closeDestination}>
+        <button className="btn big" onClick={onCancel}>
           {t('common.cancel')}
         </button>
       </div>
@@ -129,8 +151,6 @@ function Placement({ app }: { app: App }) {
 
 /** Leaves crosshair mode and closes the destination card. */
 export function closeDestination(): void {
-  if (isPlacing()) document.querySelector('#crosshair')?.remove();
-  document.body.classList.remove('placing', 'destcard');
   pin?.remove();
   pin = null;
   resetSearch('bar');
@@ -242,7 +262,6 @@ export function showDestinationCard(app: App, place: Place): void {
   closeSheet();
   closeDestination();
   app.setFollow(false);
-  document.body.classList.add('destcard');
   pin = new Marker({
     element: h('div', { class: 'dest-pin', 'aria-hidden': 'true' }),
     anchor: 'center',

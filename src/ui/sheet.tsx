@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { createStore, useStore } from './store';
 
@@ -41,11 +41,6 @@ export function Sheet() {
   const last = useRef<OpenSheet | null>(null);
   if (open) last.current = open;
   const shown = open ?? last.current;
-
-  useEffect(() => {
-    if (open) document.body.dataset.sheet = open.key;
-    else delete document.body.dataset.sheet;
-  }, [open]);
 
   return (
     <SheetFrame

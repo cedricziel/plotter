@@ -16,47 +16,103 @@
     "Search": "SearchBox",
     "Settings": "SettingsPanel",
     "Track": "TrackPanel",
-    "Waypoint": "WaypointPanel"
+    "Waypoint": "WaypointPanel",
+    "Mapcontrols": "MapControls",
+    "Anchoralarm": "AnchorAlarm",
+    "Placementbar": "PlacementBar",
+    "Sheetframe": "SheetFrame",
+    "Plotterscreen": "PlotterScreen"
   },
   "overrides": {
     "Toast": {
       "cardMode": "single",
-      "primaryStory": "WithAction"
+      "primaryStory": "WithAction",
+      "viewport": "1200x1200"
     },
     "SearchBox": {
       "cardMode": "single",
-      "primaryStory": "Results"
+      "primaryStory": "Results",
+      "viewport": "1200x1200"
     },
     "AnchorPanel": {
       "cardMode": "single",
-      "primaryStory": "Armed"
+      "primaryStory": "Armed",
+      "viewport": "1200x1200"
     },
     "RoutePanel": {
       "cardMode": "single",
-      "primaryStory": "Active"
+      "primaryStory": "Active",
+      "viewport": "1200x1200"
     },
     "SettingsPanel": {
       "cardMode": "single",
-      "primaryStory": "Default"
+      "primaryStory": "Default",
+      "viewport": "1200x1200"
     },
     "TrackPanel": {
       "cardMode": "single",
-      "primaryStory": "Recording"
+      "primaryStory": "Recording",
+      "viewport": "1200x1200"
     },
     "WaypointPanel": {
       "cardMode": "single",
-      "primaryStory": "Saved"
+      "primaryStory": "Saved",
+      "viewport": "1200x1200"
     },
     "Instruments": {
-      "cardMode": "column"
+      "cardMode": "column",
+      "viewport": "1200x1200"
     },
     "DestinationCard": {
       "cardMode": "single",
-      "primaryStory": "MarinaWithFullInfo"
+      "primaryStory": "MarinaWithFullInfo",
+      "viewport": "1200x1200"
     },
     "Disclaimer": {
       "cardMode": "single",
-      "primaryStory": "Modal"
+      "primaryStory": "Modal",
+      "viewport": "1200x1200"
+    },
+    "MapControls": {
+      "cardMode": "single",
+      "primaryStory": "CourseUp",
+      "viewport": "1200x1200"
+    },
+    "AnchorAlarm": {
+      "cardMode": "single",
+      "primaryStory": "Dragging",
+      "viewport": "1200x1200"
+    },
+    "PlacementBar": {
+      "cardMode": "single",
+      "primaryStory": "WithFix",
+      "viewport": "1200x1200"
+    },
+    "SheetFrame": {
+      "cardMode": "single",
+      "primaryStory": "Default",
+      "viewport": "1200x1200"
+    },
+    "Toolbar": {
+      "cardMode": "column",
+      "viewport": "1200x1200"
+    },
+    "NavStrip": {
+      "cardMode": "column",
+      "viewport": "1200x1200"
+    },
+    "KindIcon": {
+      "cardMode": "column",
+      "viewport": "1200x1200"
+    },
+    "SeamarkCard": {
+      "cardMode": "single",
+      "primaryStory": "LateralBuoy",
+      "viewport": "1200x1200"
+    },
+    "PlotterScreen": {
+      "cardMode": "column",
+      "viewport": "1200x1200"
     }
   },
   "readmeHeader": ".design-sync/conventions.md",

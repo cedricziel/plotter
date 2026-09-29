@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SheetFrame } from '../ui/sheet';
-import { Screen } from './screen';
+import { Device, type DeviceName } from './device';
 import { TrackPanel, type TrackApp } from '../ui/panels/bodies';
 import { makePanelApp } from './fakes';
 
@@ -21,33 +21,39 @@ const track = (over = {}) => ({
   ...over,
 });
 
-export const Idle: Story = {
-  render: () => (
-    <Screen>
-      <SheetFrame title="Track recording">
-        <TrackPanel app={makePanelApp({ tracks: new Map([['t1', track()]]) }) as unknown as TrackApp} />
-      </SheetFrame>
-    </Screen>
-  ),
-};
+const idle = (device: DeviceName = 'phone-portrait') => (
+  <Device device={device}>
+    <SheetFrame title="Track recording">
+      <TrackPanel app={makePanelApp({ tracks: new Map([['t1', track()]]) }) as unknown as TrackApp} />
+    </SheetFrame>
+  </Device>
+);
+
+export const Idle: Story = { render: () => idle() };
 
 const live = track({ id: 't2', name: 'Now', ended: undefined });
-export const Recording: Story = {
-  render: () => (
-    <Screen>
-      <SheetFrame title="Track recording">
-        <TrackPanel
-          app={
-            makePanelApp({
-              recording: live,
-              tracks: new Map([
-                ['t2', live],
-                ['t1', track()],
-              ]),
-            }) as unknown as TrackApp
-          }
-        />
-      </SheetFrame>
-    </Screen>
-  ),
-};
+const recording = (device: DeviceName = 'phone-portrait') => (
+  <Device device={device}>
+    <SheetFrame title="Track recording">
+      <TrackPanel
+        app={
+          makePanelApp({
+            recording: live,
+            tracks: new Map([
+              ['t2', live],
+              ['t1', track()],
+            ]),
+          }) as unknown as TrackApp
+        }
+      />
+    </SheetFrame>
+  </Device>
+);
+
+export const Recording: Story = { render: () => recording() };
+
+export const PhoneLandscape: Story = { render: () => recording('phone-landscape') };
+
+export const TabletPortrait: Story = { render: () => recording('tablet-portrait') };
+
+export const TabletLandscape: Story = { render: () => recording('tablet-landscape') };

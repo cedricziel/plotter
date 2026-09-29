@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ManeuverType } from '../core/routing';
+import { Device, type DeviceName } from './device';
 import { t } from '../i18n';
 import { KindIcon, ManeuverIcon, PLACE_KINDS } from '../ui/icons';
+
 const MANEUVERS: ManeuverType[] = [
   'depart',
   'continue',
@@ -23,8 +25,10 @@ const grid = { display: 'flex', flexWrap: 'wrap', gap: 16, padding: 16, color: '
 const meta: Meta<typeof KindIcon> = { title: 'Icons', component: KindIcon };
 export default meta;
 
-export const PlaceKinds: StoryObj<typeof KindIcon> = {
-  render: () => (
+type Story = StoryObj<typeof KindIcon>;
+
+const placeKinds = (device: DeviceName = 'phone-portrait') => (
+  <Device device={device} fit>
     <div style={grid}>
       {PLACE_KINDS.map((k) => (
         <span key={k} className="result-text" style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
@@ -33,11 +37,11 @@ export const PlaceKinds: StoryObj<typeof KindIcon> = {
         </span>
       ))}
     </div>
-  ),
-};
+  </Device>
+);
 
-export const Maneuvers: StoryObj<typeof KindIcon> = {
-  render: () => (
+const maneuvers = (device: DeviceName = 'phone-portrait') => (
+  <Device device={device} fit>
     <div style={grid}>
       {MANEUVERS.map((m) => (
         <span key={m} style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
@@ -46,5 +50,15 @@ export const Maneuvers: StoryObj<typeof KindIcon> = {
         </span>
       ))}
     </div>
-  ),
-};
+  </Device>
+);
+
+export const PlaceKinds: Story = { render: () => placeKinds() };
+
+export const Maneuvers: Story = { render: () => maneuvers() };
+
+export const PhoneLandscape: Story = { render: () => placeKinds('phone-landscape') };
+
+export const TabletPortrait: Story = { render: () => placeKinds('tablet-portrait') };
+
+export const TabletLandscape: Story = { render: () => placeKinds('tablet-landscape') };

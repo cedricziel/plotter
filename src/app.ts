@@ -31,7 +31,7 @@ import { speak } from './services/voice';
 import { logEvent, traced } from './telemetry';
 import { WakeLock } from './services/wakelock';
 import { navBearing, navZoom } from './core/camera';
-import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
+import { absUrl, DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
 import { onUserActivation } from './ui/activation';
 import { $, h, toast } from './ui/dom';
 
@@ -49,7 +49,8 @@ const GPS_REPORT_MS = 5 * 60_000;
 
 export class App {
   map!: MlMap;
-  settings!: Settings;
+  /** Defaults until `init()` has read the stored settings. */
+  settings: Settings = { ...DEFAULT_SETTINGS };
   basemap: Basemap = 'pmtiles';
   private chartUrl = DEFAULT_CHART_URL;
 

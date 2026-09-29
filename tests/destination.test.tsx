@@ -6,7 +6,19 @@ import type { Place } from '../src/core/waterway-data';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
 vi.mock('maplibre-gl', () => ({ Marker: class {} }));
-const { DestBar, DestinationCard, closeDestination, showCard, startPlacement } = await import('../src/ui/destination');
+const { DestinationCard, closeDestination, destBar, showCard, startPlacement, useDestBar } =
+  await import('../src/ui/destination');
+
+function DestBar({ app }: { app: App }) {
+  const bar = useDestBar(app);
+  return (
+    <div className={bar?.kind}>
+      <div id="dest-bar" hidden={!bar}>
+        {bar?.content}
+      </div>
+    </div>
+  );
+}
 
 const place: Place = {
   name: 'Jachthaven Aalsmeer',
@@ -57,14 +69,14 @@ describe('DestinationCard', () => {
   it('disables "Chart course", closes the bar, then charts', async () => {
     const app = fakeApp();
     const chart = vi.fn(async () => {});
-    document.body.classList.add('destcard');
+    act(() => showCard(app as unknown as App, 'card'));
     render(<DestinationCard app={app} place={place} chart={chart} />);
     const btn = screen.getByText('Chart course') as HTMLButtonElement;
     await act(async () => void fireEvent.click(btn));
     expect(btn.disabled).toBe(true);
     expect(btn.textContent).toBe('Charting…');
     expect(chart).toHaveBeenCalledOnce();
-    expect(document.body.classList.contains('destcard')).toBe(false);
+    expect(destBar.get().kind).toBe('none');
   });
 
   it('hides the bar from the close button', () => {
@@ -78,16 +90,14 @@ describe('DestinationCard', () => {
 });
 
 describe('placement', () => {
-  it('toggles the placing body class and the crosshair', () => {
+  it('puts the bar in placing mode until closed', () => {
     const app = fakeApp() as unknown as App;
-    render(<DestBar app={app} />);
+    const { container } = render(<DestBar app={app} />);
     act(() => startPlacement(app));
-    expect(document.body.classList.contains('placing')).toBe(true);
-    expect(document.querySelector('#crosshair')).not.toBeNull();
+    expect(container.querySelector('.placing')).not.toBeNull();
     expect(screen.getByText('Pan the map to place the crosshair')).toBeTruthy();
     act(() => closeDestination());
-    expect(document.body.classList.contains('placing')).toBe(false);
-    expect(document.querySelector('#crosshair')).toBeNull();
+    expect(container.querySelector('.placing')).toBeNull();
     expect(document.querySelector<HTMLElement>('#dest-bar')!.hidden).toBe(true);
   });
 });
