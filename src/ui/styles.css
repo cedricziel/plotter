@@ -150,6 +150,12 @@ button {
 #instruments.stale .inst-sog .inst-value,
 #instruments.stale .inst-cog .inst-value { opacity: 0.45; }
 
+/* A 360 px phone: the position's two lines and the SOG and COG readings only fit side by side when a bit smaller. */
+@container plotter (max-width: 380px) {
+  .inst { padding-inline: 8px; }
+  .inst-pos .inst-value { font-size: 17px; }
+}
+
 @container plotter (min-width: 720px) {
   #instruments {
     grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr;
