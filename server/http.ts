@@ -15,7 +15,7 @@ export class HttpError extends Error {
   }
 }
 
-export async function readJson(req: IncomingMessage, limit: number): Promise<unknown> {
+export async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
   const declared = Number(req.headers['content-length']);
   if (Number.isFinite(declared) && declared > limit) throw new HttpError(413, `body larger than ${limit} bytes`);
   const chunks: Buffer[] = [];
@@ -25,8 +25,13 @@ export async function readJson(req: IncomingMessage, limit: number): Promise<unk
     if (size > limit) throw new HttpError(413, `body larger than ${limit} bytes`);
     chunks.push(chunk as Buffer);
   }
+  return Buffer.concat(chunks);
+}
+
+export async function readJson(req: IncomingMessage, limit: number): Promise<unknown> {
+  const body = await readBody(req, limit);
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return JSON.parse(body.toString('utf8'));
   } catch {
     throw new HttpError(400, 'body is not valid JSON');
   }

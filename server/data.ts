@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import { emitLog } from './telemetry';
 import { PlaceIndex } from '../src/core/search';
 import { decodeGraph, type Graph } from '../src/core/routing';
 import { FORMAT_VERSION, type DataManifest, type Place, type WaterwayFile } from '../src/core/waterway-data';
@@ -67,10 +68,14 @@ export class DataStore {
         edges: file.edges.length,
         vertices: file.vertices.length / 2,
       };
-      console.log(`data loaded: ${file.edges.length} edges, ${places.length} places, built ${manifest.built}`);
+      const summary = `data loaded: ${file.edges.length} edges, ${places.length} places, built ${manifest.built}`;
+      console.log(summary);
+      emitLog('INFO', summary, { 'data.edges': file.edges.length, 'data.places': places.length, 'data.built': manifest.built });
       return true;
     } catch (e) {
-      console.error(`data reload failed, keeping previous data: ${(e as Error).message}`);
+      const message = `data reload failed, keeping previous data: ${(e as Error).message}`;
+      console.error(message);
+      emitLog('ERROR', message);
       return false;
     }
   }

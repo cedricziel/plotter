@@ -1,3 +1,12 @@
+import {
+  context,
+  propagation,
+  ROOT_CONTEXT,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+  type ObservableResult,
+} from '@opentelemetry/api';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type {
@@ -13,7 +22,8 @@ import { distance } from '../src/core/geo';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
 import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
-import { HttpError, RateLimiter, clientKey, readJson, sendJson } from './http';
+import { HttpError, RateLimiter, clientKey, readBody, readJson, sendJson } from './http';
+import { emitLog, meter, tracer, withSpan, type Relay } from './telemetry';
 import { openChart, type ChartArchive } from './tiles';
 
 export interface ServerOptions {
@@ -28,7 +38,9 @@ export interface ServerOptions {
   /** key rate limits on X-Forwarded-For (set when behind a reverse proxy) */
   trustProxy?: boolean;
   /** requests per minute and client */
-  rateLimits?: Partial<Record<'search' | 'route' | 'corridor', number>>;
+  rateLimits?: Partial<Record<'search' | 'route' | 'corridor' | 'otel', number>>;
+  /** where /api/otel/* forwards browser telemetry; unset answers 204 and drops it */
+  relay?: Relay;
 }
 
 export interface RunningServer {
@@ -44,8 +56,13 @@ const AVERAGE_TILE_BYTES = 20_000;
 const MAX_CHART_ZOOM = 15;
 const MAX_CORRIDOR_POINTS = 20_000;
 const MAX_CORRIDOR_METERS = 600_000;
-const LIMITS = { search: 120, route: 30, corridor: 6 };
-const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024 };
+const LIMITS = { search: 120, route: 30, corridor: 6, otel: 60 };
+const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024, otel: 256 * 1024 };
+const ROUTES = new Set(['/api/health', '/api/meta', '/api/search', '/api/route', '/api/corridor']);
+const OTLP_TYPES = ['application/json', 'application/x-protobuf'];
+const REQUEST_SECONDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
+
+const routeOf = (path: string) => (ROUTES.has(path) ? path : path.startsWith('/api/otel/') ? '/api/otel/*' : 'unmatched');
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
@@ -134,13 +151,15 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   async function meta(): Promise<ApiMeta> {
     const s = store.state;
     const archive = await chartArchive();
-    if (!s) return { ready: false, chart: archive?.name ?? null };
+    const telemetry = !!opts.relay;
+    if (!s) return { ready: false, chart: archive?.name ?? null, telemetry };
     return {
       ready: true,
       built: s.manifest.built,
       source: s.manifest.source,
       counts: { vertices: s.vertices, edges: s.edges, places: s.places.length },
       chart: archive?.name ?? null,
+      telemetry,
     };
   }
 
@@ -162,16 +181,35 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       if (!Number.isInteger(limit) || limit < 1) throw new HttpError(400, 'limit must be a positive integer');
       limit = Math.min(limit, 50);
     }
-    return { results: ready().index.search(q, { near, limit }) };
+    const index = ready().index;
+    return withSpan('search.query', (span) => {
+      const results = index.search(q, { near, limit });
+      span.setAttributes({ 'search.result_count': results.length, 'search.limit': limit, 'search.near': !!near });
+      return { results };
+    });
   }
 
   function route(body: unknown): ApiRouteResponse {
     const { graph, places } = ready();
     const r = parseRoute(body);
-    const { result, end } = findRouteToPlace(graph, r.from, r.via, { ...r.to, kind: r.toKind }, places, {
-      profile: r.profile,
-      speed: r.speed,
-      destName: r.destName,
+    const { result, end } = withSpan('route.compute', (span) => {
+      const found = findRouteToPlace(graph, r.from, r.via, { ...r.to, kind: r.toKind }, places, {
+        profile: r.profile,
+        speed: r.speed,
+        destName: r.destName,
+      });
+      const { result } = found;
+      span.setAttributes(
+        result.ok
+          ? {
+              'route.success': true,
+              'route.distance_m': result.distance,
+              'route.maneuvers': result.maneuvers.length,
+              'route.warnings': result.warnings.length,
+            }
+          : { 'route.success': false, 'route.failure': result.reason },
+      );
+      return found;
     });
     if (!result.ok) {
       throw new HttpError(result.reason === 'no-snap' ? 422 : 404, result.message, { reason: result.reason });
@@ -247,6 +285,31 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     };
   }
 
+  async function relay(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
+    if (!opts.relay) {
+      req.resume();
+      res.writeHead(204).end();
+      return;
+    }
+    const type = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+    if (!OTLP_TYPES.includes(type)) throw new HttpError(415, `content-type must be ${OTLP_TYPES.join(' or ')}`);
+    guard(req, 'otel');
+    const body = await readBody(req, BODY_LIMITS.otel);
+    let upstream: Response;
+    try {
+      upstream = await fetch(opts.relay.endpoint + path, {
+        method: 'POST',
+        headers: { ...opts.relay.headers, 'content-type': req.headers['content-type'] as string },
+        body: new Uint8Array(body),
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw new HttpError(502, 'telemetry upstream not reachable');
+    }
+    await upstream.arrayBuffer().catch(() => undefined);
+    res.writeHead(upstream.status, { 'content-length': 0 }).end();
+  }
+
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const method = req.method ?? 'GET';
@@ -271,23 +334,94 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       case '/api/corridor':
         allow('POST');
         guard(req, 'corridor');
-        return sendJson(req, res, 200, await corridor(await readJson(req, BODY_LIMITS.corridor)));
+        return sendJson(
+          req,
+          res,
+          200,
+          await withSpan('corridor.build', async (span) => {
+            const built = await corridor(await readJson(req, BODY_LIMITS.corridor));
+            span.setAttributes({
+              'corridor.tile_count': built.tileCount,
+              'corridor.edge_count': built.graph.edges.length,
+              'corridor.place_count': built.places.length,
+            });
+            return built;
+          }),
+        );
+      case '/api/otel/v1/traces':
+      case '/api/otel/v1/logs':
+        allow('POST');
+        return relay(req, res, url.pathname.slice('/api/otel'.length));
       default:
         throw new HttpError(404, 'not found');
     }
   }
 
-  const server = createServer((req, res) => {
-    handle(req, res).catch(async (e: unknown) => {
-      if (res.headersSent) return void res.end();
-      if (e instanceof HttpError) {
-        if (typeof e.extra.retryAfter === 'number') res.setHeader('retry-after', String(e.extra.retryAfter));
-        const { retryAfter: _, ...extra } = e.extra;
-        return sendJson(req, res, e.status, { error: e.message, ...extra });
-      }
-      console.error(e);
-      return sendJson(req, res, 500, { error: 'internal error' });
+  const dataGauges: [string, () => number | undefined][] = [
+    ['plotter.data.ready', () => (store.state ? 1 : 0)],
+    ['plotter.data.vertices', () => store.state?.vertices],
+    ['plotter.data.edges', () => store.state?.edges],
+    ['plotter.data.places', () => store.state?.places.length],
+  ];
+  const removeGauges = dataGauges.map(([name, read]) => {
+    const gauge = meter().createObservableGauge(name);
+    const callback = (result: ObservableResult) => {
+      const value = read();
+      if (value !== undefined) result.observe(value);
+    };
+    gauge.addCallback(callback);
+    return () => gauge.removeCallback(callback);
+  });
+
+  const requestSeconds = meter().createHistogram('http.server.request.duration', {
+    unit: 's',
+    description: 'Duration of HTTP server requests',
+    advice: { explicitBucketBoundaries: REQUEST_SECONDS },
+  });
+
+  const respond = async (req: IncomingMessage, res: ServerResponse, e: unknown): Promise<void> => {
+    if (res.headersSent) return void res.end();
+    if (e instanceof HttpError) {
+      if (typeof e.extra.retryAfter === 'number') res.setHeader('retry-after', String(e.extra.retryAfter));
+      const { retryAfter: _, ...extra } = e.extra;
+      return sendJson(req, res, e.status, { error: e.message, ...extra });
+    }
+    console.error(e);
+    trace.getActiveSpan()?.recordException(e as Error);
+    emitLog('ERROR', 'unhandled error', {
+      'exception.type': (e as Error)?.name ?? typeof e,
+      'exception.message': (e as Error)?.message ?? String(e),
+      'exception.stacktrace': (e as Error)?.stack ?? '',
     });
+    return sendJson(req, res, 500, { error: 'internal error' });
+  };
+
+  const server = createServer((req, res) => {
+    const method = req.method ?? 'GET';
+    const path = (req.url ?? '/').split('?')[0];
+    const route = routeOf(path);
+    const run = () => handle(req, res).catch((e: unknown) => respond(req, res, e));
+    if (route === '/api/otel/*') return void run();
+
+    const started = performance.now();
+    const parent = propagation.extract(ROOT_CONTEXT, req.headers);
+    const span = tracer().startSpan(
+      `${method} ${route}`,
+      { kind: SpanKind.SERVER, attributes: { 'http.request.method': method, 'http.route': route, 'url.path': path } },
+      parent,
+    );
+    res.on('close', () => {
+      const status = res.statusCode;
+      span.setAttribute('http.response.status_code', status);
+      if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+      span.end();
+      requestSeconds.record((performance.now() - started) / 1000, {
+        'http.request.method': method,
+        'http.route': route,
+        'http.response.status_code': status,
+      });
+    });
+    return void context.with(trace.setSpan(parent, span), run);
   });
   await new Promise<void>((resolve) => server.listen(opts.port ?? 8080, opts.host ?? '127.0.0.1', resolve));
   const port = (server.address() as AddressInfo).port;
@@ -299,6 +433,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     close: () =>
       new Promise<void>((resolve) => {
         store.stop();
+        for (const remove of removeGauges) remove();
         server.close(() => resolve());
         server.closeAllConnections();
       }),

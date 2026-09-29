@@ -71,6 +71,8 @@ export interface ApiMeta {
   source?: string;
   counts?: { vertices: number; edges: number; places: number };
   chart?: string | null;
+  /** whether /api/otel forwards browser telemetry */
+  telemetry?: boolean;
 }
 
 export interface ApiError {
