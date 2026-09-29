@@ -726,7 +726,18 @@ function menuBody(app: App): HTMLElement {
       'div',
       { class: 'row' },
       url,
-      h('button', { class: 'btn', onclick: () => void app.updateSettings({ pmtilesUrl: url.value.trim() || DEFAULT_SETTINGS.pmtilesUrl }) }, 'Apply'),
+      h(
+        'button',
+        {
+          class: 'btn',
+          // Re-renders keep the input that is on screen, not `url`, so read the one next to the button.
+          onclick: (e: Event) => {
+            const input = (e.currentTarget as HTMLElement).previousElementSibling as HTMLInputElement;
+            void app.updateSettings({ pmtilesUrl: input.value.trim() || DEFAULT_SETTINGS.pmtilesUrl });
+          },
+        },
+        'Apply',
+      ),
     ),
     h('button', { class: 'btn block', onclick: () => void clearTileCaches() }, 'Clear cached map tiles'),
 
