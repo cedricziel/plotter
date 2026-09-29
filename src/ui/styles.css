@@ -180,7 +180,7 @@ button {
   padding: 0;
 }
 .nav-cells { display: flex; flex-wrap: wrap; gap: 0 6px; margin-top: 2px; }
-.nav-cell { flex: 1 1 60px; min-width: 0; display: flex; flex-direction: column; }
+.nav-cell { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .nav-cell b { font-size: clamp(13px, 4.2vw, 20px); font-weight: 800; white-space: nowrap; }
 .nav-cell.warn b { color: var(--warn); }
 #navstrip[hidden] { display: none; }
