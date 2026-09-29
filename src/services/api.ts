@@ -1,6 +1,7 @@
 import type {
   ApiCorridorRequest,
   ApiCorridorResponse,
+  ApiErrorBody,
   ApiMeta,
   ApiPlacesResponse,
   ApiRouteRequest,
@@ -10,16 +11,22 @@ import type {
 } from '../core/api';
 import type { Place, Seamark } from '../core/waterway-data';
 import { t } from '../i18n';
+import { errorText } from '../i18n/texts';
 import { absUrl } from '../settings';
 
-/** `unavailable`: the service could not be reached or has no data yet; `rejected`: it answered and said no. */
+/**
+ * `unavailable`: the service could not be reached or has no data yet; `rejected`: it answered and said no.
+ * `message` is in the language chosen when the error came; `code` is the server's, when it sent one.
+ */
 export class ApiError extends Error {
   readonly kind: 'unavailable' | 'rejected';
   readonly status: number;
-  constructor(kind: 'unavailable' | 'rejected', status: number, message: string) {
+  readonly code?: string;
+  constructor(kind: 'unavailable' | 'rejected', status: number, message: string, code?: string) {
     super(message);
     this.kind = kind;
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -37,16 +44,17 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
       return (await res.json()) as T;
     } catch {
-      throw new ApiError('unavailable', res.status, 'Routing service sent an unreadable answer');
+      throw new ApiError('unavailable', res.status, t('api.unreadable'));
     }
   }
-  let message = t('api.requestFailed', { status: res.status });
+  let body: Partial<ApiErrorBody> = {};
   try {
-    message = ((await res.json()) as { error?: string }).error ?? message;
+    body = (await res.json()) as Partial<ApiErrorBody>;
   } catch {
     /* proxy error pages are not JSON */
   }
-  throw new ApiError(res.status >= 500 ? 'unavailable' : 'rejected', res.status, message);
+  const message = body.error ? errorText(body as ApiErrorBody) : t('api.requestFailed', { status: res.status });
+  throw new ApiError(res.status >= 500 ? 'unavailable' : 'rejected', res.status, message, body.code);
 }
 
 const json = (body: unknown, signal?: AbortSignal): RequestInit => ({

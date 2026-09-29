@@ -76,7 +76,7 @@ export type RouteResult =
       distance: number;
       duration: number;
       maneuvers: Maneuver[];
-      warnings: string[];
+      warnings: RouteWarning[];
       snapStart: Snap;
       snapEnd: Snap;
       /** graph edges traversed, in order */
@@ -85,8 +85,20 @@ export type RouteResult =
   | {
       ok: false;
       reason: 'no-snap' | 'unreachable' | 'blocked';
+      code: RouteFailureCode;
+      params?: { km: number };
+      /** English, for older clients and logs */
       message: string;
     };
+
+/** A warning about a found route; `text` is its English wording for clients that do not know `code`. */
+export interface RouteWarning {
+  code: 'unknown-clearance';
+  params: { count: number };
+  text: string;
+}
+
+export type RouteFailureCode = 'no-snap-start' | 'no-snap-destination' | 'unreachable' | 'blocked';
 
 export const DEFAULT_SPEED = 2.5;
 const LOCK_SECONDS = 600;
@@ -644,10 +656,12 @@ function obstacleManeuver(o: ObstacleTuple, names: string[]): Pick<Maneuver, 'ty
   };
 }
 
-function routeWarnings(maneuvers: Maneuver[], profile?: VesselProfile): string[] {
+function routeWarnings(maneuvers: Maneuver[], profile?: VesselProfile): RouteWarning[] {
   if (!profile?.airDraft) return [];
-  const unknown = maneuvers.filter((m) => m.type === 'bridge-fixed' && m.clearance == null).length;
-  return unknown > 0 ? [`${unknown} fixed bridge${unknown === 1 ? '' : 's'} with unknown clearance`] : [];
+  const count = maneuvers.filter((m) => m.type === 'bridge-fixed' && m.clearance == null).length;
+  if (!count) return [];
+  const text = `${count} fixed bridge${count === 1 ? '' : 's'} with unknown clearance`;
+  return [{ code: 'unknown-clearance', params: { count }, text }];
 }
 
 function assemble(
@@ -795,6 +809,8 @@ export function findRoute(
     return {
       ok: false,
       reason: 'no-snap',
+      code: 'no-snap-start',
+      params: { km: Math.round(maxDist / 1000) },
       message: `No charted waterway within ${Math.round(maxDist / 1000)} km of the start`,
     };
   const d = snapToGraph(g, to, { maxDist, accept });
@@ -802,6 +818,8 @@ export function findRoute(
     return {
       ok: false,
       reason: 'no-snap',
+      code: 'no-snap-destination',
+      params: { km: Math.round(maxDist / 1000) },
       message: `No charted waterway within ${Math.round(maxDist / 1000)} km of the destination`,
     };
   const found = search(g, s, d, profile, speed);
@@ -835,12 +853,14 @@ export function findRoute(
     return {
       ok: false,
       reason: 'blocked',
+      code: 'blocked',
       message: 'No route fits the vessel dimensions: a low bridge or a depth or width limit is in the way',
     };
   }
   return {
     ok: false,
     reason: 'unreachable',
+    code: 'unreachable',
     message: 'No navigable connection to the destination in the routing data',
   };
 }

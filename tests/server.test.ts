@@ -6,6 +6,7 @@ import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type {
   ApiCorridorResponse,
+  ApiErrorBody,
   ApiMeta,
   ApiPlacesResponse,
   ApiRouteResponse,
@@ -115,6 +116,7 @@ afterAll(async () => {
 });
 
 const get = (s: RunningServer, path: string, headers: Record<string, string> = {}) => fetch(s.url + path, { headers });
+const errorOf = async (res: Response) => (await res.json()) as ApiErrorBody;
 const post = (s: RunningServer, path: string, body: unknown, raw = false) =>
   fetch(s.url + path, {
     method: 'POST',
@@ -136,12 +138,16 @@ describe('health and meta', () => {
     expect((await get(bare, '/api/search?q=hoorn')).status).toBe(503);
     const r = await post(bare, '/api/route', { from: at(0, 0), to: at(10000, 0) });
     expect(r.status).toBe(503);
-    expect(((await r.json()) as { error: string }).error).toMatch(/not available yet/);
+    expect(await errorOf(r)).toMatchObject({ error: expect.stringMatching(/not available yet/), code: 'not-ready' });
   });
 
   it('answers 404 for unknown paths and 405 for wrong methods', async () => {
-    expect((await get(srv, '/api/nope')).status).toBe(404);
-    expect((await post(srv, '/api/search', {})).status).toBe(405);
+    const nope = await get(srv, '/api/nope');
+    expect(nope.status).toBe(404);
+    expect(await errorOf(nope)).toEqual({ error: 'not found', code: 'not-found' });
+    const wrong = await post(srv, '/api/search', {});
+    expect(wrong.status).toBe(405);
+    expect((await errorOf(wrong)).code).toBe('bad-request');
     expect((await get(srv, '/api/route')).status).toBe(405);
   });
 });
@@ -163,7 +169,9 @@ describe('GET /api/search', () => {
   });
 
   it('validates its input', async () => {
-    expect((await get(srv, '/api/search')).status).toBe(400);
+    const missing = await get(srv, '/api/search');
+    expect(missing.status).toBe(400);
+    expect(await errorOf(missing)).toEqual({ error: 'q must be 1 to 64 characters', code: 'bad-request' });
     expect((await get(srv, '/api/search?q=')).status).toBe(400);
     expect((await get(srv, `/api/search?q=${'x'.repeat(100)}`)).status).toBe(400);
     expect((await get(srv, '/api/search?q=ho&near=abc')).status).toBe(400);
@@ -182,6 +190,7 @@ describe('GET /api/search', () => {
     expect(codes).toEqual([200, 200, 200, 429, 429]);
     const res = await get(limited, '/api/search?q=hoorn');
     expect(res.headers.get('retry-after')).toBeTruthy();
+    expect(await errorOf(res)).toEqual({ error: 'too many requests', code: 'rate-limited' });
   });
 
   it('keys the rate limit on X-Forwarded-For only when proxies are trusted', async () => {
@@ -318,6 +327,8 @@ describe('POST /api/route', () => {
     expect(r.maneuvers.every((m) => m.name === null || typeof m.name === 'string')).toBe(true);
     expect(r.snap.from).toBeCloseTo(20, 0);
     expect(r.snap.to).toBeCloseTo(20, 0);
+    expect(r.warnings).toEqual([]);
+    expect(r.warningDetails).toEqual([]);
   });
 
   it('takes the vessel profile and speed into account', async () => {
@@ -344,10 +355,19 @@ describe('POST /api/route', () => {
   it('answers 404 when the destination is unreachable and 422 outside the network', async () => {
     const trap = await post(srv, '/api/route', { from: at(0, 0), to: at(10000, -4000) });
     expect(trap.status).toBe(404);
-    expect(((await trap.json()) as { error: string }).error).toMatch(/connection/i);
+    expect(await errorOf(trap)).toMatchObject({
+      error: expect.stringMatching(/connection/i),
+      code: 'unreachable',
+      reason: 'unreachable',
+    });
     const far = await post(srv, '/api/route', { from: at(0, 0), to: at(0, 40000) });
     expect(far.status).toBe(422);
-    expect(((await far.json()) as { error: string }).error).toMatch(/waterway/);
+    expect(await errorOf(far)).toEqual({
+      error: 'No charted waterway within 5 km of the destination',
+      code: 'no-snap-destination',
+      params: { km: 5 },
+      reason: 'no-snap',
+    });
   });
 
   it('answers 404 when no route fits the vessel', async () => {
@@ -355,14 +375,16 @@ describe('POST /api/route', () => {
     expect((await post(srv, '/api/route', { from: at(0, 0), to })).status).toBe(200);
     const blocked = await post(srv, '/api/route', { from: at(0, 0), to, vessel: { airDraft: 4 } });
     expect(blocked.status).toBe(404);
-    expect(((await blocked.json()) as { error: string }).error).toMatch(/vessel/);
+    expect(await errorOf(blocked)).toMatchObject({ error: expect.stringMatching(/vessel/), code: 'blocked' });
   });
 
   it('validates the body', async () => {
     expect((await post(srv, '/api/route', '{nope', true)).status).toBe(400);
     expect((await post(srv, '/api/route', { from: at(0, 0) })).status).toBe(400);
     expect((await post(srv, '/api/route', { from: { lat: 'x', lon: 5 }, to: at(0, 0) })).status).toBe(400);
-    expect((await post(srv, '/api/route', { from: { lat: 10, lon: 5 }, to: at(0, 0) })).status).toBe(422);
+    const outside = await post(srv, '/api/route', { from: { lat: 10, lon: 5 }, to: at(0, 0) });
+    expect(outside.status).toBe(422);
+    expect(await errorOf(outside)).toEqual({ error: 'from is outside the Netherlands', code: 'outside-area' });
     expect((await post(srv, '/api/route', { ...req, vessel: { airDraft: -1 } })).status).toBe(400);
     expect((await post(srv, '/api/route', { ...req, speed: 0 })).status).toBe(400);
     expect((await post(srv, '/api/route', { ...req, via: Array(20).fill(at(1000, 0)) })).status).toBe(400);
@@ -372,6 +394,7 @@ describe('POST /api/route', () => {
   it('rejects oversized bodies', async () => {
     const res = await post(srv, '/api/route', { ...req, destName: 'x'.repeat(100_000) });
     expect(res.status).toBe(413);
+    expect((await errorOf(res)).code).toBe('bad-request');
   });
 });
 
@@ -425,7 +448,11 @@ describe('POST /api/corridor', () => {
     ]);
     const res = await post(srv, '/api/corridor', { polyline: long, bufferMeters: 5000, maxZoom: 15 });
     expect(res.status).toBe(422);
-    expect(((await res.json()) as { error: string }).error).toMatch(/too large/);
+    expect(await errorOf(res)).toMatchObject({
+      error: expect.stringMatching(/too large/),
+      code: 'corridor-too-large',
+      params: { maxTiles: 3000 },
+    });
   });
 
   it('rejects a polyline longer than 600 km', async () => {
@@ -436,7 +463,11 @@ describe('POST /api/corridor', () => {
     ]);
     const res = await post(srv, '/api/corridor', { polyline: zigzag, minZoom: 0, maxZoom: 0 });
     expect(res.status).toBe(422);
-    expect(((await res.json()) as { error: string }).error).toMatch(/longer than 600 km/);
+    expect(await errorOf(res)).toMatchObject({
+      error: expect.stringMatching(/longer than 600 km/),
+      code: 'corridor-too-long',
+      params: { km: 600 },
+    });
   });
 
   it('validates the polyline', async () => {

@@ -1,4 +1,5 @@
 import type { LatLon } from './geo';
+import type { CourseWarning } from './api';
 import type { Maneuver } from './routing';
 import type { PlaceKind } from './waterway-data';
 
@@ -30,7 +31,7 @@ export interface Route {
   shape?: [number, number][];
   maneuvers?: CourseManeuver[];
   dest?: CourseDestination;
-  warnings?: string[];
+  warnings?: CourseWarning[];
   /** where the course came from: the routing service or a saved corridor */
   source?: 'online' | 'offline';
   /** the saved corridor holding this course's map tiles and graph */

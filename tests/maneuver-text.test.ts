@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { decodeGraph, findRouteVia, type Maneuver, type ManeuverType } from '../src/core/routing';
 import { setLanguage } from '../src/i18n';
-import { maneuverText, warningText } from '../src/i18n/maneuvers';
+import { maneuverText } from '../src/i18n/maneuvers';
 import { fixture, latlon } from './graph-fixture';
 
 const m = (type: ManeuverType, fields: Partial<Maneuver> = {}): Maneuver => ({
@@ -105,19 +105,5 @@ describe('maneuverText against the router', () => {
     if (!r.ok) throw new Error(r.message);
     expect(r.maneuvers.length).toBeGreaterThan(5);
     for (const x of r.maneuvers) expect(maneuverText(x)).toBe(x.text);
-  });
-});
-describe('warningText', () => {
-  afterEach(() => setLanguage('en'));
-
-  it('translates the router warning about unknown clearances and keeps other warnings', () => {
-    setLanguage('de');
-    expect(warningText('1 fixed bridge with unknown clearance')).toBe('1 feste Brücke mit unbekannter Durchfahrtshöhe');
-    expect(warningText('3 fixed bridges with unknown clearance')).toBe(
-      '3 feste Brücken mit unbekannter Durchfahrtshöhe',
-    );
-    expect(warningText('Something new')).toBe('Something new');
-    setLanguage('en');
-    expect(warningText('3 fixed bridges with unknown clearance')).toBe('3 fixed bridges with unknown clearance');
   });
 });
