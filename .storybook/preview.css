@@ -1,0 +1,9 @@
+html,
+body {
+  height: auto;
+  overflow: auto;
+}
+body {
+  display: block;
+  position: static;
+}

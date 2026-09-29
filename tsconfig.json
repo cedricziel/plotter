@@ -15,5 +15,5 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client", "geojson", "node"]
   },
-  "include": ["src", "tests", "tools", "server", "vite.server.config.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", ".storybook", "tests", "tools", "server", "vite.server.config.ts", "vite.config.ts", "vitest.config.ts"]
 }
