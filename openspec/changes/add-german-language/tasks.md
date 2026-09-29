@@ -12,8 +12,8 @@
 
 ## 3. Maneuvers and voice
 
-- [ ] 3.1 **Maneuver fields (test first).** Extend `tests/routing.test.ts` (and `tests/server.test.ts` for the API response) so every maneuver carries a `name` field (`null` when unnamed), and `stop` for via points, while `text` stays byte-identical to today. Implement it in `src/core/routing.ts`. Verify: the routing and server tests pass.
-- [ ] 3.2 **Maneuver texts (test first).** Write `tests/maneuver-text.test.ts` covering every `ManeuverType` in both languages:
+- [x] 3.1 **Maneuver fields (test first).** Extend `tests/routing.test.ts` (and `tests/server.test.ts` for the API response) so every maneuver carries a `name` field (`null` when unnamed), and `stop` for via points, while `text` stays byte-identical to today. Implement it in `src/core/routing.ts`. Verify: the routing and server tests pass.
+- [x] 3.2 **Maneuver texts (test first).** Write `tests/maneuver-text.test.ts` covering every `ManeuverType` in both languages:
   - turn into a name
   - continue on a name
   - lock with and without a name
@@ -24,7 +24,7 @@
 
   Implement `src/i18n/maneuvers.ts`. Verify: the tests pass.
 
-- [ ] 3.3 **Voice prompts (test first).** Extend `tests/course.test.ts` so `Announcer` with the German phrase function returns "In 500 Metern, rechts abbiegen in Pikmar" and "In 100 Metern, …". Implement the phrase function argument, and `speak(text, lang)` with `de-DE` / `en-GB` in `src/services/voice.ts`. Verify: the tests pass.
+- [x] 3.3 **Voice prompts (test first).** Extend `tests/course.test.ts` so `Announcer` with the German phrase function returns "In 500 Metern, rechts abbiegen in Pikmar" and "In 100 Metern, …". Implement the phrase function argument, and `speak(text, lang)` with `de-DE` / `en-GB` in `src/services/voice.ts`. Verify: the tests pass.
 
 ## 4. Live switching and static labels
 

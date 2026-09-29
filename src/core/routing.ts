@@ -48,7 +48,12 @@ export interface Maneuver {
   lon: number;
   /** metres from the start of the route */
   dist: number;
+  /** English text, kept for older clients; the app builds its own from the fields below. */
   text: string;
+  /** Waterway, lock, bridge or destination name; always set by the router, null when unnamed. */
+  name?: string | null;
+  /** number of the intermediate stop, on via maneuvers */
+  stop?: number;
   /** cm for bridges, when known */
   clearance?: number | null;
 }
@@ -614,24 +619,27 @@ const TURN_TEXT: Partial<Record<ManeuverType, string>> = {
   'sharp-right': 'Sharp right',
 };
 
-function obstacleManeuver(o: ObstacleTuple, names: string[]): Pick<Maneuver, 'type' | 'text' | 'clearance'> {
-  const name = names[o[3]];
+function obstacleManeuver(o: ObstacleTuple, names: string[]): Pick<Maneuver, 'type' | 'text' | 'name' | 'clearance'> {
+  const name = names[o[3]] || null;
   if (o[1] === OBSTACLE.lock)
     return {
       type: 'lock',
       text: name ? `Pass ${name} (lock)` : 'Pass lock',
+      name,
       clearance: null,
     };
   if (o[1] === OBSTACLE.bridgeMovable)
     return {
       type: 'bridge-open',
       text: `Opening bridge${name ? `: ${name}` : ''}`,
+      name,
       clearance: o[2] || null,
     };
   const clearance = o[2] ? `clearance ${(o[2] / 100).toFixed(1)} m` : 'clearance unknown';
   return {
     type: 'bridge-fixed',
     text: `Fixed bridge${name ? ` ${name}` : ''}, ${clearance}`,
+    name,
     clearance: o[2] || null,
   };
 }
@@ -660,6 +668,7 @@ function assemble(
     ...ll(pieces[0][0]),
     dist: 0,
     text: firstName ? `Depart on ${firstName}` : 'Depart',
+    name: firstName || null,
   });
 
   path.forEach((t, i) => {
@@ -700,6 +709,7 @@ function assemble(
         ...ll(junction),
         dist: base,
         text: `${TURN_TEXT[type]}${nextName ? ` into ${nextName}` : ''}`,
+        name: nextName || null,
       });
     } else if (nextName && nextName !== prevName) {
       maneuvers.push({
@@ -707,6 +717,7 @@ function assemble(
         ...ll(junction),
         dist: base,
         text: `Continue on ${nextName}`,
+        name: nextName,
       });
     }
   });
@@ -717,6 +728,7 @@ function assemble(
     ...ll(end),
     dist: base,
     text: opts.destName ? `Arrive at ${opts.destName}` : 'Arrive',
+    name: opts.destName || null,
   });
   const middle = maneuvers
     .slice(1, -1)
@@ -855,7 +867,7 @@ export function findRouteVia(g: Graph, stops: { lat: number; lon: number }[], op
       maneuvers.push({
         ...m,
         dist: m.dist + offset,
-        ...(isJoin ? { type: 'via' as const, text: `Via stop ${i + 1}` } : {}),
+        ...(isJoin ? { type: 'via' as const, text: `Via stop ${i + 1}`, name: null, stop: i + 1 } : {}),
       });
     });
     edges.push(...leg.edges);

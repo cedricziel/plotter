@@ -314,7 +314,8 @@ describe('POST /api/route', () => {
     expect(r.duration).toBeGreaterThan(r.distance / 5);
     expect(decodePolyline(r.polyline).length).toBeGreaterThanOrEqual(2);
     expect(r.maneuvers[0].type).toBe('depart');
-    expect(r.maneuvers.at(-1)).toMatchObject({ type: 'arrive', text: 'Arrive at Hoorn' });
+    expect(r.maneuvers.at(-1)).toMatchObject({ type: 'arrive', text: 'Arrive at Hoorn', name: 'Hoorn' });
+    expect(r.maneuvers.every((m) => m.name === null || typeof m.name === 'string')).toBe(true);
     expect(r.snap.from).toBeCloseTo(20, 0);
     expect(r.snap.to).toBeCloseTo(20, 0);
   });
@@ -336,7 +337,7 @@ describe('POST /api/route', () => {
 
   it('routes via intermediate stops', async () => {
     const r = (await (await post(srv, '/api/route', { ...req, via: [at(5000, 3000)] })).json()) as ApiRouteResponse;
-    expect(r.maneuvers.some((m) => m.type === 'via')).toBe(true);
+    expect(r.maneuvers.find((m) => m.type === 'via')).toMatchObject({ name: null, stop: 1, text: 'Via stop 1' });
     expect(r.distance).toBeGreaterThan(10500);
   });
 

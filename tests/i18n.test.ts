@@ -70,8 +70,8 @@ describe('t', () => {
 
   it('fills in placeholders and leaves unknown ones', () => {
     setLanguage('de');
-    expect(t('maneuver.turnLeftInto', { name: 'IJ' })).toBe('Links abbiegen in IJ');
-    expect(t('maneuver.turnLeftInto')).toBe('Links abbiegen in {name}');
+    expect(t('maneuver.turn-left.named', { name: 'IJ' })).toBe('Links abbiegen in IJ');
+    expect(t('maneuver.turn-left.named')).toBe('Links abbiegen in {name}');
   });
 
   it('formats a number with fixed decimals in the current language', () => {

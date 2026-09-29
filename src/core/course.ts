@@ -168,11 +168,21 @@ export class OffCourseMonitor {
   }
 }
 
+/** Builds the spoken prompt for a maneuver `metres` ahead. */
+export type Phrase = (metres: 100 | 500, text: string) => string;
+
+const englishPhrase: Phrase = (metres, text) => `In ${metres} metres, ${text}`;
+
 /** Decides when a spoken prompt for the next maneuver is due (about 500 m and 100 m ahead). */
 export class Announcer {
   private key: string | null = null;
   private far = false;
   private near = false;
+  private readonly phrase: Phrase;
+
+  constructor(phrase: Phrase = englishPhrase) {
+    this.phrase = phrase;
+  }
 
   update(key: string, dist: number, text: string): string | null {
     if (key !== this.key) {
@@ -182,11 +192,11 @@ export class Announcer {
     }
     if (dist <= 100 && !this.near) {
       this.near = this.far = true;
-      return `In 100 metres, ${text}`;
+      return this.phrase(100, text);
     }
     if (dist <= 500 && dist > 100 && !this.far) {
       this.far = true;
-      return `In 500 metres, ${text}`;
+      return this.phrase(500, text);
     }
     return null;
   }
