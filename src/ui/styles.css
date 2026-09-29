@@ -139,6 +139,8 @@ button {
 .inst-acc .inst-value {
   font-size: 20px;
 }
+/* A status word instead of a reading: smaller, so GESPERRT or UNAVAILABLE fit the tile at 360 px. */
+.inst-acc.status .inst-value { font-size: 17px; }
 .inst-acc.bad .inst-value { color: #ffb3b3; }
 .inst-acc.good .inst-value { color: #b2f2bb; }
 :root[data-theme='night'] .inst-acc.bad .inst-value,

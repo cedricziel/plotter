@@ -4,21 +4,26 @@ import { distance } from '../core/geo';
 import { PlaceIndex } from '../core/search';
 import { searchTrips } from '../core/trips';
 import { formatDistance } from '../core/units';
+import { language, t } from '../i18n';
 import type { Place } from '../core/waterway-data';
 import { ApiError, api } from '../services/api';
-import { KIND_LABEL, KindIcon } from './icons';
-import { createStore, useStore, type Store } from './store';
+import { KindIcon } from './icons';
+import { createStore, useLanguage, useStore, type Store } from './store';
 
 const DEBOUNCE_MS = 250;
 const MIN_CHARS = 2;
 
 export type ScopeName = 'sheet' | 'bar';
 
+/** A function when the text is worded per language, so a shown note relabels with it. */
+type Text = string | (() => string);
+const word = (text: Text) => (typeof text === 'function' ? text() : text);
+
 interface State {
   query: string;
   rows: ApiSearchResult[];
-  heading: string;
-  note: string;
+  heading: Text;
+  note: Text;
 }
 
 interface Scope {
@@ -62,7 +67,7 @@ function recentRows(app: App): ApiSearchResult[] {
 async function lookup(app: App, s: Scope, q: string): Promise<void> {
   s.abort?.abort();
   const ac = (s.abort = new AbortController());
-  patch(s, { note: 'Searching…' });
+  patch(s, { note: () => t('search.searching') });
   const near = app.fix
     ? { lat: app.fix.lat, lon: app.fix.lon }
     : app.map
@@ -74,7 +79,7 @@ async function lookup(app: App, s: Scope, q: string): Promise<void> {
     patch(s, {
       rows,
       heading: '',
-      note: rows.length ? '' : 'No harbour, lock, town or waterway found',
+      note: rows.length ? '' : () => t('search.none'),
     });
   } catch (e) {
     if ((e as Error).name === 'AbortError' || ac.signal.aborted) return;
@@ -85,7 +90,7 @@ async function lookup(app: App, s: Scope, q: string): Promise<void> {
       note:
         e instanceof ApiError && e.kind === 'rejected'
           ? e.message
-          : `Search service not reachable – ${rows.length ? 'showing saved places' : 'no saved places match'}`,
+          : () => t(rows.length ? 'search.offlineSaved' : 'search.offlineNone'),
     });
   }
 }
@@ -95,8 +100,10 @@ async function lookup(app: App, s: Scope, q: string): Promise<void> {
  * survives the Route sheet being re-rendered every second; `onPick` receives the chosen place.
  */
 export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; onPick: (p: Place) => void }) {
+  useLanguage();
   const s = scopes[scope];
-  const { query, rows, heading, note } = useStore(s.state);
+  const { query, rows, ...texts } = useStore(s.state);
+  const [heading, note] = [word(texts.heading), word(texts.note)];
   const du = app.settings.distanceUnit;
 
   return (
@@ -104,8 +111,8 @@ export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; 
       <input
         type="search"
         className="search-input"
-        placeholder="Search harbour, lock, town, waterway…"
-        aria-label="Search destination"
+        placeholder={t('search.placeholder')}
+        aria-label={t('search.label')}
         autoComplete="off"
         autoCapitalize="off"
         spellCheck={false}
@@ -120,8 +127,8 @@ export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; 
             patch(s, {
               query: value,
               rows: q ? [] : recentRows(app),
-              heading: q ? '' : 'Recent destinations',
-              note: q ? `Type at least ${MIN_CHARS} letters` : '',
+              heading: q ? '' : () => t('search.recent'),
+              note: q ? () => t('search.minChars', { count: MIN_CHARS }) : '',
             });
             return;
           }
@@ -129,7 +136,7 @@ export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; 
           s.timer = window.setTimeout(() => void lookup(app, s, q), DEBOUNCE_MS);
         }}
         onFocus={() => {
-          if (!query.trim() && !rows.length) patch(s, { rows: recentRows(app), heading: 'Recent destinations' });
+          if (!query.trim() && !rows.length) patch(s, { rows: recentRows(app), heading: () => t('search.recent') });
         }}
       />
       <div className="search-note" aria-live="polite">
@@ -144,7 +151,7 @@ export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; 
               <span className="result-text">
                 <b>{r.name}</b>
                 <small>
-                  {[KIND_LABEL[r.kind], r.distance != null ? formatDistance(r.distance, du) : null]
+                  {[t(`kind.${r.kind}`), r.distance != null ? formatDistance(r.distance, du, language()) : null]
                     .filter(Boolean)
                     .join(' · ')}
                 </small>

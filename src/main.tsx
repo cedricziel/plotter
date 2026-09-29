@@ -4,6 +4,7 @@ import './ui/styles.css';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { App } from './app';
+import { resolveLanguage, setLanguage } from './i18n';
 import { mountPlaces } from './map/places';
 import { mountSeamarks } from './map/seamarks';
 import { closeDestination, isPlacing, showCard, showDestinationCard, showTipOnce } from './ui/destination';
@@ -13,10 +14,13 @@ import { openWaypoint } from './ui/panels';
 import { SeamarkCard } from './ui/seamark-card';
 import { Shell } from './ui/shell';
 import { mountTapLog } from './ui/taplog';
+import { loadSettings } from './settings';
 import { initUpdates } from './update';
 
 async function main() {
   if (new URLSearchParams(location.search).has('taplog')) mountTapLog();
+  // The disclaimer comes up before the App has loaded, so settle the language first.
+  setLanguage(resolveLanguage((await loadSettings()).language, navigator.languages ?? []));
   showDisclaimerOnce();
 
   const app = new App();

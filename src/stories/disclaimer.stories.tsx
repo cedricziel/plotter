@@ -12,3 +12,12 @@ export const Modal: StoryObj<typeof Disclaimer> = {
     </Screen>
   ),
 };
+
+export const German: StoryObj<typeof Disclaimer> = {
+  globals: { language: 'de' },
+  render: () => (
+    <Screen>
+      <Disclaimer open />
+    </Screen>
+  ),
+};

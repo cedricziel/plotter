@@ -2,6 +2,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { App } from '../src/app';
+import type { CourseManeuver } from '../src/core/model';
+import { setLanguage } from '../src/i18n';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { closeSheet, Sheet } from '../src/ui/sheet';
 
@@ -41,6 +43,7 @@ const open = (fn: (app: App) => void, app: ReturnType<typeof fakeApp>) => {
 afterEach(() => {
   act(() => closeSheet());
   cleanup();
+  setLanguage('en');
 });
 
 describe('settings sheet', () => {
@@ -102,5 +105,86 @@ describe('anchor sheet', () => {
     open(openAnchor, app);
     fireEvent.click(screen.getByText('Disarm alarm'));
     expect(app.armAnchor).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('language control', () => {
+  const choice = () => [...screen.getByRole('radiogroup', { name: 'Language' }).querySelectorAll('button')];
+
+  it('offers Auto, English and Deutsch with the current choice marked', () => {
+    const app = fakeApp();
+    app.settings.language = 'de';
+    open(openMenu, app);
+    expect(choice().map((b) => b.textContent)).toEqual(['Auto', 'English', 'Deutsch']);
+    expect(choice().map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true']);
+    expect(document.querySelector('#sheet')!.textContent).toContain('device');
+  });
+
+  it('saves the chosen language', () => {
+    const app = fakeApp();
+    open(openMenu, app);
+    fireEvent.click(choice().find((b) => b.textContent === 'Deutsch')!);
+    expect(app.updateSettings).toHaveBeenCalledWith({ language: 'de' });
+  });
+
+  it('writes the settings in German', () => {
+    setLanguage('de');
+    open(openMenu, fakeApp());
+    const text = document.querySelector('#sheet')!.textContent!;
+    expect(text).toContain('Sprache');
+    expect(text).toContain('Anzeige');
+    expect(text).not.toContain('Display');
+    expect(screen.getByRole('radiogroup', { name: 'Geschwindigkeit' })).toBeTruthy();
+  });
+});
+
+describe('sheets in German', () => {
+  it('lists the maneuvers of a charted course in German with names unchanged', () => {
+    setLanguage('de');
+    const m = (type: CourseManeuver['type'], dist: number, name: string | null, fields = {}) => ({
+      type,
+      dist,
+      lat: 52,
+      lon: 5,
+      text: 'english',
+      name,
+      ...fields,
+    });
+    const route = {
+      id: 'r',
+      name: 'Nach Hoorn',
+      waypointIds: [],
+      created: 0,
+      maneuvers: [
+        m('depart', 0, 'IJ'),
+        m('lock', 1000, 'Oranjesluizen'),
+        m('bridge-open', 2000, 'Schellingwoude'),
+        m('bridge-fixed', 3000, null, { clearance: 540 }),
+        m('arrive', 4000, 'Hoorn'),
+      ],
+      warnings: ['1 fixed bridge with unknown clearance'],
+    };
+    const app = fakeApp({ activeRoute: route, routes: new Map([['r', route]]), recents: [], offline: null });
+    open(openRoute, app);
+    const rows = [...document.querySelectorAll('#sheet .maneuver-text')].map((e) => e.firstChild!.textContent);
+    expect(rows).toEqual([
+      'Abfahrt auf IJ',
+      'Schleuse Oranjesluizen passieren',
+      'Klappbrücke: Schellingwoude',
+      'Feste Brücke, 5,4 m Durchfahrtshöhe',
+      'Ankunft in Hoorn',
+    ]);
+    expect(document.querySelector('#sheet .warnings')!.textContent).toBe(
+      '⚠ 1 feste Brücke mit unbekannter Durchfahrtshöhe',
+    );
+    expect(document.querySelector('#sheet h2')!.textContent).toBe('Route & Wegpunkte');
+  });
+
+  it('labels the anchor sheet in German', () => {
+    setLanguage('de');
+    open(openAnchor, fakeApp({ anchor: { lat: 52, lon: 4, radius: 40, armed: false } }));
+    expect(screen.getByText('Ankeralarm einschalten')).toBeTruthy();
+    expect(screen.getByLabelText('Radius vergrößern')).toBeTruthy();
+    expect(document.querySelector('#sheet')!.textContent).toContain('Schwoikreis');
   });
 });

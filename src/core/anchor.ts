@@ -8,6 +8,9 @@ export interface AnchorWatch {
 
 export type AnchorState = 'ok' | 'warning' | 'alarm';
 
+/** Why the anchor alarm sounds; the UI words it in the current language. */
+export type AlarmReason = { kind: 'drag'; distance: number; radius: number } | { kind: 'gps-lost' };
+
 export interface AnchorCheck {
   state: AnchorState;
   /** distance from the anchor position, metres */

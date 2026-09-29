@@ -1,6 +1,7 @@
 import { destination } from '../core/geo';
 import { GpsStats } from '../core/gps-stats';
 import { MotionEstimator } from '../core/motion';
+import { t } from '../i18n';
 
 export interface Fix {
   lat: number;
@@ -46,11 +47,11 @@ export class Gps {
       return;
     }
     if (!('geolocation' in navigator)) {
-      this.cb.onStatus('unavailable', 'Geolocation not supported');
+      this.cb.onStatus('unavailable', t('gps.notSupported'));
       return;
     }
     if (!window.isSecureContext) {
-      this.cb.onStatus('unavailable', 'Geolocation requires HTTPS');
+      this.cb.onStatus('unavailable', t('gps.needsHttps'));
       return;
     }
     this.cb.onStatus('searching');
@@ -58,8 +59,8 @@ export class Gps {
       (p) =>
         this.handle(p.coords.latitude, p.coords.longitude, p.coords.accuracy, p.coords.speed, p.coords.heading, p.timestamp),
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) this.cb.onStatus('denied', 'Location permission denied');
-        else if (err.code === err.TIMEOUT) this.cb.onStatus('lost', 'GPS timeout');
+        if (err.code === err.PERMISSION_DENIED) this.cb.onStatus('denied', t('gps.permissionDenied'));
+        else if (err.code === err.TIMEOUT) this.cb.onStatus('lost', t('gps.timeout'));
         else this.cb.onStatus('lost', err.message);
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },

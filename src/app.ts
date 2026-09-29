@@ -3,7 +3,7 @@ import { AttributionControl, Map as MlMap, Marker, ScaleControl, addProtocol, se
 // MapLibre 6 locates its module worker at runtime; let Vite bundle it explicitly.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { PMTiles, Protocol } from 'pmtiles';
-import { alarmDebounce, checkAnchor, type AnchorCheck, type AnchorWatch } from './core/anchor';
+import { alarmDebounce, checkAnchor, type AlarmReason, type AnchorCheck, type AnchorWatch } from './core/anchor';
 import { Announcer, OffCourseMonitor, pointAlong, shapeInfo, shapeProgress, withConnectors, type ShapeInfo } from './core/course';
 import { circlePolygon, destination, routeLegs, timeToGo, type LatLon } from './core/geo';
 import { PositionHold } from './core/position-hold';
@@ -15,6 +15,8 @@ import { TripRouter, type Trip } from './core/trips';
 import type { Place } from './core/waterway-data';
 import { shouldLogPoint } from './core/track';
 import { formatDistance, formatDuration } from './core/units';
+import { language, num, resolveLanguage, setLanguage, t } from './i18n';
+import { announcement, maneuverText } from './i18n/maneuvers';
 import { onLongPress } from './map/longpress';
 import { EMPTY, SEAMARK_LAYERS, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
@@ -79,7 +81,7 @@ export class App {
   /** set while a saved-corridor download runs */
   offline: { routeId: string; phase: 'estimating' | 'downloading'; done: number; total: number; cancel: () => void } | null = null;
   private offMonitor = new OffCourseMonitor();
-  private announcer = new Announcer();
+  private announcer = new Announcer(announcement);
   offCourse = false;
   recalculating = false;
 
@@ -103,10 +105,11 @@ export class App {
   readonly compass = new Compass((h) => this.onHeading(h));
   /** Compass heading of the bow, when the compass is on and reading. */
   heading: number | null = null;
-  alarmReason: string | null = null;
+  alarmReason: AlarmReason | null = null;
 
   async init(container: HTMLElement): Promise<void> {
     this.settings = await loadSettings();
+    this.applyLanguage();
     const [wps, rts, trks] = await Promise.all([db.all('waypoints'), db.all('routes'), db.all('tracks')]).catch(
       () => [[], [], []] as [Waypoint[], Route[], Track[]],
     );
@@ -122,7 +125,7 @@ export class App {
     addProtocol('pmtiles', protocol.tile);
     this.chartUrl = await resolveChartUrl(this.settings.pmtilesUrl);
     this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
-    if (this.basemap === 'osm') toast('Offline chart not found – using online OpenStreetMap tiles', 6000);
+    if (this.basemap === 'osm') toast(t('toast.offlineChartMissing'), 6000);
 
     const view = await db.getKv<{ center: [number, number]; zoom: number }>('view').catch(() => undefined);
     this.map = new MlMap({
@@ -162,7 +165,7 @@ export class App {
     const anchor = await db.getKv<App['anchor']>('anchor').catch(() => undefined);
     if (anchor) {
       this.anchor = anchor;
-      if (anchor.armed) toast('Anchor watch restored – tap anywhere to re-enable alarm sound', 6000);
+      if (anchor.armed) toast(t('toast.anchorRestored'), 6000);
     }
     const recId = await db.getKv<string | null>('recording').catch(() => undefined);
     if (recId && this.tracks.get(recId) && !this.tracks.get(recId)!.ended) this.recording = this.tracks.get(recId)!;
@@ -225,7 +228,7 @@ export class App {
     if (patch.pmtilesUrl != null && patch.pmtilesUrl !== prev.pmtilesUrl) {
       this.chartUrl = await resolveChartUrl(this.settings.pmtilesUrl);
       this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
-      if (this.basemap === 'osm') toast('PMTiles not reachable – using OpenStreetMap fallback');
+      if (this.basemap === 'osm') toast(t('toast.pmtilesUnreachable'));
     }
     const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl', 'openseamap', 'aerial'].some(
       (k) => k in patch && patch[k as keyof Settings] !== prev[k as keyof Settings],
@@ -239,6 +242,7 @@ export class App {
       }
     }
     if ('theme' in patch) this.applyTheme();
+    if ('language' in patch) this.applyLanguage();
     if ('keepAwake' in patch) void this.updateWakeLock();
     if (patch.compass === false) this.compass.disable();
     if ('activeRouteId' in patch) {
@@ -249,6 +253,13 @@ export class App {
     }
     this.renderOverlays();
     this.emit();
+  }
+
+  /** Sets the UI language from the setting; Auto follows the device. */
+  private applyLanguage(): void {
+    setLanguage(resolveLanguage(this.settings.language, navigator.languages ?? []));
+    // The ship marker is MapLibre's element, outside React.
+    this.ship?.getElement().setAttribute('aria-label', t('map.ownVessel'));
   }
 
   private applyTheme(): void {
@@ -312,7 +323,7 @@ export class App {
    */
   async enableCompass(): Promise<boolean> {
     const ok = await this.compass.enable();
-    if (!ok) toast('Compass not available – allow Motion & Orientation access for this site');
+    if (!ok) toast(t('toast.compassUnavailable'));
     await this.updateSettings({ compass: ok });
     return ok;
   }
@@ -349,8 +360,8 @@ export class App {
     const was = this.gpsStatus;
     this.gpsStatus = s;
     this.gpsMessage = msg ?? '';
-    if (s === 'denied' || s === 'unavailable') toast(msg ?? 'GPS unavailable', 6000);
-    if (s === 'lost' && this.anchor?.armed) this.raiseAlarm('GPS signal lost');
+    if (s === 'denied' || s === 'unavailable') toast(msg ?? t('toast.gpsUnavailable'), 6000);
+    if (s === 'lost' && this.anchor?.armed) this.raiseAlarm({ kind: 'gps-lost' });
     if (was !== s) this.emit();
   }
 
@@ -475,7 +486,7 @@ export class App {
       features: legs.map((l, i) => ({
         type: 'Feature',
         properties: {
-          label: `${formatDistance(l.distance, this.settings.distanceUnit)} · ${Math.round(l.bearing)}°`,
+          label: `${formatDistance(l.distance, this.settings.distanceUnit, language())} · ${Math.round(l.bearing)}°`,
           state: i + 1 === this.nextIndex ? 'active' : i + 1 < this.nextIndex ? 'done' : 'ahead',
         },
         geometry: {
@@ -652,7 +663,12 @@ export class App {
   }
 
   async createRoute(name?: string): Promise<Route> {
-    const r: Route = { id: uid(), name: name ?? `Route ${this.routes.size + 1}`, waypointIds: [], created: Date.now() };
+    const r: Route = {
+      id: uid(),
+      name: name ?? t('route.defaultName', { number: this.routes.size + 1 }),
+      waypointIds: [],
+      created: Date.now(),
+    };
     await this.saveRoute(r);
     await this.updateSettings({ activeRouteId: r.id });
     return r;
@@ -671,7 +687,7 @@ export class App {
     const stored = await db.getKv<string>('gotoRouteId').catch(() => undefined);
     let r = stored ? this.routes.get(stored) : undefined;
     if (!r) {
-      r = { id: uid(), name: 'Go to', waypointIds: [], created: Date.now() };
+      r = { id: uid(), name: t('route.goToName'), waypointIds: [], created: Date.now() };
       await db.setKv('gotoRouteId', r.id);
     }
     r.waypointIds = [id];
@@ -712,7 +728,7 @@ export class App {
     this.renderedAlong = -1;
     this.offMonitor.reset();
     this.offCourse = false;
-    this.announcer = new Announcer();
+    this.announcer = new Announcer(announcement);
   }
 
   private updateProgress(autoAdvance = true): void {
@@ -750,7 +766,7 @@ export class App {
       this.nextIndex = p.nextIndex;
       void db.setKv('nextIndex', p.nextIndex);
       navigator.vibrate?.(150);
-      if (!charted) toast(`Waypoint reached – next: ${pts[p.nextIndex].name}`);
+      if (!charted) toast(t('toast.waypointReached', { name: pts[p.nextIndex].name }));
       this.renderWaypointMarkers();
     }
     this.progress = p;
@@ -771,15 +787,15 @@ export class App {
   private followCourse(route: Route, p: RouteProgress): void {
     const next = this.nextManeuver(route);
     if (next && this.settings.voicePrompts && !p.finished) {
-      const said = this.announcer.update(next.wp ?? next.text, p.dtw, next.text);
-      if (said) speak(said);
+      const said = this.announcer.update(next.wp ?? next.text, p.dtw, maneuverText(next));
+      if (said) speak(said, language());
     }
     const realFix = this.gpsStatus === 'ok' && (this.fix?.accuracy ?? Infinity) <= 50;
     const state = this.offMonitor.update(Date.now(), p.finished ? null : p.xte, realFix);
     if (state.off && !this.offCourse) {
       this.offCourse = true;
-      toast('Off course – tap to recalculate', 10_000, () => void this.recalculate());
-      if (this.settings.voicePrompts) speak('Off course');
+      toast(t('toast.offCourse'), 10_000, () => void this.recalculate());
+      if (this.settings.voicePrompts) speak(t('voice.offCourse'), language());
       this.emit();
     } else if (!state.off && this.offCourse) {
       this.offCourse = false;
@@ -830,9 +846,7 @@ export class App {
     const f = this.fix;
     if (!f) {
       toast(
-        this.gpsStatus === 'denied'
-          ? 'Location is blocked. Allow it for this site to chart a course.'
-          : 'Waiting for a GPS fix before a course can be charted',
+        this.gpsStatus === 'denied' ? t('toast.locationBlocked') : t('toast.waitingForFix'),
         6000,
       );
       return false;
@@ -861,9 +875,9 @@ export class App {
     const problem = 'problem' in plan ? plan.problem : '';
     if (!charted) {
       if (opts.keep) {
-        toast(`${problem} – keeping the current course`, 6000);
+        toast(t('toast.keepingCourse', { problem }), 6000);
       } else {
-        toast(`${problem} — using straight line`, 6000);
+        toast(t('toast.straightLine', { problem }), 6000);
         await this.goStraight(dest);
       }
       return false;
@@ -874,12 +888,12 @@ export class App {
 
   private async installCourse(dest: CourseDestination, c: Charted): Promise<void> {
     const f = this.fix!;
-    const du = this.settings.distanceUnit;
+    const dist = (m: number) => formatDistance(m, this.settings.distanceUnit, language());
     const end = c.end ?? dest;
     const linked = withConnectors(c.shape, c.maneuvers, { lat: f.lat, lon: f.lon }, end);
     const warnings = [...c.warnings];
-    if (c.snap.from > 250) warnings.push(`Start is ${formatDistance(c.snap.from, du)} from the nearest charted waterway`);
-    if (c.snap.to > 250) warnings.push(`Destination is ${formatDistance(c.snap.to, du)} from the waterway, the last part is a straight line`);
+    if (c.snap.from > 250) warnings.push(t('course.snapStart', { distance: dist(c.snap.from) }));
+    if (c.snap.to > 250) warnings.push(t('course.snapEnd', { distance: dist(c.snap.to) }));
 
     const storedId = await db.getKv<string>('courseRouteId').catch(() => undefined);
     const old = storedId ? this.routes.get(storedId) : undefined;
@@ -889,7 +903,8 @@ export class App {
     const maneuvers: CourseManeuver[] = linked.maneuvers.map((m) => ({ ...m }));
     const created: Waypoint[] = maneuvers.slice(1).map((m) => {
       const arrive = m.type === 'arrive';
-      const w: Waypoint = { id: uid(), name: arrive ? end.name : m.text, lat: m.lat, lon: m.lon, created: now };
+      const name = arrive ? end.name : maneuverText(m);
+      const w: Waypoint = { id: uid(), name, lat: m.lat, lon: m.lon, created: now };
       if (!arrive) w.hidden = true;
       m.wp = w.id;
       return w;
@@ -898,7 +913,7 @@ export class App {
     await db.putMany('waypoints', created);
     const route: Route = {
       id: old?.id ?? uid(),
-      name: `To ${dest.name}`,
+      name: t('route.toName', { name: dest.name }),
       created: now,
       waypointIds: created.map((w) => w.id),
       shape: linked.shape,
@@ -931,14 +946,14 @@ export class App {
     this.recalculating = true;
     this.emit();
     try {
-      toast(auto ? 'Off course – recalculating…' : 'Recalculating…', 2500);
+      toast(auto ? t('toast.offCourseRecalculating') : t('toast.recalculating'), 2500);
       const { name, lat, lon, kind } = route.dest;
       const ok = await traced(
         'course.recalculate',
         () => this.chartCourse({ name, lat, lon, kind: kind ?? 'waterway' }, { keep: true }),
         { 'course.auto': auto },
       );
-      if (ok && this.settings.voicePrompts) speak('New course charted');
+      if (ok && this.settings.voicePrompts) speak(t('voice.newCourse'), language());
     } finally {
       this.recalculating = false;
       this.emit();
@@ -977,11 +992,14 @@ export class App {
       const corridor = await api.corridor({ polyline: encodePolyline(route.shape), bufferMeters: 1000, minZoom: 8, maxZoom: 14 }, ac.signal);
       const withTiles = this.basemap === 'pmtiles';
       const tiles = withTiles ? corridor.tiles : [];
-      const mb = (corridor.estimatedBytes / 1e6).toFixed(1);
+      const size = num(corridor.estimatedBytes / 1e6, 1);
       const what = withTiles
-        ? `${tiles.length} map tiles, about ${mb} MB${corridor.estimate === 'average' ? ' (estimated)' : ''}, plus the routing data`
-        : 'the routing data (the offline chart is not in use, so no map tiles)';
-      if (!confirm(`Save “${route.dest?.name ?? route.name}” for offline use?\n\n${what}.`)) return;
+        ? t(corridor.estimate === 'average' ? 'offline.withTilesEstimated' : 'offline.withTiles', {
+            count: tiles.length,
+            size,
+          })
+        : t('offline.withoutTiles');
+      if (!confirm(t('offline.confirm', { name: route.dest?.name ?? route.name, what }))) return;
 
       this.offline = { ...job, phase: 'downloading', total: tiles.length };
       this.emit();
@@ -1010,7 +1028,7 @@ export class App {
       };
       await Promise.all(Array.from({ length: 6 }, worker));
       if (ac.signal.aborted) throw new DOMException('cancelled', 'AbortError');
-      if (failed > Math.max(2, tiles.length * 0.02)) throw new Error(`${failed} map tiles could not be downloaded`);
+      if (failed > Math.max(2, tiles.length * 0.02)) throw new Error(t('offline.tilesFailed', { count: failed }));
 
       const trip: Trip = {
         id: uid(),
@@ -1029,10 +1047,10 @@ export class App {
       route.tripId = trip.id;
       await this.saveRoute(route);
       span.setAttributes({ 'trip.success': true, 'trip.tiles': trip.tileCount, 'trip.bytes': trip.bytes });
-      toast(`Saved for offline: ${trip.name}, ${(trip.bytes / 1e6).toFixed(1)} MB`);
+      toast(t('toast.savedOffline', { name: trip.name, size: num(trip.bytes / 1e6, 1) }));
     } catch (e) {
-      if ((e as Error).name === 'AbortError') toast('Offline save cancelled');
-      else toast(`Offline save failed: ${(e as Error).message}`, 6000);
+      if ((e as Error).name === 'AbortError') toast(t('toast.offlineCancelled'));
+      else toast(t('toast.offlineFailed', { message: (e as Error).message }), 6000);
     } finally {
       this.offline = null;
       this.emit();
@@ -1057,16 +1075,19 @@ export class App {
     if (this.recording) return;
     const now = Date.now();
     const d = new Date(now);
-    const t: Track = {
+    const track: Track = {
       id: uid(),
-      name: `Track ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      name: t('track.defaultName', {
+        date: d.toLocaleDateString(language()),
+        time: d.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
+      }),
       points: [],
       started: now,
     };
-    this.tracks.set(t.id, t);
-    this.recording = t;
-    await db.put('tracks', t);
-    await db.setKv('recording', t.id);
+    this.tracks.set(track.id, track);
+    this.recording = track;
+    await db.put('tracks', track);
+    await db.setKv('recording', track.id);
     if (this.fix) this.logTrackPoint(this.fix);
     void this.updateWakeLock();
     this.renderTracks();
@@ -1074,16 +1095,21 @@ export class App {
   }
 
   async stopRecording(): Promise<void> {
-    const t = this.recording;
-    if (!t) return;
-    t.ended = Date.now();
+    const track = this.recording;
+    if (!track) return;
+    track.ended = Date.now();
     this.recording = null;
-    await db.put('tracks', t);
+    await db.put('tracks', track);
     await db.setKv('recording', null);
     void this.updateWakeLock();
     this.renderTracks();
     this.emit();
-    toast(`Track saved: ${formatDistance(trackDistance(t), this.settings.distanceUnit)}, ${formatDuration((t.ended - t.started) / 1000)}`);
+    toast(
+      t('toast.trackSaved', {
+        distance: formatDistance(trackDistance(track), this.settings.distanceUnit, language()),
+        duration: formatDuration((track.ended - track.started) / 1000, language()),
+      }),
+    );
   }
 
   private logTrackPoint(f: Fix): void {
@@ -1161,11 +1187,11 @@ export class App {
     this.anchorCheck = checkAnchor(a, f, f.accuracy);
     const d = alarmDebounce(this.anchorCounter, this.anchorCheck);
     this.anchorCounter = d.counter;
-    if (d.sound) this.raiseAlarm(`Anchor drag: ${Math.round(this.anchorCheck.distance)} m from anchor (radius ${a.radius} m)`);
-    else if (this.alarmReason === 'GPS signal lost') this.silenceAlarm();
+    if (d.sound) this.raiseAlarm({ kind: 'drag', distance: this.anchorCheck.distance, radius: a.radius });
+    else if (this.alarmReason?.kind === 'gps-lost') this.silenceAlarm();
   }
 
-  raiseAlarm(reason: string): void {
+  raiseAlarm(reason: AlarmReason): void {
     const fresh = this.alarmReason == null;
     this.alarmReason = reason;
     this.alarm.start();
@@ -1214,7 +1240,7 @@ async function probePmtiles(url: string): Promise<boolean> {
 }
 
 function shipElement(): HTMLElement {
-  const el = h('div', { class: 'ship', 'aria-label': 'Own vessel' });
+  const el = h('div', { class: 'ship', 'aria-label': t('map.ownVessel') });
   el.innerHTML =
     '<svg viewBox="-20 -28 40 56" width="40" height="56" aria-hidden="true">' +
     '<path d="M0,-26 C9,-14 11,-2 10,22 L-10,22 C-11,-2 -9,-14 0,-26 Z" class="hull"/>' +

@@ -1,9 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ManeuverType } from '../core/routing';
-import type { PlaceKind } from '../core/waterway-data';
-import { KIND_LABEL, KindIcon, ManeuverIcon } from '../ui/icons';
-
-const KINDS = Object.keys(KIND_LABEL) as PlaceKind[];
+import { t } from '../i18n';
+import { KindIcon, ManeuverIcon, PLACE_KINDS } from '../ui/icons';
 const MANEUVERS: ManeuverType[] = [
   'depart',
   'continue',
@@ -28,10 +26,10 @@ export default meta;
 export const PlaceKinds: StoryObj<typeof KindIcon> = {
   render: () => (
     <div style={grid}>
-      {KINDS.map((k) => (
+      {PLACE_KINDS.map((k) => (
         <span key={k} className="result-text" style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           <KindIcon kind={k} className="result-ico" />
-          <small>{KIND_LABEL[k]}</small>
+          <small>{t(`kind.${k}`)}</small>
         </span>
       ))}
     </div>

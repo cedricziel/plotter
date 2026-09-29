@@ -2,6 +2,7 @@ import type { GeoJSONSource, Map as MlMap, MapGeoJSONFeature } from 'maplibre-gl
 import { FIS_ATTRIBUTION, FIS_SOURCE } from '../core/fis';
 import type { Trip } from '../core/trips';
 import type { Place, PlaceKind } from '../core/waterway-data';
+import { num, t } from '../i18n';
 import { api } from '../services/api';
 import { setOverlay } from './overlays';
 import { viewportLoader, type Box } from './viewport';
@@ -24,7 +25,8 @@ const groupOf = (kind: PlaceKind) =>
 export function markProps(p: Place, i: number) {
   const bridge = p.kind === 'bridge';
   const open = bridge && p.info?.canOpen === true;
-  const clearance = bridge && p.info?.clearance ? `\n${p.info.clearance.toFixed(1)} m${open ? ' opens' : ''}` : '';
+  const clearance =
+    bridge && p.info?.clearance ? `\n${num(p.info.clearance, 1)} m${open ? ` ${t('place.opens')}` : ''}` : '';
   return { i, name: p.name, group: groupOf(p.kind), detail: p.name + clearance, open };
 }
 

@@ -4,9 +4,11 @@ import { bearing, distance, routeLegs, timeToGo } from '../../core/geo';
 import { parseGpx, toGpx } from '../../core/gpx';
 import type { Route } from '../../core/model';
 import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../../core/units';
+import { language, num, plural, t, type LanguageChoice } from '../../i18n';
+import { maneuverText, warningText } from '../../i18n/maneuvers';
 import { type CogMinutes, DEFAULT_SETTINGS } from '../../settings';
 import { chartAndShow, showDestinationCard, startPlacement } from '../destination';
-import { DISCLAIMER, showDisclaimerOnce } from '../disclaimer';
+import { disclaimerText, showDisclaimerOnce } from '../disclaimer';
 import { download, fileStamp, pickFile, toast } from '../dom';
 import { ManeuverIcon } from '../icons';
 import { SearchBox } from '../search';
@@ -50,8 +52,8 @@ const OnOff = ({ label, value, onPick }: { label: string; value: boolean; onPick
     label={label}
     current={value}
     options={[
-      { value: true, label: 'On' },
-      { value: false, label: 'Off' },
+      { value: true, label: t('common.on') },
+      { value: false, label: t('common.off') },
     ]}
     onPick={onPick}
   />
@@ -96,6 +98,7 @@ export type RouteApp = Pick<
 /** `search` is the place-search box, injected so the panel renders without the network. */
 export function RoutePanel({ app, search }: { app: RouteApp; search?: ReactNode }) {
   const du = app.settings.distanceUnit;
+  const lang = language();
   const route = app.activeRoute;
   const routes = [...app.routes.values()].sort((a, b) => a.created - b.created);
 
@@ -109,21 +112,21 @@ export function RoutePanel({ app, search }: { app: RouteApp; search?: ReactNode 
     <div>
       {search}
       <button className="btn primary block" onClick={() => startPlacement(app as App)}>
-        ⌖ Set destination
+        {`⌖ ${t('fab.destination')}`}
       </button>
       {route && (
         <button className="btn danger block" onClick={() => void app.stopNavigation()}>
-          ■ Stop navigation
+          {`■ ${t('nav.stop')}`}
         </button>
       )}
       <div className="row">
         <select
           className="grow"
-          aria-label="Active route"
+          aria-label={t('route.active')}
           value={route?.id ?? ''}
           onChange={(e) => void app.updateSettings({ activeRouteId: e.target.value || null })}
         >
-          <option value="">— no active route —</option>
+          <option value="">{t('route.none')}</option>
           {routes.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -131,26 +134,26 @@ export function RoutePanel({ app, search }: { app: RouteApp; search?: ReactNode 
           ))}
         </select>
         <button className="btn" onClick={() => void app.createRoute()}>
-          + New
+          {t('route.new')}
         </button>
       </div>
 
       {route?.maneuvers ? <CourseBlock app={app} route={route} /> : route ? <LegsBlock app={app} route={route} /> : null}
 
-      <h3>{`Waypoints (${wps.length})`}</h3>
+      <h3>{t('route.waypoints', { count: wps.length })}</h3>
       {wps.length ? (
         <ul className="list">
           {wps.map(({ w, d }) => (
             <li key={w.id}>
               <button className="list-item" onClick={() => openWaypoint(app as App, w.id)}>
                 <span>{w.name}</span>
-                <small>{d != null ? `${formatDistance(d, du)} · ${formatBearing(bearing(fix!, w))}` : ''}</small>
+                <small>{d != null ? `${formatDistance(d, du, lang)} · ${formatBearing(bearing(fix!, w))}` : ''}</small>
               </button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="hint">Long-press the map (right-click on desktop) to drop a waypoint.</p>
+        <p className="hint">{t('route.noWaypoints')}</p>
       )}
       <TripsBlock app={app} />
     </div>
@@ -159,6 +162,9 @@ export function RoutePanel({ app, search }: { app: RouteApp; search?: ReactNode 
 
 function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
   const du = app.settings.distanceUnit;
+  const lang = language();
+  const dist = (m: number) => formatDistance(m, du, lang);
+  const clock = (at: number) => formatTime(new Date(at), lang);
   const pts = app.routePoints(route);
   const { legs, total } = routeLegs(pts);
   const sog = app.fix?.sog ?? null;
@@ -172,7 +178,7 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
     let etaCell = '';
     if (prog && sog && i >= prog.nextIndex) {
       if (i > prog.nextIndex && leg) cum += timeToGo(leg.distance, sog) ?? NaN;
-      etaCell = Number.isFinite(cum) ? formatTime(new Date(now + cum * 1000)) : '';
+      etaCell = Number.isFinite(cum) ? clock(now + cum * 1000) : '';
     }
     const done = prog ? i < prog.nextIndex : false;
     return (
@@ -180,19 +186,24 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
         <span className="leg-no">{i + 1}</span>
         <button className="leg-name link" onClick={() => openWaypoint(app as App, w.id)}>
           {w.name}
-          <small>{leg ? `${formatDistance(leg.distance, du)} · ${formatBearing(leg.bearing)}` : 'start'}</small>
+          <small>{leg ? `${dist(leg.distance)} · ${formatBearing(leg.bearing)}` : t('route.start')}</small>
         </button>
         <span className="leg-eta">{etaCell}</span>
         <span className="leg-actions">
-          <button className="icon-btn sm" title="Steer to this waypoint" onClick={() => app.setNextIndex(i)}>
+          <button className="icon-btn sm" title={t('route.steerTo')} onClick={() => app.setNextIndex(i)}>
             ➤
           </button>
-          <button className="icon-btn sm" title="Move up" disabled={i === 0} onClick={() => moveInRoute(app, route, i, -1)}>
+          <button
+            className="icon-btn sm"
+            title={t('route.moveUp')}
+            disabled={i === 0}
+            onClick={() => moveInRoute(app, route, i, -1)}
+          >
             ↑
           </button>
           <button
             className="icon-btn sm"
-            title="Remove from route"
+            title={t('route.remove')}
             onClick={() => {
               route.waypointIds.splice(i, 1);
               void app.saveRoute(route);
@@ -211,16 +222,16 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
   return (
     <>
       <div className="stats">
-        <Stat label="Total" value={formatDistance(total, du)} />
-        <Stat label="To go" value={prog ? formatDistance(prog.remaining, du) : '--'} />
-        <Stat label="ETA" value={prog?.ttg != null ? formatTime(new Date(now + prog.ttg * 1000)) : '--:--'} />
-        <Stat label="TTG" value={formatDuration(prog?.ttg ?? null)} />
+        <Stat label={t('stat.total')} value={dist(total)} />
+        <Stat label={t('stat.toGo')} value={prog ? dist(prog.remaining) : '--'} />
+        <Stat label={t('stat.eta')} value={prog?.ttg != null ? clock(now + prog.ttg * 1000) : '--:--'} />
+        <Stat label={t('stat.ttg')} value={formatDuration(prog?.ttg ?? null, lang)} />
       </div>
-      {pts.length ? <ol className="legs">{rows}</ol> : <p className="hint">This route has no waypoints yet.</p>}
+      {pts.length ? <ol className="legs">{rows}</ol> : <p className="hint">{t('route.empty')}</p>}
       <div className="row">
         <select
           className="grow"
-          aria-label="Add waypoint to route"
+          aria-label={t('route.addWaypoint')}
           value=""
           onChange={(e) => {
             const id = e.target.value;
@@ -229,7 +240,7 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
             void app.saveRoute(route);
           }}
         >
-          <option value="">{candidates.length ? '+ add waypoint…' : 'long-press the map to add waypoints'}</option>
+          <option value="">{candidates.length ? t('route.addWaypointOption') : t('route.addWaypointHint')}</option>
           {candidates.map((w) => (
             <option key={w.id} value={w.id}>
               {w.name}
@@ -241,11 +252,11 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
         <button
           className="btn"
           onClick={() => {
-            const n = prompt('Route name', route.name);
+            const n = prompt(t('route.namePrompt'), route.name);
             if (n) void app.saveRoute({ ...route, name: n.trim() || route.name });
           }}
         >
-          Rename
+          {t('route.rename')}
         </button>
         <button
           className="btn"
@@ -255,29 +266,31 @@ function LegsBlock({ app, route }: { app: RouteApp; route: Route }) {
             void app.saveRoute(route);
           }}
         >
-          Reverse
+          {t('route.reverse')}
         </button>
         <button className="btn" onClick={() => exportRoute(app, route)}>
-          Export GPX
+          {t('common.exportGpx')}
         </button>
         <button
           className="btn danger"
           onClick={() => {
-            if (confirm(`Delete route “${route.name}”? Waypoints are kept.`)) void app.deleteRoute(route.id);
+            if (confirm(t('route.confirmDelete', { name: route.name }))) void app.deleteRoute(route.id);
           }}
         >
-          Delete
+          {t('common.delete')}
         </button>
       </div>
     </>
   );
 }
 
-const megabytes = (b: number) => `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`;
+const megabytes = (b: number) => `${num(b / 1e6, b < 1e7 ? 1 : 0)} MB`;
 
 /** Summary, warnings, actions and the maneuver list of a charted course. */
 function CourseBlock({ app, route }: { app: RouteApp; route: Route }) {
   const du = app.settings.distanceUnit;
+  const lang = language();
+  const dist = (m: number) => formatDistance(m, du, lang);
   const prog = app.progress;
   const maneuvers = route.maneuvers ?? [];
   const total = maneuvers[maneuvers.length - 1]?.dist ?? 0;
@@ -289,39 +302,42 @@ function CourseBlock({ app, route }: { app: RouteApp; route: Route }) {
   return (
     <div className="course">
       <div className="stats">
-        <Stat label="Total" value={formatDistance(total, du)} />
-        <Stat label="To go" value={formatDistance(toGo, du)} />
-        <Stat label="ETA" value={prog?.ttg != null ? formatTime(new Date(now + prog.ttg * 1000)) : '--:--'} />
-        <Stat label="TTG" value={formatDuration(prog?.ttg ?? null)} />
+        <Stat label={t('stat.total')} value={dist(total)} />
+        <Stat label={t('stat.toGo')} value={dist(toGo)} />
+        <Stat
+          label={t('stat.eta')}
+          value={prog?.ttg != null ? formatTime(new Date(now + prog.ttg * 1000), lang) : '--:--'}
+        />
+        <Stat label={t('stat.ttg')} value={formatDuration(prog?.ttg ?? null, lang)} />
       </div>
-      {route.source === 'offline' && <p className="hint">Charted offline from a saved corridor.</p>}
+      {route.source === 'offline' && <p className="hint">{t('course.offline')}</p>}
       {!!route.warnings?.length && (
         <ul className="warnings">
           {route.warnings.map((w, i) => (
-            <li key={i}>{`⚠ ${w}`}</li>
+            <li key={i}>{`⚠ ${warningText(w)}`}</li>
           ))}
         </ul>
       )}
       <div className="row wrap">
         <button className="btn grow" disabled={app.recalculating} onClick={() => void app.recalculate()}>
-          {app.recalculating ? 'Recalculating…' : '↻ Recalculate'}
+          {app.recalculating ? t('nav.recalculating') : `↻ ${t('course.recalculate')}`}
         </button>
         {route.tripId ? (
           <button className="btn grow" disabled>
-            ✓ Saved offline
+            {`✓ ${t('course.savedOffline')}`}
           </button>
         ) : (
           <button className="btn grow" disabled={!!app.offline} onClick={() => void app.saveForOffline(route)}>
-            {job ? 'Saving…' : '⇩ Save for offline'}
+            {job ? t('course.saving') : `⇩ ${t('course.saveOffline')}`}
           </button>
         )}
       </div>
       {job && (
         <div className="row">
           <progress className="grow" max={Math.max(1, job.total)} value={job.done} />
-          <small>{job.phase === 'estimating' ? 'Estimating…' : `${job.done}/${job.total}`}</small>
+          <small>{job.phase === 'estimating' ? t('course.estimating') : `${job.done}/${job.total}`}</small>
           <button className="btn" onClick={() => job.cancel()}>
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       )}
@@ -341,9 +357,13 @@ function CourseBlock({ app, route }: { app: RouteApp; route: Route }) {
               >
                 <ManeuverIcon type={m.type} className="maneuver-ico" />
                 <span className="maneuver-text">
-                  {m.text}
+                  {maneuverText(m)}
                   <small>
-                    {ahead != null && i > 0 && !passed ? `in ${formatDistance(ahead, du)}` : i === 0 ? 'start' : formatDistance(m.dist, du)}
+                    {ahead != null && i > 0 && !passed
+                      ? t('route.inDistance', { distance: dist(ahead) })
+                      : i === 0
+                        ? t('route.start')
+                        : dist(m.dist)}
                   </small>
                 </span>
               </button>
@@ -353,15 +373,15 @@ function CourseBlock({ app, route }: { app: RouteApp; route: Route }) {
       </ol>
       <div className="row wrap">
         <button className="btn" onClick={() => exportRoute(app, route)}>
-          Export GPX
+          {t('common.exportGpx')}
         </button>
         <button
           className="btn danger"
           onClick={() => {
-            if (confirm(`Delete course “${route.name}”?`)) void app.deleteRoute(route.id);
+            if (confirm(t('course.confirmDelete', { name: route.name }))) void app.deleteRoute(route.id);
           }}
         >
-          Delete
+          {t('common.delete')}
         </button>
       </div>
     </div>
@@ -374,21 +394,25 @@ function TripsBlock({ app }: { app: Pick<RouteApp, 'trips' | 'deleteTrip'> }) {
   const trips = [...app.trips].sort((a, b) => b.savedAt - a.savedAt);
   return (
     <div className="trips">
-      <h3>{`Saved offline (${trips.length})`}</h3>
+      <h3>{t('trips.title', { count: trips.length })}</h3>
       <ul className="list">
-        {trips.map((t) => (
-          <li key={t.id} className="track-item">
+        {trips.map((trip) => (
+          <li key={trip.id} className="track-item">
             <div className="list-item grow">
-              <span>{t.name}</span>
-              <small>{`${megabytes(t.bytes)} · ${t.tileCount} tiles · ${new Date(t.savedAt).toLocaleDateString()}`}</small>
+              <span>{trip.name}</span>
+              <small>
+                {[
+                  megabytes(trip.bytes),
+                  plural('trips.tiles', trip.tileCount),
+                  new Date(trip.savedAt).toLocaleDateString(language()),
+                ].join(' · ')}
+              </small>
             </div>
             <button
               className="icon-btn sm"
-              aria-label={`Delete saved trip ${t.name}`}
+              aria-label={t('trips.delete', { name: trip.name })}
               onClick={() => {
-                if (confirm(`Delete the saved corridor “${t.name}”? Cached map tiles expire on their own or via Settings.`)) {
-                  void app.deleteTrip(t.id);
-                }
+                if (confirm(t('trips.confirmDelete', { name: trip.name }))) void app.deleteTrip(trip.id);
               }}
             >
               ✕
@@ -445,12 +469,12 @@ function DimensionField({
         max={100}
         step={0.1}
         value={value == null ? '' : String(value)}
-        placeholder="unknown"
+        placeholder={t('vessel.unknown')}
         aria-label={label}
         onCommit={(raw, reset) => {
           const n = raw === '' ? null : Number(raw.replace(',', '.'));
           if (n != null && (!Number.isFinite(n) || n < 0 || n > 100)) {
-            toast('Enter a size in metres between 0 and 100, or leave it empty');
+            toast(t('vessel.sizeInvalid'));
             reset();
             return;
           }
@@ -464,12 +488,12 @@ function DimensionField({
 function VesselFields({ app }: { app: Pick<App, 'settings' | 'updateSettings'> }) {
   const s = app.settings;
   const unit = s.speedUnit;
-  const label = `Cruise speed (${speedLabel(unit)})`;
+  const label = t('vessel.cruiseSpeed', { unit: speedLabel(unit) });
   return (
     <>
-      <DimensionField app={app} label="Air draft (m)" k="airDraft" value={s.airDraft} />
-      <DimensionField app={app} label="Draft (m)" k="draft" value={s.draft} />
-      <DimensionField app={app} label="Beam (m)" k="beam" value={s.beam} />
+      <DimensionField app={app} label={t('vessel.airDraft')} k="airDraft" value={s.airDraft} />
+      <DimensionField app={app} label={t('vessel.draft')} k="draft" value={s.draft} />
+      <DimensionField app={app} label={t('vessel.beam')} k="beam" value={s.beam} />
       <div className="field">
         <label className="field-label">{label}</label>
         <CommitInput
@@ -482,15 +506,12 @@ function VesselFields({ app }: { app: Pick<App, 'settings' | 'updateSettings'> }
           aria-label={label}
           onCommit={(raw) => {
             const n = Number(raw.replace(',', '.'));
-            if (!Number.isFinite(n) || n < 1 || n > 60) return toast('Enter a cruise speed between 1 and 60');
+            if (!Number.isFinite(n) || n < 1 || n > 60) return toast(t('vessel.speedInvalid'));
             void app.updateSettings({ cruiseSpeed: n / convertSpeed(1, unit) });
           }}
         />
       </div>
-      <p className="hint">
-        {'Charted courses avoid bridges, depths and widths that do not fit and warn about fixed bridges with unknown clearance. ' +
-          'The cruise speed gives the ETA while the boat is not moving. Leave a size empty if unknown.'}
-      </p>
+      <p className="hint">{t('vessel.hint')}</p>
     </>
   );
 }
@@ -508,7 +529,7 @@ function exportRoute(app: Pick<App, 'routePoints'>, route: Route): void {
 }
 
 export function openRoute(app: App): void {
-  openSheet('route', 'Route & waypoints', () => (
+  openSheet('route', () => t('sheet.route'), () => (
     <RoutePanel app={app} search={<SearchBox app={app} scope="sheet" onPick={(p) => showDestinationCard(app, p)} />} />
   ));
 }
@@ -534,8 +555,9 @@ export type WaypointApp = Pick<
 
 export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
   const w = app.waypoints.get(id);
-  if (!w) return <p>Waypoint deleted.</p>;
+  if (!w) return <p>{t('wp.deleted')}</p>;
   const du = app.settings.distanceUnit;
+  const lang = language();
   const fix = app.fix;
   const route = app.activeRoute;
   const inRoute = route?.waypointIds.includes(id);
@@ -543,22 +565,26 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
   return (
     <div>
       <div className="field">
-        <label className="field-label">Name</label>
+        <label className="field-label">{t('wp.name')}</label>
         <CommitInput
           type="text"
           value={w.name}
-          aria-label="Waypoint name"
+          aria-label={t('wp.nameLabel')}
           maxLength={40}
           onCommit={(raw) => void app.updateWaypoint(id, { name: raw || w.name })}
         />
       </div>
       <div className="stats">
-        <Stat label="Position" value={`${formatCoord(w.lat, 'lat')}\n${formatCoord(w.lon, 'lon')}`} cls="wide mono" />
-        <Stat label="Distance" value={fix ? formatDistance(distance(fix, w), du) : '--'} />
-        <Stat label="Bearing" value={fix ? formatBearing(bearing(fix, w)) : '---°'} />
-        <Stat label="TTG" value={formatDuration(fix ? timeToGo(distance(fix, w), fix.sog) : null)} />
+        <Stat
+          label={t('stat.position')}
+          value={`${formatCoord(w.lat, 'lat', lang)}\n${formatCoord(w.lon, 'lon', lang)}`}
+          cls="wide mono"
+        />
+        <Stat label={t('stat.distance')} value={fix ? formatDistance(distance(fix, w), du, lang) : '--'} />
+        <Stat label={t('stat.bearing')} value={fix ? formatBearing(bearing(fix, w)) : '---°'} />
+        <Stat label={t('stat.ttg')} value={formatDuration(fix ? timeToGo(distance(fix, w), fix.sog) : null, lang)} />
       </div>
-      <p className="hint">Drag the marker on the map to move it.</p>
+      <p className="hint">{t('wp.dragHint')}</p>
       <div className="row wrap">
         <button
           className="btn primary"
@@ -567,7 +593,7 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
             void chartAndShow(app as App, { name: w.name, lat: w.lat, lon: w.lon });
           }}
         >
-          Chart course
+          {t('wp.chartCourse')}
         </button>
         <button
           className="btn"
@@ -576,7 +602,7 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
             closeSheet();
           }}
         >
-          Go to
+          {t('wp.goTo')}
         </button>
         <button
           className="btn"
@@ -585,10 +611,10 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
             const r = route ?? (await app.createRoute());
             r.waypointIds.push(id);
             await app.saveRoute(r);
-            toast(`Added to ${r.name}`);
+            toast(t('wp.addedTo', { name: r.name }));
           }}
         >
-          {inRoute ? 'In route' : route ? `Add to “${route.name}”` : 'Start new route'}
+          {inRoute ? t('wp.inRoute') : route ? t('wp.addTo', { name: route.name }) : t('wp.newRoute')}
         </button>
         <button
           className="btn"
@@ -597,18 +623,18 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
             app.map.easeTo({ center: [w.lon, w.lat], zoom: Math.max(app.map.getZoom(), 14) });
           }}
         >
-          Show
+          {t('wp.show')}
         </button>
         <button
           className="btn danger"
           onClick={() => {
-            if (confirm(`Delete waypoint “${w.name}”?`)) {
+            if (confirm(t('wp.confirmDelete', { name: w.name }))) {
               void app.deleteWaypoint(id);
               closeSheet();
             }
           }}
         >
-          Delete
+          {t('common.delete')}
         </button>
       </div>
     </div>
@@ -616,7 +642,7 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
 }
 
 export function openWaypoint(app: App, id: string): void {
-  openSheet('wp', app.waypoints.get(id)?.name ?? 'Waypoint', () => <WaypointPanel app={app} id={id} />);
+  openSheet('wp', () => app.waypoints.get(id)?.name ?? t('sheet.waypoint'), () => <WaypointPanel app={app} id={id} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -637,6 +663,7 @@ export type TrackApp = Pick<
 
 export function TrackPanel({ app }: { app: TrackApp }) {
   const du = app.settings.distanceUnit;
+  const lang = language();
   const rec = app.recording;
   const tracks = [...app.tracks.values()].sort((a, b) => b.started - a.started);
 
@@ -645,51 +672,61 @@ export function TrackPanel({ app }: { app: TrackApp }) {
       {rec ? (
         <div>
           <div className="stats">
-            <Stat label="Recording" value="● REC" cls="rec" />
-            <Stat label="Distance" value={formatDistance(routeLegs(rec.points).total, du)} />
-            <Stat label="Time" value={formatDuration((Date.now() - rec.started) / 1000)} />
-            <Stat label="Points" value={String(rec.points.length)} />
+            <Stat label={t('track.recording')} value={`● ${t('track.rec')}`} cls="rec" />
+            <Stat label={t('stat.distance')} value={formatDistance(routeLegs(rec.points).total, du, lang)} />
+            <Stat label={t('stat.time')} value={formatDuration((Date.now() - rec.started) / 1000, lang)} />
+            <Stat label={t('stat.points')} value={String(rec.points.length)} />
           </div>
           <button className="btn danger block big" onClick={() => void app.stopRecording()}>
-            ■ Stop recording
+            {`■ ${t('track.stop')}`}
           </button>
         </div>
       ) : (
         <button className="btn primary block big" onClick={() => void app.startRecording()}>
-          ● Start recording
+          {`● ${t('track.start')}`}
         </button>
       )}
-      <OnOff label="Show saved tracks on map" value={app.settings.showTracks} onPick={(v) => void app.updateSettings({ showTracks: v })} />
-      <h3>{`Tracks (${tracks.length})`}</h3>
+      <OnOff
+        label={t('track.showSaved')}
+        value={app.settings.showTracks}
+        onPick={(v) => void app.updateSettings({ showTracks: v })}
+      />
+      <h3>{t('track.title', { count: tracks.length })}</h3>
       {tracks.length ? (
         <ul className="list">
-          {tracks.map((t) => (
-            <li key={t.id} className="track-item">
+          {tracks.map((track) => (
+            <li key={track.id} className="track-item">
               <button
                 className="list-item grow"
                 onClick={() => {
-                  const n = prompt('Track name', t.name);
-                  if (n?.trim()) void app.renameTrack(t.id, n.trim());
+                  const n = prompt(t('track.namePrompt'), track.name);
+                  if (n?.trim()) void app.renameTrack(track.id, n.trim());
                 }}
               >
                 <span>
-                  {t.name}
-                  {t === rec ? ' ●' : ''}
+                  {track.name}
+                  {track === rec ? ' ●' : ''}
                 </span>
-                <small>{`${formatDistance(routeLegs(t.points).total, du)} · ${formatDuration(((t.ended ?? Date.now()) - t.started) / 1000)} · ${t.points.length} pts`}</small>
+                <small>
+                  {[
+                    formatDistance(routeLegs(track.points).total, du, lang),
+                    formatDuration(((track.ended ?? Date.now()) - track.started) / 1000, lang),
+                    plural('track.points', track.points.length),
+                  ].join(' · ')}
+                </small>
               </button>
               <button
                 className="btn sm"
-                disabled={t.points.length === 0}
-                onClick={() => download(`${slug(t.name)}.gpx`, toGpx({ tracks: [t] }))}
+                disabled={track.points.length === 0}
+                onClick={() => download(`${slug(track.name)}.gpx`, toGpx({ tracks: [track] }))}
               >
-                GPX
+                {t('track.gpx')}
               </button>
               <button
                 className="icon-btn sm"
-                aria-label="Delete track"
+                aria-label={t('track.delete')}
                 onClick={() => {
-                  if (confirm(`Delete “${t.name}”?`)) void app.deleteTrack(t.id);
+                  if (confirm(t('track.confirmDelete', { name: track.name }))) void app.deleteTrack(track.id);
                 }}
               >
                 ✕
@@ -698,14 +735,14 @@ export function TrackPanel({ app }: { app: TrackApp }) {
           ))}
         </ul>
       ) : (
-        <p className="hint">No tracks yet.</p>
+        <p className="hint">{t('track.none')}</p>
       )}
     </div>
   );
 }
 
 export function openTrack(app: App): void {
-  openSheet('track', 'Track recording', () => <TrackPanel app={app} />);
+  openSheet('track', () => t('sheet.track'), () => <TrackPanel app={app} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -737,24 +774,43 @@ export function AnchorPanel({ app }: { app: AnchorApp }) {
     else rerender();
   };
   const check = app.anchorCheck;
-  const stateText = !a ? 'Not set' : !a.armed ? 'Set – alarm off' : check?.state === 'alarm' ? 'OUTSIDE' : check?.state === 'warning' ? 'Near limit' : 'Holding';
+  const stateText = !a
+    ? t('anchor.notSet')
+    : !a.armed
+      ? t('anchor.setOff')
+      : check?.state === 'alarm'
+        ? t('anchor.outside')
+        : check?.state === 'warning'
+          ? t('anchor.near')
+          : t('anchor.holding');
 
   return (
     <div>
       <div className="stats">
-        <Stat label="Status" value={stateText} cls={a?.armed ? `anchor-${check?.state ?? 'ok'}` : ''} />
-        <Stat label="Distance" value={check ? `${Math.round(check.distance)} m` : '--'} />
-        <Stat label="GPS acc." value={app.fix ? `±${Math.round(app.fix.accuracy)} m` : '--'} />
-        <Stat label="Wake lock" value={app.wakeLock.active ? 'On' : app.wakeLock.supported ? 'Off' : 'n/a'} />
+        <Stat label={t('stat.status')} value={stateText} cls={a?.armed ? `anchor-${check?.state ?? 'ok'}` : ''} />
+        <Stat label={t('stat.distance')} value={check ? `${Math.round(check.distance)} m` : '--'} />
+        <Stat label={t('anchor.gpsAccuracy')} value={app.fix ? `±${Math.round(app.fix.accuracy)} m` : '--'} />
+        <Stat
+          label={t('anchor.wakeLock')}
+          value={app.wakeLock.active ? t('common.on') : app.wakeLock.supported ? t('common.off') : t('common.na')}
+        />
       </div>
       <div className="field">
-        <div className="field-label">Swing radius</div>
+        <div className="field-label">{t('anchor.radius')}</div>
         <div className="stepper">
-          <button className="btn big" aria-label="Decrease radius" onClick={() => setR(radius - (radius > 100 ? 25 : 5))}>
+          <button
+            className="btn big"
+            aria-label={t('anchor.decrease')}
+            onClick={() => setR(radius - (radius > 100 ? 25 : 5))}
+          >
             −
           </button>
           <div className="stepper-value">{`${radius} m`}</div>
-          <button className="btn big" aria-label="Increase radius" onClick={() => setR(radius + (radius >= 100 ? 25 : 5))}>
+          <button
+            className="btn big"
+            aria-label={t('anchor.increase')}
+            onClick={() => setR(radius + (radius >= 100 ? 25 : 5))}
+          >
             +
           </button>
         </div>
@@ -765,7 +821,7 @@ export function AnchorPanel({ app }: { app: AnchorApp }) {
           disabled={!app.fix}
           onClick={() => app.fix && void app.setAnchor({ lat: app.fix.lat, lon: app.fix.lon }, radius)}
         >
-          ⚓ Drop at my position
+          {`⚓ ${t('anchor.dropHere')}`}
         </button>
         <button
           className="btn grow"
@@ -774,35 +830,32 @@ export function AnchorPanel({ app }: { app: AnchorApp }) {
             void app.setAnchor({ lat: c.lat, lon: c.lng }, radius);
           }}
         >
-          ⌖ Drop at map centre
+          {`⌖ ${t('anchor.dropCentre')}`}
         </button>
       </div>
       {a && (
         <div className="row wrap">
           {a.armed ? (
             <button className="btn block big" onClick={() => void app.armAnchor(false)}>
-              Disarm alarm
+              {t('anchor.disarm')}
             </button>
           ) : (
             <button className="btn primary block big" onClick={() => void app.armAnchor(true)}>
-              Arm anchor alarm
+              {t('anchor.arm')}
             </button>
           )}
           <button className="btn danger" onClick={() => void app.clearAnchor()}>
-            Remove anchor
+            {t('anchor.remove')}
           </button>
         </div>
       )}
-      <p className="hint">
-        {'Keep this app open and in the foreground with the charger connected: browsers pause GPS when the screen turns off. ' +
-          'The alarm also sounds if the GPS signal is lost for 30 s.'}
-      </p>
+      <p className="hint">{t('anchor.hint')}</p>
     </div>
   );
 }
 
 export function openAnchor(app: App): void {
-  openSheet('anchor', 'Anchor alarm', () => <AnchorPanel app={app} />);
+  openSheet('anchor', () => t('sheet.anchor'), () => <AnchorPanel app={app} />);
 }
 
 // ---------------------------------------------------------------------------
@@ -834,20 +887,34 @@ export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; t
   const urlRef = useRef<HTMLInputElement>(null);
   const set = (patch: Partial<typeof s>) => void app.updateSettings(patch);
 
+  const minutes = (count: number) => t('menu.minutes', { count });
+
   return (
     <div>
-      <h3>Display</h3>
+      <h3>{t('menu.display')}</h3>
+      <Segmented<LanguageChoice>
+        label={t('menu.language')}
+        current={s.language}
+        options={[
+          { value: 'auto', label: t('menu.languageAuto') },
+          // Each language in its own name, so it can be found whatever is set.
+          { value: 'en', label: 'English' },
+          { value: 'de', label: 'Deutsch' },
+        ]}
+        onPick={(v) => set({ language: v })}
+      />
+      <p className="hint">{t('menu.languageHint')}</p>
       <Segmented
-        label="Speed"
+        label={t('menu.speed')}
         current={s.speedUnit}
         options={[
           { value: 'kmh', label: 'km/h' },
-          { value: 'kn', label: 'knots' },
+          { value: 'kn', label: t('menu.knots') },
         ]}
         onPick={(v) => set({ speedUnit: v })}
       />
       <Segmented
-        label="Distance"
+        label={t('menu.distance')}
         current={s.distanceUnit}
         options={[
           { value: 'metric', label: 'm / km' },
@@ -856,44 +923,42 @@ export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; t
         onPick={(v) => set({ distanceUnit: v })}
       />
       <Segmented<CogMinutes>
-        label="Course line (COG vector)"
+        label={t('menu.courseLine')}
         current={s.cogMinutes}
         options={[
-          { value: 0, label: 'Off' },
-          { value: 5, label: '5 min' },
-          { value: 10, label: '10 min' },
-          { value: 30, label: '30 min' },
+          { value: 0, label: t('common.off') },
+          { value: 5, label: minutes(5) },
+          { value: 10, label: minutes(10) },
+          { value: 30, label: minutes(30) },
         ]}
         onPick={(v) => set({ cogMinutes: v })}
       />
       <Segmented
-        label="Palette"
+        label={t('menu.palette')}
         current={s.theme}
         options={[
-          { value: 'day', label: '☀ Day' },
-          { value: 'night', label: '☾ Night' },
+          { value: 'day', label: `☀ ${t('menu.day')}` },
+          { value: 'night', label: `☾ ${t('menu.night')}` },
         ]}
         onPick={(v) => set({ theme: v })}
       />
-      <OnOff label="Seamarks" value={s.seamarks} onPick={(v) => set({ seamarks: v })} />
-      <OnOff label="OpenSeaMap overlay (online)" value={s.openseamap} onPick={(v) => set({ openseamap: v })} />
-      <OnOff label="Aerial photo (online)" value={s.aerial} onPick={(v) => set({ aerial: v })} />
-      <p className="hint">The aerial photo (PDOK Luchtfoto) is not saved for offline use and is hidden at night.</p>
-      <OnOff label="Keep screen awake" value={s.keepAwake} onPick={(v) => set({ keepAwake: v })} />
+      <OnOff label={t('menu.seamarks')} value={s.seamarks} onPick={(v) => set({ seamarks: v })} />
+      <OnOff label={t('menu.openseamap')} value={s.openseamap} onPick={(v) => set({ openseamap: v })} />
+      <OnOff label={t('menu.aerial')} value={s.aerial} onPick={(v) => set({ aerial: v })} />
+      <p className="hint">{t('menu.aerialHint')}</p>
+      <OnOff label={t('menu.keepAwake')} value={s.keepAwake} onPick={(v) => set({ keepAwake: v })} />
       <OnOff
-        label="Ship heading from compass"
+        label={t('menu.compass')}
         value={s.compass}
         onPick={(v) => void (v ? app.enableCompass() : app.updateSettings({ compass: false }))}
       />
-      <p className="hint">
-        Points the ship symbol where the top of the screen faces: mount the device with its top towards the bow. The course line still shows the course over ground.
-      </p>
+      <p className="hint">{t('menu.compassHint')}</p>
 
-      <h3>Vessel &amp; routing</h3>
+      <h3>{t('menu.vessel')}</h3>
       <VesselFields app={app} />
-      <OnOff label="Voice prompts" value={s.voicePrompts} onPick={(v) => set({ voicePrompts: v })} />
+      <OnOff label={t('menu.voice')} value={s.voicePrompts} onPick={(v) => set({ voicePrompts: v })} />
 
-      <h3>Data (GPX)</h3>
+      <h3>{t('menu.data')}</h3>
       <div className="row wrap">
         <button
           className="btn grow"
@@ -904,43 +969,56 @@ export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; t
             )
           }
         >
-          Export waypoints &amp; routes
+          {t('menu.export')}
         </button>
         <button className="btn grow" onClick={() => void importGpx(app)}>
-          Import GPX
+          {t('menu.import')}
         </button>
       </div>
 
-      <h3>Chart</h3>
-      <p className="hint">{`Basemap: ${app.basemap === 'pmtiles' ? 'offline vector chart (PMTiles)' : 'online OpenStreetMap fallback'}`}</p>
+      <h3>{t('menu.chart')}</h3>
+      <p className="hint">
+        {t('menu.basemap', { source: app.basemap === 'pmtiles' ? t('menu.basemapPmtiles') : t('menu.basemapOsm') })}
+      </p>
       <div className="row">
-        <input key={s.pmtilesUrl} ref={urlRef} type="url" defaultValue={s.pmtilesUrl} aria-label="PMTiles URL" className="grow" />
+        <input
+          key={s.pmtilesUrl}
+          ref={urlRef}
+          type="url"
+          defaultValue={s.pmtilesUrl}
+          aria-label={t('menu.pmtilesUrl')}
+          className="grow"
+        />
         <button
           className="btn"
           onClick={() => void app.updateSettings({ pmtilesUrl: urlRef.current!.value.trim() || DEFAULT_SETTINGS.pmtilesUrl })}
         >
-          Apply
+          {t('menu.apply')}
         </button>
       </div>
       <button className="btn block" onClick={() => void clearTileCaches()}>
-        Clear cached map tiles
+        {t('menu.clearTiles')}
       </button>
 
-      <h3>About</h3>
+      <h3>{t('menu.about')}</h3>
       <OnOff
-        label="Send diagnostics"
+        label={t('menu.diagnostics')}
         value={telemetry.enabled()}
         onPick={(v) => {
           telemetry.set(v);
           rerender();
         }}
       />
-      <p className="hint">Errors, load timing and request durations, never your position or searches. Off stops sending now; On applies after a reload.</p>
-      <p className="hint">{DISCLAIMER}</p>
+      <p className="hint">{t('menu.diagnosticsHint')}</p>
+      <p className="hint">{disclaimerText()}</p>
       <button className="btn block" onClick={() => showDisclaimerOnce(true)}>
-        Show disclaimer
+        {t('menu.showDisclaimer')}
       </button>
-      <p className="hint">{`GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${version}`}</p>
+      <p className="hint">
+        {t('menu.gps', { status: t(`gps.${app.gpsStatus}`) })}
+        {app.gpsMessage ? ` – ${app.gpsMessage}` : ''}
+        {` · v${version}`}
+      </p>
     </div>
   );
 }
@@ -951,9 +1029,10 @@ async function importGpx(app: Pick<App, 'importData'>): Promise<void> {
   try {
     const data = parseGpx(await f.text());
     await app.importData(data);
-    toast(`Imported ${data.waypoints.length} waypoints, ${data.routes.length} routes, ${data.tracks.length} tracks`);
+    const { waypoints, routes, tracks } = data;
+    toast(t('menu.imported', { waypoints: waypoints.length, routes: routes.length, tracks: tracks.length }));
   } catch (e) {
-    toast(`Import failed: ${(e as Error).message}`);
+    toast(t('menu.importFailed', { message: (e as Error).message }));
   }
 }
 
@@ -961,7 +1040,7 @@ async function clearTileCaches(): Promise<void> {
   if (!('caches' in window)) return;
   const keys = await caches.keys();
   await Promise.all(keys.filter((k) => /tiles|pmtiles|seamark|glyph/i.test(k)).map((k) => caches.delete(k)));
-  toast('Tile cache cleared');
+  toast(t('menu.tilesCleared'));
 }
 
 function slug(s: string): string {

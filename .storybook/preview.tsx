@@ -1,4 +1,5 @@
 import type { Decorator, Preview } from '@storybook/react-vite';
+import { setLanguage } from '../src/i18n';
 import '../src/ui/styles.css';
 import './preview.css';
 
@@ -10,6 +11,7 @@ const withGlobals: Decorator = (Story, context) => {
   const [top, bottom] = SAFE_AREAS[context.globals.safeAreas as keyof typeof SAFE_AREAS] ?? SAFE_AREAS.none;
   root.style.setProperty('--safe-t', top);
   root.style.setProperty('--safe-b', bottom);
+  setLanguage(context.globals.language === 'de' ? 'de' : 'en');
   return <Story />;
 };
 
@@ -18,6 +20,7 @@ const preview: Preview = {
   initialGlobals: {
     theme: 'day',
     safeAreas: 'none',
+    language: 'en',
     viewport: { value: 'iphone14', isRotated: false },
   },
   globalTypes: {
@@ -30,6 +33,18 @@ const preview: Preview = {
         items: [
           { value: 'day', title: 'Day' },
           { value: 'night', title: 'Night' },
+        ],
+      },
+    },
+    language: {
+      description: 'Language of the app texts',
+      toolbar: {
+        title: 'Language',
+        icon: 'globe',
+        dynamicTitle: true,
+        items: [
+          { value: 'en', title: 'English' },
+          { value: 'de', title: 'Deutsch' },
         ],
       },
     },

@@ -56,18 +56,8 @@ const KIND: Record<PlaceKind, string> = {
   waypoint: MANEUVER.arrive,
 };
 
-export const KIND_LABEL: Record<PlaceKind, string> = {
-  harbour: 'Harbour',
-  marina: 'Marina',
-  mooring: 'Mooring',
-  lock: 'Lock',
-  bridge: 'Bridge',
-  city: 'City',
-  town: 'Town',
-  village: 'Village',
-  waterway: 'Waterway',
-  waypoint: 'Waypoint',
-};
+/** Every kind of place, in the order the icons are drawn; `t(`kind.${kind}`)` names one. */
+export const PLACE_KINDS = Object.keys(KIND) as PlaceKind[];
 
 /** Icon for a kind of place, in a span of class `className`. */
 export function KindIcon({ kind, className }: { kind: PlaceKind; className: string }) {

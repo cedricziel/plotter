@@ -4,6 +4,7 @@ import { decodePolyline } from '../core/polyline';
 import type { Maneuver, VesselProfile } from '../core/routing';
 import type { TripRouter, Trip } from '../core/trips';
 import type { Place } from '../core/waterway-data';
+import { t } from '../i18n';
 import { ApiError } from './api';
 
 /** A course as charted, from the routing service or from a saved corridor. */
@@ -72,7 +73,7 @@ export async function planCourse(deps: PlanDeps, req: CourseRequest): Promise<Pl
       { profile: req.vessel, speed: req.speed, destName: req.to.name },
       req.via,
     );
-    if (!off) return { problem: e.status === 503 ? 'Routing data not available yet' : 'Routing service not reachable' };
+    if (!off) return { problem: e.status === 503 ? t('plan.noData') : t('plan.unreachable') };
     return {
       charted: {
         shape: off.result.shape,

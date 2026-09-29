@@ -301,6 +301,14 @@ describe('maneuvers', () => {
     expect(texts(cross.E)).toEqual(['Depart on Noordzeekanaal', 'Slight right into Nauwe Vaart', 'Arrive']);
   });
 
+  it('names the waterway of every maneuver, null when unnamed, with the text unchanged', () => {
+    const m = ok(route(edges, cross, S, cross.A)).maneuvers;
+    expect(m.map((x) => x.name)).toEqual(['Noordzeekanaal', 'Zaan', null]);
+    expect(m.every((x) => 'name' in x)).toBe(true);
+    expect(m.map((x) => x.text)).toEqual(['Depart on Noordzeekanaal', 'Turn left into Zaan', 'Arrive']);
+    expect(ok(route(edges, cross, S, cross.B, { destName: 'Beverwijk' })).maneuvers.at(-1)?.name).toBe('Beverwijk');
+  });
+
   it('stays silent when continuing straight on the same waterway', () => {
     expect(texts(cross.B)).toEqual(['Depart on Noordzeekanaal', 'Arrive']);
   });
@@ -323,6 +331,7 @@ describe('maneuvers', () => {
       'Arrive',
     ]);
     expect(r.maneuvers[1].dist).toBeCloseTo(2000, -1);
+    expect(r.maneuvers[1].name).toBe('Amsterdam-Rijnkanaal');
   });
 
   it('lists locks and bridges in order with their distance from the start', () => {
@@ -361,6 +370,14 @@ describe('maneuvers', () => {
       'bridge-fixed',
       'bridge-fixed',
       'arrive',
+    ]);
+    expect(r.maneuvers.map((m) => m.name)).toEqual([
+      'Kanaal',
+      'Oranjesluizen',
+      'Schellingwouderbrug',
+      'Brug X',
+      null,
+      null,
     ]);
     expect(r.maneuvers[1].dist).toBeCloseTo(1000, -1);
     expect(r.maneuvers[4].dist).toBeCloseTo(7000, -1);
@@ -415,6 +432,9 @@ describe('via stops', () => {
     expect(r.maneuvers[1].dist).toBeCloseTo(5000, -1);
     expect(r.maneuvers[3].dist).toBeCloseTo(7000, -1);
     expect(r.maneuvers[4].text).toBe('Arrive at Einde');
+    expect(r.maneuvers[1]).toMatchObject({ type: 'via', text: 'Via stop 1', name: null, stop: 1 });
+    expect(r.maneuvers[4]).toMatchObject({ name: 'Einde' });
+    expect(r.maneuvers.filter((m) => m.type !== 'via').every((m) => m.stop === undefined)).toBe(true);
     expect(r.warnings).toEqual(['1 fixed bridge with unknown clearance']);
   });
 

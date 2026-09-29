@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   Announcer,
   OffCourseMonitor,
@@ -9,6 +9,9 @@ import {
   withConnectors,
 } from '../src/core/course';
 import { destination, distance } from '../src/core/geo';
+import { setLanguage } from '../src/i18n';
+import { announcement } from '../src/i18n/maneuvers';
+import { speak } from '../src/services/voice';
 
 const origin = { lat: 52.0, lon: 5.0 };
 const at = (east: number, north: number) => {
@@ -140,6 +143,54 @@ describe('Announcer', () => {
     expect(a.update('m1', 90, 'Pass Sluis (lock)')).toBe('In 100 metres, Pass Sluis (lock)');
     expect(a.update('m1', 80, 'Pass Sluis (lock)')).toBeNull();
     expect(a.update('m2', 480, 'Arrive')).toBe('In 500 metres, Arrive');
+  });
+});
+
+describe('Announcer in German', () => {
+  afterEach(() => setLanguage('en'));
+
+  it('says the distance in German and keeps nouns capitalised', () => {
+    setLanguage('de');
+    const a = new Announcer(announcement);
+    expect(a.update('m1', 480, 'Rechts abbiegen in Pikmar')).toBe('In 500 Metern, rechts abbiegen in Pikmar');
+    expect(a.update('m1', 95, 'Rechts abbiegen in Pikmar')).toBe('In 100 Metern, rechts abbiegen in Pikmar');
+    expect(a.update('m2', 480, 'Schleuse Oranjesluizen passieren')).toBe(
+      'In 500 Metern, Schleuse Oranjesluizen passieren',
+    );
+    expect(a.update('m3', 90, 'Feste Brücke, 5,4 m Durchfahrtshöhe')).toBe(
+      'In 100 Metern, feste Brücke, 5,4 m Durchfahrtshöhe',
+    );
+  });
+
+  it('keeps the English phrase', () => {
+    expect(new Announcer(announcement).update('m1', 480, 'Turn left into Zaan')).toBe(
+      'In 500 metres, Turn left into Zaan',
+    );
+  });
+});
+
+describe('speak', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks for a voice in the chosen language', () => {
+    const spoken: { text: string; lang: string }[] = [];
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        lang = '';
+        constructor(public text: string) {}
+      },
+    );
+    vi.stubGlobal('speechSynthesis', {
+      cancel: () => {},
+      speak: (u: { text: string; lang: string }) => spoken.push(u),
+    });
+    speak('In 500 Metern, rechts abbiegen in Pikmar', 'de');
+    speak('Off course');
+    expect(spoken.map((u) => [u.text, u.lang])).toEqual([
+      ['In 500 Metern, rechts abbiegen in Pikmar', 'de-DE'],
+      ['Off course', 'en-GB'],
+    ]);
   });
 });
 
