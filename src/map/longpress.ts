@@ -31,7 +31,10 @@ export function onLongPress(map: MlMap, cb: (lngLat: LngLat) => void): void {
   });
   map.on('touchmove', (e: MapTouchEvent) => {
     if (!start) return;
-    if (e.originalEvent.touches.length !== 1 || Math.hypot(e.point.x - start.x, e.point.y - start.y) > MOVE_TOLERANCE_PX)
+    if (
+      e.originalEvent.touches.length !== 1 ||
+      Math.hypot(e.point.x - start.x, e.point.y - start.y) > MOVE_TOLERANCE_PX
+    )
       cancel();
   });
   map.on('touchend', cancel);

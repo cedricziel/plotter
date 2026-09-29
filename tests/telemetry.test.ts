@@ -37,7 +37,12 @@ beforeAll(async () => {
   writeFileSync(join(dir, 'places.json'), JSON.stringify(places));
   writeFileSync(
     join(dir, 'current.json'),
-    JSON.stringify({ waterways: './waterways.json', places: './places.json', built: '2026-01-01T00:00:00Z', source: 'test' }),
+    JSON.stringify({
+      waterways: './waterways.json',
+      places: './places.json',
+      built: '2026-01-01T00:00:00Z',
+      source: 'test',
+    }),
   );
   upstream = createServer((req, res) => {
     const chunks: Buffer[] = [];

@@ -3,7 +3,15 @@ import type { App } from '../../app';
 import { bearing, distance, routeLegs, timeToGo } from '../../core/geo';
 import { parseGpx, toGpx } from '../../core/gpx';
 import type { Route } from '../../core/model';
-import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../../core/units';
+import {
+  convertSpeed,
+  formatBearing,
+  formatCoord,
+  formatDistance,
+  formatDuration,
+  formatTime,
+  speedLabel,
+} from '../../core/units';
 import { language, num, plural, t, type LanguageChoice } from '../../i18n';
 import { maneuverText } from '../../i18n/maneuvers';
 import { warningText } from '../../i18n/texts';
@@ -139,7 +147,11 @@ export function RoutePanel({ app, search }: { app: RouteApp; search?: ReactNode 
         </button>
       </div>
 
-      {route?.maneuvers ? <CourseBlock app={app} route={route} /> : route ? <LegsBlock app={app} route={route} /> : null}
+      {route?.maneuvers ? (
+        <CourseBlock app={app} route={route} />
+      ) : route ? (
+        <LegsBlock app={app} route={route} />
+      ) : null}
 
       <h3>{t('route.waypoints', { count: wps.length })}</h3>
       {wps.length ? (
@@ -433,7 +445,10 @@ function CommitInput({
   value,
   onCommit,
   ...attrs
-}: { value: string; onCommit: (raw: string, reset: () => void) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+}: { value: string; onCommit: (raw: string, reset: () => void) => void } & Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+>) {
   const commit = (el: HTMLInputElement) => {
     if (el.value === value) return;
     onCommit(el.value.trim(), () => (el.value = value));
@@ -530,9 +545,16 @@ function exportRoute(app: Pick<App, 'routePoints'>, route: Route): void {
 }
 
 export function openRoute(app: App): void {
-  openSheet('route', () => t('sheet.route'), () => (
-    <RoutePanel app={app} search={<SearchBox app={app} scope="sheet" onPick={(p) => showDestinationCard(app, p)} />} />
-  ));
+  openSheet(
+    'route',
+    () => t('sheet.route'),
+    () => (
+      <RoutePanel
+        app={app}
+        search={<SearchBox app={app} scope="sheet" onPick={(p) => showDestinationCard(app, p)} />}
+      />
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -643,7 +665,11 @@ export function WaypointPanel({ app, id }: { app: WaypointApp; id: string }) {
 }
 
 export function openWaypoint(app: App, id: string): void {
-  openSheet('wp', () => app.waypoints.get(id)?.name ?? t('sheet.waypoint'), () => <WaypointPanel app={app} id={id} />);
+  openSheet(
+    'wp',
+    () => app.waypoints.get(id)?.name ?? t('sheet.waypoint'),
+    () => <WaypointPanel app={app} id={id} />,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -743,7 +769,11 @@ export function TrackPanel({ app }: { app: TrackApp }) {
 }
 
 export function openTrack(app: App): void {
-  openSheet('track', () => t('sheet.track'), () => <TrackPanel app={app} />);
+  openSheet(
+    'track',
+    () => t('sheet.track'),
+    () => <TrackPanel app={app} />,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -754,15 +784,7 @@ let pendingRadius = 40;
 
 export type AnchorApp = Pick<
   App,
-  | 'anchor'
-  | 'anchorCheck'
-  | 'fix'
-  | 'wakeLock'
-  | 'map'
-  | 'setAnchor'
-  | 'setAnchorRadius'
-  | 'armAnchor'
-  | 'clearAnchor'
+  'anchor' | 'anchorCheck' | 'fix' | 'wakeLock' | 'map' | 'setAnchor' | 'setAnchorRadius' | 'armAnchor' | 'clearAnchor'
 >;
 
 export function AnchorPanel({ app }: { app: AnchorApp }) {
@@ -856,7 +878,11 @@ export function AnchorPanel({ app }: { app: AnchorApp }) {
 }
 
 export function openAnchor(app: App): void {
-  openSheet('anchor', () => t('sheet.anchor'), () => <AnchorPanel app={app} />);
+  openSheet(
+    'anchor',
+    () => t('sheet.anchor'),
+    () => <AnchorPanel app={app} />,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -882,7 +908,15 @@ export interface Telemetry {
   set(v: boolean): void;
 }
 
-export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; telemetry: Telemetry; version: string }) {
+export function SettingsPanel({
+  app,
+  telemetry,
+  version,
+}: {
+  app: SettingsApp;
+  telemetry: Telemetry;
+  version: string;
+}) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const s = app.settings;
   const urlRef = useRef<HTMLInputElement>(null);
@@ -992,7 +1026,9 @@ export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; t
         />
         <button
           className="btn"
-          onClick={() => void app.updateSettings({ pmtilesUrl: urlRef.current!.value.trim() || DEFAULT_SETTINGS.pmtilesUrl })}
+          onClick={() =>
+            void app.updateSettings({ pmtilesUrl: urlRef.current!.value.trim() || DEFAULT_SETTINGS.pmtilesUrl })
+          }
         >
           {t('menu.apply')}
         </button>
@@ -1045,5 +1081,11 @@ async function clearTileCaches(): Promise<void> {
 }
 
 function slug(s: string): string {
-  return s.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'export';
+  return (
+    s
+      .replace(/[^\w\- ]+/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .toLowerCase() || 'export'
+  );
 }

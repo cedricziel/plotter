@@ -133,7 +133,11 @@ export function parseGpx(xml: string, now = Date.now()): ParsedGpx {
         const t = childText(el, 'time');
         const ele = childText(el, 'ele');
         const time = t ? Date.parse(t) : NaN;
-        points.push({ ...p, time: Number.isFinite(time) ? time : now, ele: ele != null && Number.isFinite(Number(ele)) ? Number(ele) : null });
+        points.push({
+          ...p,
+          time: Number.isFinite(time) ? time : now,
+          ele: ele != null && Number.isFinite(Number(ele)) ? Number(ele) : null,
+        });
       }
     }
     tracks.push({

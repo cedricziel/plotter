@@ -25,7 +25,7 @@ export function createStore<T>(initial: T): Store<T> {
   };
 }
 
-export const useStore = <T,>(store: Store<T>): T => useSyncExternalStore(store.subscribe, store.get, store.get);
+export const useStore = <T>(store: Store<T>): T => useSyncExternalStore(store.subscribe, store.get, store.get);
 
 /** Anything with the App's observer API: re-renders the caller on every `emit()`. */
 export interface Observable {
@@ -34,7 +34,11 @@ export interface Observable {
 }
 
 export const useVersion = (app: Observable): number =>
-  useSyncExternalStore(app.subscribe, () => app.version, () => app.version);
+  useSyncExternalStore(
+    app.subscribe,
+    () => app.version,
+    () => app.version,
+  );
 
 /** The UI language; the caller re-renders when it changes. */
 export const useLanguage = (): Language => useSyncExternalStore(subscribeLanguage, language, language);

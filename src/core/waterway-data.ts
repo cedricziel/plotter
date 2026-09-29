@@ -71,7 +71,17 @@ export interface WaterwayFile {
   edges: EdgeTuple[];
 }
 
-export type PlaceKind = 'harbour' | 'marina' | 'mooring' | 'lock' | 'bridge' | 'city' | 'town' | 'village' | 'waterway' | 'waypoint';
+export type PlaceKind =
+  | 'harbour'
+  | 'marina'
+  | 'mooring'
+  | 'lock'
+  | 'bridge'
+  | 'city'
+  | 'town'
+  | 'village'
+  | 'waterway'
+  | 'waypoint';
 
 export interface PlaceInfo {
   vhf?: string;

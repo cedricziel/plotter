@@ -1,11 +1,31 @@
-import type { ExpressionSpecification, LayerSpecification, SourceSpecification } from '@maplibre/maplibre-gl-style-spec';
+import type {
+  ExpressionSpecification,
+  LayerSpecification,
+  SourceSpecification,
+} from '@maplibre/maplibre-gl-style-spec';
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl';
 import type { Theme } from './style';
 
 /** Overlay colours are chosen to stand out against the waterway palette. */
 const OVERLAY = {
-  day: { cog: '#000000', route: '#d6008a', track: '#e8590c', saved: '#8f5b2e', anchor: '#c92a2a', acc: '#1c7ed6', nav: '#7b2cbf' },
-  night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f', nav: '#ff3b3b' },
+  day: {
+    cog: '#000000',
+    route: '#d6008a',
+    track: '#e8590c',
+    saved: '#8f5b2e',
+    anchor: '#c92a2a',
+    acc: '#1c7ed6',
+    nav: '#7b2cbf',
+  },
+  night: {
+    cog: '#ff5a5a',
+    route: '#cc1a1a',
+    track: '#990f0f',
+    saved: '#5c0808',
+    anchor: '#ff2222',
+    acc: '#8a0f0f',
+    nav: '#ff3b3b',
+  },
 };
 
 const PLACE_COLORS = {
@@ -13,7 +33,18 @@ const PLACE_COLORS = {
   night: { harbour: '#ff6b6b', structure: '#c92a2a', town: '#8a1f1f', opening: '#ff8787' },
 };
 
-export const OVERLAY_SOURCES = ['seamark-marks', 'place-marks', 'accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
+export const OVERLAY_SOURCES = [
+  'seamark-marks',
+  'place-marks',
+  'accuracy',
+  'cog',
+  'route',
+  'nav-line',
+  'track-live',
+  'tracks',
+  'anchor',
+  'maneuvers',
+] as const;
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number];
 
 export const SEAMARK_LAYERS = ['seamark-marks', 'seamark-flare', 'seamark-notices'] as const;
@@ -24,7 +55,19 @@ export function overlaySources(): Record<string, SourceSpecification> {
   return Object.fromEntries(OVERLAY_SOURCES.map((s) => [s, { type: 'geojson', data: EMPTY }]));
 }
 
-const SEAMARK_ICON_SIZE: ExpressionSpecification = ['interpolate', ['linear'], ['zoom'], 12, 0.5, 14, 0.75, 16, 1, 18, 1.25];
+const SEAMARK_ICON_SIZE: ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  12,
+  0.5,
+  14,
+  0.75,
+  16,
+  1,
+  18,
+  1.25,
+];
 
 function seamarkLayers(visible: boolean): LayerSpecification[] {
   const layout = {
@@ -95,7 +138,12 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme, o: { seama
         'text-max-width': 8,
       },
       paint: {
-        'text-color': ['case', ['==', ['get', 'open'], true], pc.opening, byGroup(pc.harbour, pc.structure, pc.town)] as ExpressionSpecification,
+        'text-color': [
+          'case',
+          ['==', ['get', 'open'], true],
+          pc.opening,
+          byGroup(pc.harbour, pc.structure, pc.town),
+        ] as ExpressionSpecification,
         'text-halo-color': p.labelHalo,
         'text-halo-width': 2,
       },
@@ -204,7 +252,12 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme, o: { seama
       type: 'circle',
       source: 'anchor',
       filter: ['==', ['geometry-type'], 'Point'],
-      paint: { 'circle-color': c.anchor, 'circle-radius': 6, 'circle-stroke-color': p.labelHalo, 'circle-stroke-width': 2 },
+      paint: {
+        'circle-color': c.anchor,
+        'circle-radius': 6,
+        'circle-stroke-color': p.labelHalo,
+        'circle-stroke-width': 2,
+      },
     },
     {
       id: 'cog',

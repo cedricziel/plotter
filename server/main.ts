@@ -18,5 +18,12 @@ console.log(`plotter server listening on :${running.port}`);
 emitLog('INFO', 'server started', { 'server.port': running.port, 'telemetry.relay': !!relay });
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
-  process.on(sig, () => void running.close().then(shutdownTelemetry).then(() => process.exit(0)));
+  process.on(
+    sig,
+    () =>
+      void running
+        .close()
+        .then(shutdownTelemetry)
+        .then(() => process.exit(0)),
+  );
 }

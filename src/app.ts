@@ -4,7 +4,15 @@ import { AttributionControl, Map as MlMap, Marker, ScaleControl, addProtocol, se
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { PMTiles, Protocol } from 'pmtiles';
 import { alarmDebounce, checkAnchor, type AlarmReason, type AnchorCheck, type AnchorWatch } from './core/anchor';
-import { Announcer, OffCourseMonitor, pointAlong, shapeInfo, shapeProgress, withConnectors, type ShapeInfo } from './core/course';
+import {
+  Announcer,
+  OffCourseMonitor,
+  pointAlong,
+  shapeInfo,
+  shapeProgress,
+  withConnectors,
+  type ShapeInfo,
+} from './core/course';
 import { circlePolygon, destination, routeLegs, timeToGo, type LatLon } from './core/geo';
 import { PositionHold } from './core/position-hold';
 import type { CourseDestination, CourseManeuver, Route, Track, Waypoint } from './core/model';
@@ -80,7 +88,13 @@ export class App {
   private tripRouter = new TripRouter();
   private protocol!: Protocol;
   /** set while a saved-corridor download runs */
-  offline: { routeId: string; phase: 'estimating' | 'downloading'; done: number; total: number; cancel: () => void } | null = null;
+  offline: {
+    routeId: string;
+    phase: 'estimating' | 'downloading';
+    done: number;
+    total: number;
+    cancel: () => void;
+  } | null = null;
   private offMonitor = new OffCourseMonitor();
   private announcer = new Announcer(announcement);
   offCourse = false;
@@ -239,7 +253,8 @@ export class App {
     }
     if ('seamarks' in patch) {
       for (const id of SEAMARK_LAYERS) {
-        if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', this.settings.seamarks ? 'visible' : 'none');
+        if (this.map.getLayer(id))
+          this.map.setLayoutProperty(id, 'visibility', this.settings.seamarks ? 'visible' : 'none');
       }
     }
     if ('theme' in patch) this.applyTheme();
@@ -428,7 +443,13 @@ export class App {
           {
             type: 'Feature',
             properties: {},
-            geometry: { type: 'LineString', coordinates: [[f.lon, f.lat], [end.lon, end.lat]] },
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [f.lon, f.lat],
+                [end.lon, end.lat],
+              ],
+            },
           },
           ...ticks,
         ],
@@ -455,7 +476,10 @@ export class App {
     let to: LatLon | null | undefined = this.fix && this.progress ? pts[this.progress.nextIndex] : null;
     if (route?.shape) {
       const off = this.progress?.xte != null ? Math.abs(this.progress.xte) : 0;
-      to = this.fix && this.progress && this.along != null && off > 60 ? pointAlong(this.shapeOf(route), this.along + 100) : null;
+      to =
+        this.fix && this.progress && this.along != null && off > 60
+          ? pointAlong(this.shapeOf(route), this.along + 100)
+          : null;
     }
     setOverlay(
       this.map,
@@ -464,7 +488,13 @@ export class App {
         ? {
             type: 'Feature',
             properties: {},
-            geometry: { type: 'LineString', coordinates: [[this.fix.lon, this.fix.lat], [to.lon, to.lat]] },
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [this.fix.lon, this.fix.lat],
+                [to.lon, to.lat],
+              ],
+            },
           }
         : EMPTY,
     );
@@ -617,7 +647,13 @@ export class App {
 
   async addWaypoint(p: LatLon, openEditor = false, name?: string): Promise<Waypoint> {
     const n = this.waypoints.size + 1;
-    const w: Waypoint = { id: uid(), name: name ?? `WP ${String(n).padStart(2, '0')}`, lat: p.lat, lon: p.lon, created: Date.now() };
+    const w: Waypoint = {
+      id: uid(),
+      name: name ?? `WP ${String(n).padStart(2, '0')}`,
+      lat: p.lat,
+      lon: p.lon,
+      created: Date.now(),
+    };
     this.waypoints.set(w.id, w);
     // Give immediate feedback on the long-press; persist afterwards.
     this.renderWaypointMarkers();
@@ -827,7 +863,10 @@ export class App {
   /** Remember a destination for the empty search box and the offline search. */
   rememberPlace(p: Place): void {
     const key = (q: Place) => `${q.name}|${q.lat.toFixed(4)}|${q.lon.toFixed(4)}`;
-    this.recents = [{ name: p.name, kind: p.kind, lat: p.lat, lon: p.lon }, ...this.recents.filter((q) => key(q) !== key(p))].slice(0, 20);
+    this.recents = [
+      { name: p.name, kind: p.kind, lat: p.lat, lon: p.lon },
+      ...this.recents.filter((q) => key(q) !== key(p)),
+    ].slice(0, 20);
     void db.setKv('recents', this.recents);
   }
 
@@ -846,10 +885,7 @@ export class App {
   async chartCourse(dest: CourseDestination, opts: { via?: LatLon[]; keep?: boolean } = {}): Promise<boolean> {
     const f = this.fix;
     if (!f) {
-      toast(
-        this.gpsStatus === 'denied' ? t('toast.locationBlocked') : t('toast.waitingForFix'),
-        6000,
-      );
+      toast(this.gpsStatus === 'denied' ? t('toast.locationBlocked') : t('toast.waitingForFix'), 6000);
       return false;
     }
     const from = { lat: f.lat, lon: f.lon };
@@ -990,7 +1026,10 @@ export class App {
     this.offline = job;
     this.emit();
     try {
-      const corridor = await api.corridor({ polyline: encodePolyline(route.shape), bufferMeters: 1000, minZoom: 8, maxZoom: 14 }, ac.signal);
+      const corridor = await api.corridor(
+        { polyline: encodePolyline(route.shape), bufferMeters: 1000, minZoom: 8, maxZoom: 14 },
+        ac.signal,
+      );
       const withTiles = this.basemap === 'pmtiles';
       const tiles = withTiles ? corridor.tiles : [];
       const size = num(corridor.estimatedBytes / 1e6, 1);
@@ -1222,7 +1261,6 @@ export class App {
 
 // ---- helpers ---------------------------------------------------------------
 
-
 function trackDistance(t: Track): number {
   return routeLegs(t.points).total;
 }
@@ -1249,10 +1287,7 @@ function shipElement(): HTMLElement {
   return el;
 }
 
-function createWaypointMarker(
-  w: Waypoint,
-  cb: { onTap: () => void; onDragEnd: (ll: LatLon) => void },
-): Marker {
+function createWaypointMarker(w: Waypoint, cb: { onTap: () => void; onDragEnd: (ll: LatLon) => void }): Marker {
   const el = h('div', { class: 'wp' }, h('div', { class: 'wp-dot' }), h('div', { class: 'wp-label' }, w.name));
   const m = new Marker({ element: el, draggable: true, anchor: 'center' });
   let dragged = false;

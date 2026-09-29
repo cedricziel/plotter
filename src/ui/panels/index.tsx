@@ -12,8 +12,6 @@ export function openMenu(app: App): void {
   openSheet(
     'menu',
     () => t('sheet.settings'),
-    () => (
-      <SettingsPanel app={app} telemetry={telemetry} version={`${__APP_VERSION__} (${__BUILD_ID__})`} />
-    ),
+    () => <SettingsPanel app={app} telemetry={telemetry} version={`${__APP_VERSION__} (${__BUILD_ID__})`} />,
   );
 }

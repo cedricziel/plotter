@@ -77,7 +77,9 @@ describe('plotter screen', () => {
     expect(quiet.container.querySelector<HTMLElement>('#alarm')!.hidden).toBe(true);
     quiet.unmount();
 
-    const { container } = render(<PlotterScreen app={makeScreenApp({ alarmReason: { kind: 'drag', distance: 62, radius: 40 } })} />);
+    const { container } = render(
+      <PlotterScreen app={makeScreenApp({ alarmReason: { kind: 'drag', distance: 62, radius: 40 } })} />,
+    );
     expect(container.querySelector<HTMLElement>('#alarm')!.hidden).toBe(false);
     expect(container.querySelector('#alarm-reason')!.textContent).toContain('62');
   });
