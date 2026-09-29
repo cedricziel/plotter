@@ -1,6 +1,6 @@
 import type { App } from '../app';
 import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
-import { $, h } from './dom';
+import { $, h, patchChildren } from './dom';
 import { maneuverIcon, iconEl } from './icons';
 
 const cell = (label: string, value: string, cls = '') =>
@@ -94,7 +94,7 @@ export function mountInstruments(
       const now = Date.now();
       const m = app.nextManeuver();
       nav.hidden = false;
-      nav.replaceChildren(
+      patchChildren(nav, [
         h(
           'div',
           { class: 'nav-top' },
@@ -131,7 +131,7 @@ export function mountInstruments(
             ? cell(`END ${p.ttg != null ? formatTime(new Date(now + p.ttg * 1000)) : '--:--'}`, formatDistance(p.remaining, du))
             : null,
         ),
-      );
+      ]);
     } else if (app.activeRoute && pts.length) {
       const why =
         st === 'denied'
@@ -140,7 +140,7 @@ export function mountInstruments(
             ? 'No GPS signal yet. Guidance starts with the first fix.'
             : 'Waiting for a GPS fix. Guidance starts with the first fix.';
       nav.hidden = false;
-      nav.replaceChildren(
+      patchChildren(nav, [
         h(
           'div',
           { class: 'nav-top' },
@@ -148,7 +148,7 @@ export function mountInstruments(
           h('button', { class: 'nav-stop', 'aria-label': 'Stop navigation', title: 'Stop navigation', onclick: () => void app.stopNavigation() }, '✕'),
         ),
         h('div', { class: 'nav-wait' }, why),
-      );
+      ]);
     } else {
       nav.hidden = true;
     }
