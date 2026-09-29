@@ -8,8 +8,7 @@ import { circlePolygon, destination, routeLegs, timeToGo, type LatLon } from './
 import type { CourseDestination, CourseManeuver, Route, Track, Waypoint } from './core/model';
 import { uid } from './core/model';
 import { routeProgress, type RouteProgress } from './core/navigation';
-import { decodePolyline, encodePolyline } from './core/polyline';
-import type { Maneuver } from './core/routing';
+import { encodePolyline } from './core/polyline';
 import { TripRouter, type Trip } from './core/trips';
 import type { Place } from './core/waterway-data';
 import { shouldLogPoint } from './core/track';
@@ -18,7 +17,8 @@ import { onLongPress } from './map/longpress';
 import { EMPTY, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
 import { Alarm } from './services/alarm';
-import { ApiError, api } from './services/api';
+import { api } from './services/api';
+import { planCourse, type Charted } from './services/courses';
 import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
 import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
@@ -707,41 +707,13 @@ export class App {
       return false;
     }
     const from = { lat: f.lat, lon: f.lon };
-    const via = opts.via ?? [];
     if (dest.kind) this.rememberPlace({ name: dest.name, kind: dest.kind, lat: dest.lat, lon: dest.lon });
-    const vessel = this.vesselProfile();
-    const speed = this.settings.cruiseSpeed;
-    let charted: Charted | null = null;
-    let problem = '';
-    try {
-      const r = await api.route({ from, to: dest, via: via.length ? via : undefined, vessel, speed, destName: dest.name });
-      charted = {
-        shape: decodePolyline(r.polyline),
-        maneuvers: r.maneuvers,
-        warnings: r.warnings,
-        source: 'online',
-        snap: r.snap,
-      };
-    } catch (e) {
-      if (!(e instanceof ApiError)) throw e;
-      if (e.kind === 'unavailable') {
-        const off = this.tripRouter.route(this.trips, from, dest, { profile: vessel, speed, destName: dest.name }, via);
-        if (off) {
-          charted = {
-            shape: off.result.shape,
-            maneuvers: off.result.maneuvers,
-            warnings: off.result.warnings,
-            source: 'offline',
-            snap: { from: off.result.snapStart.dist, to: off.result.snapEnd.dist },
-            tripId: off.trip.id,
-          };
-        } else {
-          problem = e.status === 503 ? 'Routing data not available yet' : 'Routing service not reachable';
-        }
-      } else {
-        problem = e.message;
-      }
-    }
+    const plan = await planCourse(
+      { route: (req) => api.route(req), trips: this.trips, tripRouter: this.tripRouter },
+      { from, to: dest, via: opts.via ?? [], vessel: this.vesselProfile(), speed: this.settings.cruiseSpeed },
+    );
+    const charted = 'charted' in plan ? plan.charted : null;
+    const problem = 'problem' in plan ? plan.problem : '';
     if (!charted) {
       if (opts.keep) {
         toast(`${problem} – keeping the current course`, 6000);
@@ -758,7 +730,8 @@ export class App {
   private async installCourse(dest: CourseDestination, c: Charted): Promise<void> {
     const f = this.fix!;
     const du = this.settings.distanceUnit;
-    const linked = withConnectors(c.shape, c.maneuvers, { lat: f.lat, lon: f.lon }, dest);
+    const end = c.end ?? dest;
+    const linked = withConnectors(c.shape, c.maneuvers, { lat: f.lat, lon: f.lon }, end);
     const warnings = [...c.warnings];
     if (c.snap.from > 250) warnings.push(`Start is ${formatDistance(c.snap.from, du)} from the nearest charted waterway`);
     if (c.snap.to > 250) warnings.push(`Destination is ${formatDistance(c.snap.to, du)} from the waterway, the last part is a straight line`);
@@ -771,7 +744,7 @@ export class App {
     const maneuvers: CourseManeuver[] = linked.maneuvers.map((m) => ({ ...m }));
     const created: Waypoint[] = maneuvers.slice(1).map((m) => {
       const arrive = m.type === 'arrive';
-      const w: Waypoint = { id: uid(), name: arrive ? dest.name : m.text, lat: m.lat, lon: m.lon, created: now };
+      const w: Waypoint = { id: uid(), name: arrive ? end.name : m.text, lat: m.lat, lon: m.lon, created: now };
       if (!arrive) w.hidden = true;
       m.wp = w.id;
       return w;
@@ -892,7 +865,7 @@ export class App {
         bufferMeters: 1000,
         polyline: encodePolyline(route.shape),
         tileCount: tiles.length,
-        bytes,
+        bytes: corridor.estimate === 'archive' ? corridor.estimatedBytes : bytes,
         graph: corridor.graph,
         places: corridor.places,
       };
@@ -1058,15 +1031,6 @@ export class App {
 
 // ---- helpers ---------------------------------------------------------------
 
-interface Charted {
-  shape: [number, number][];
-  maneuvers: Maneuver[];
-  warnings: string[];
-  source: 'online' | 'offline';
-  /** metres between the requested start and destination and the waterway */
-  snap: { from: number; to: number };
-  tripId?: string;
-}
 
 function trackDistance(t: Track): number {
   return routeLegs(t.points).total;
