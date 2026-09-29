@@ -15,6 +15,8 @@ export interface Settings {
   seamarks: boolean;
   /** OpenSeaMap raster tiles from the network */
   openseamap: boolean;
+  /** PDOK aerial photo from the network, day palette only */
+  aerial: boolean;
   keepAwake: boolean;
   showTracks: boolean;
   pmtilesUrl: string;
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'day',
   seamarks: true,
   openseamap: false,
+  aerial: false,
   keepAwake: true,
   showTracks: true,
   pmtilesUrl: import.meta.env.VITE_PMTILES_URL || DEFAULT_CHART_URL,

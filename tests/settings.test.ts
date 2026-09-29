@@ -15,17 +15,20 @@ describe('settings', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({
       seamarks: true,
       openseamap: false,
+      aerial: false,
     });
     expect(await loadSettings()).toMatchObject({
       seamarks: true,
       openseamap: false,
+      aerial: false,
     });
   });
 
   it('keeps the online overlay choices across a reload', async () => {
-    await saveSettings({ ...DEFAULT_SETTINGS, openseamap: true });
+    await saveSettings({ ...DEFAULT_SETTINGS, openseamap: true, aerial: true });
     expect(await loadSettings()).toMatchObject({
       openseamap: true,
+      aerial: true,
     });
   });
 
@@ -35,6 +38,7 @@ describe('settings', () => {
       theme: 'night',
       seamarks: false,
       openseamap: false,
+      aerial: false,
     });
   });
 });

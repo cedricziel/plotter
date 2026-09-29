@@ -19,6 +19,7 @@ export interface StyleOptions {
   seamarks: boolean;
   /** OpenSeaMap raster tiles */
   openseamap: boolean;
+  aerial: boolean;
 }
 
 /**
@@ -400,6 +401,13 @@ function osmRasterLayers(theme: Theme): LayerSpecification[] {
   ];
 }
 
+export const AERIAL_TILES =
+  'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg';
+export const AERIAL_ATTRIBUTION = 'Luchtfoto © <a href="https://www.pdok.nl">PDOK</a>';
+
+/** Where the aerial photo goes in the vector chart: over the fills, under lines, labels and overlays. */
+const AERIAL_AFTER = 'buildings';
+
 export const OSM_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export function buildStyle(o: StyleOptions): StyleSpecification {
@@ -424,6 +432,18 @@ export function buildStyle(o: StyleOptions): StyleSpecification {
       attribution: OSM_ATTRIBUTION,
     };
     layers = osmRasterLayers(o.theme);
+  }
+
+  if (o.aerial && o.theme === 'day') {
+    sources.aerial = {
+      type: 'raster',
+      tiles: [AERIAL_TILES],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: AERIAL_ATTRIBUTION,
+    };
+    const after = layers.findIndex((l) => l.id === AERIAL_AFTER);
+    layers.splice(after < 0 ? layers.length : after + 1, 0, { id: 'aerial', type: 'raster', source: 'aerial' });
   }
 
   if (o.openseamap) {

@@ -204,6 +204,7 @@ export class App {
       glyphsUrl: absUrl(this.settings.glyphsUrl),
       seamarks: this.settings.seamarks,
       openseamap: this.settings.openseamap,
+      aerial: this.settings.aerial,
     });
   }
 
@@ -216,7 +217,7 @@ export class App {
       this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
       if (this.basemap === 'osm') toast('PMTiles not reachable – using OpenStreetMap fallback');
     }
-    const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl', 'openseamap'].some(
+    const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl', 'openseamap', 'aerial'].some(
       (k) => k in patch && patch[k as keyof Settings] !== prev[k as keyof Settings],
     );
     if (restyle || (patch.pmtilesUrl != null && patch.pmtilesUrl !== prev.pmtilesUrl)) {
