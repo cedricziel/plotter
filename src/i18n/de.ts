@@ -38,7 +38,7 @@ export const de: Record<keyof typeof en, string> = {
   'inst.gps.ok': 'OK',
   'inst.gps.off': 'AUS',
   'inst.gps.lost': 'VERLOREN',
-  'inst.gps.denied': 'SPERRE',
+  'inst.gps.denied': 'GESPERRT',
   'inst.gps.unavailable': 'FEHLT',
   'nav.onCourse': 'auf Kurs',
   'nav.arrived': 'Angekommen',

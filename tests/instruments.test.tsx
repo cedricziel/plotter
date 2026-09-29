@@ -93,6 +93,13 @@ describe('instruments in German', () => {
     const bar = render(
       <Instruments app={makeGuidanceApp({ status: 'denied', fix: null, progress: null })} />,
     ).container;
-    expect(bar.querySelector('[data-value="acc"]')!.textContent).toBe('SPERRE');
+    expect(bar.querySelector('[data-value="acc"]')!.textContent).toBe('GESPERRT');
+    // A status word is set smaller than a reading, so the longer German words fit the tile at 360 px.
+    expect(bar.querySelector('.inst-acc')!.classList.contains('status')).toBe(true);
+  });
+
+  it('shows the accuracy as a reading, not a status', () => {
+    const bar = render(<Instruments app={makeGuidanceApp({ progress: null })} />).container;
+    expect(bar.querySelector('.inst-acc')!.classList.contains('status')).toBe(false);
   });
 });

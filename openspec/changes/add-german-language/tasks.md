@@ -42,7 +42,7 @@
 
 ## 5. Translate the UI (each task: strings to `t()`, German entries, stories)
 
-- [ ] 5.1 **Instrument bar and guidance strip.**
+- [x] 5.1 **Instrument bar and guidance strip.**
   - Translate `src/ui/instruments.tsx`, including the waiting/denied texts, stop and recalculate. Use `maneuverText` and `language()` for numbers.
   - Add the stories `Navigation/Instruments / German good fix` and `Navigation/Guidance strip / German long maneuver`, `German off course` and `German waiting for GPS`.
   - Verify: `tests/stories.test.tsx` and `tests/instruments.test.tsx` pass, and the German stories show no horizontal overflow at 360 px in day and night themes.
@@ -60,7 +60,7 @@
 
 ## 6. Storybook language global
 
-- [ ] 6.1 **Global and dual-language render.** Add the `language` global (English / Deutsch) and the decorator that calls `setLanguage` in `.storybook/preview.tsx`. Extend `tests/stories.test.tsx` to compose every story with the preview's annotations and render it in both languages, checking the page language. Verify: `npm test` and `npm run build-storybook` pass.
+- [x] 6.1 **Global and dual-language render.** Add the `language` global (English / Deutsch) and the decorator that calls `setLanguage` in `.storybook/preview.tsx`. Extend `tests/stories.test.tsx` to compose every story with the preview's annotations and render it in both languages, checking the page language. Verify: `npm test` and `npm run build-storybook` pass.
 
 ## 7. Integration and device verification
 

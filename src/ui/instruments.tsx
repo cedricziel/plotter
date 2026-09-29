@@ -82,7 +82,10 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
     toggleSpeedUnit();
   };
   const acc = f?.accuracy ?? 999;
-  const accClass = st !== 'ok' || acc > 30 ? 'bad' : st === 'ok' && acc <= 10 ? 'good' : '';
+  const reading = st === 'ok' && !!f;
+  const accClass = [st !== 'ok' || acc > 30 ? 'bad' : st === 'ok' && acc <= 10 ? 'good' : '', !reading && 'status']
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <header id="instruments" aria-live="off" className={stale ? 'stale' : undefined}>
@@ -108,7 +111,7 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
         id="acc"
         label="GPS"
         className={accClass}
-        value={st === 'ok' && f ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}
+        value={reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}
       />
     </header>
   );
