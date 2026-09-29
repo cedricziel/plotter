@@ -9,11 +9,12 @@ import {
   type ObstacleTuple,
   type ObstacleType,
   type Place,
+  type PlaceInfo,
   type PlaceKind,
   type WaterwayFile,
 } from '../../src/core/waterway-data.ts';
 import { parseOplLine, type OplNode, type OplWay } from './opl.ts';
-import { isMovableBridge, parseCm } from './parse.ts';
+import { isMovableBridge, parseCm, placeInfo } from './parse.ts';
 
 export interface BuildOptions {
   source: string;
@@ -83,6 +84,7 @@ interface BridgeWay {
   movable: boolean;
   clearance: number;
   roadMax: number;
+  info?: PlaceInfo;
 }
 
 interface SeamarkBridge {
@@ -91,6 +93,7 @@ interface SeamarkBridge {
   name: string;
   movable: boolean;
   clearance: number;
+  info?: PlaceInfo;
 }
 
 interface LockMember {
@@ -99,6 +102,7 @@ interface LockMember {
   name: string;
   lockName: string;
   wayId: number | null;
+  info?: PlaceInfo;
 }
 
 interface Edge {
@@ -118,6 +122,7 @@ interface Candidate {
   name: string;
   roadMax: number;
   seamark: boolean;
+  info?: PlaceInfo;
 }
 
 const emptyStats = (): BuildStats => ({
@@ -273,6 +278,7 @@ export class WaterwayBuilder {
         name: t.name || '',
         lockName: t.lock_name || '',
         wayId: null,
+        info: placeInfo(t),
       });
     }
     if (t['seamark:type'] === 'bridge') {
@@ -285,6 +291,7 @@ export class WaterwayBuilder {
         kind,
         lat: n.lat / 1e6,
         lon: n.lon / 1e6,
+        info: placeInfo(t),
       });
   }
 
@@ -317,7 +324,7 @@ export class WaterwayBuilder {
       if (way.lock) {
         const pts = flat(way.lat, way.lon);
         const [lat, lon] = pointAlong(pts, polylineLength(pts) / 2);
-        const member = { name: t.name || '', lockName: t.lock_name || '', wayId: w.id };
+        const member = { name: t.name || '', lockName: t.lock_name || '', wayId: w.id, info: placeInfo(t) };
         this.lockMembers.push({ lat, lon, ...member });
       }
       return;
@@ -347,6 +354,7 @@ export class WaterwayBuilder {
             t['maxheight:physical'],
         ),
         roadMax: parseCm(t.maxheight),
+        info: placeInfo(t),
       });
     }
     const kindOfFeature = featureKind(t);
@@ -362,6 +370,7 @@ export class WaterwayBuilder {
         kind: kindOfFeature,
         lat: sLat / w.nodes.length / 1e6,
         lon: sLon / w.nodes.length / 1e6,
+        info: placeInfo(t),
       });
     }
   }
@@ -461,6 +470,7 @@ export class WaterwayBuilder {
               name: b.name,
               roadMax: b.roadMax,
               seamark: false,
+              info: b.info,
             });
           }
         }
@@ -477,6 +487,7 @@ export class WaterwayBuilder {
         name: b.name,
         roadMax: 0,
         seamark: true,
+        info: b.info,
       });
     }
     // ---- locks -------------------------------------------------------------
@@ -499,7 +510,13 @@ export class WaterwayBuilder {
       }
       if (seen.size && name) {
         const c = centroid(cluster);
-        lockPlaces.push({ name, kind: 'lock', lat: c.lat / 1e6, lon: c.lon / 1e6 });
+        lockPlaces.push({
+          name,
+          kind: 'lock',
+          lat: c.lat / 1e6,
+          lon: c.lon / 1e6,
+          info: cluster.find((m) => m.info)?.info,
+        });
       }
     }
 
@@ -522,6 +539,7 @@ export class WaterwayBuilder {
               kind: 'bridge',
               lat: lat / 1e6,
               lon: lon / 1e6,
+              info: o.clearance ? { ...o.info, clearance: o.clearance / 100 } : o.info,
             });
           }
         }
@@ -715,6 +733,7 @@ function seamarkBridge(lat: number, lon: number, t: Record<string, string>): Sea
     name: t['seamark:name'] || t.name || '',
     movable: isMovableBridge(t),
     clearance: parseCm(t['seamark:bridge:clearance_height_closed'] ?? t['seamark:bridge:clearance_height']),
+    info: placeInfo(t),
   };
 }
 
@@ -792,6 +811,7 @@ function mergeObstacles(list: Candidate[]): Candidate[] {
       if (!near.name) near.name = g.name;
       if (!near.roadMax) near.roadMax = g.roadMax;
       if (!near.clearance) near.clearance = g.clearance;
+      near.info ??= g.info;
       continue;
     }
     const prev = leftover[leftover.length - 1];
@@ -799,6 +819,7 @@ function mergeObstacles(list: Candidate[]): Candidate[] {
       if (!prev.name) prev.name = g.name;
       if (!prev.roadMax) prev.roadMax = g.roadMax;
       if (!prev.clearance) prev.clearance = g.clearance;
+      prev.info ??= g.info;
       if (g.type === OBSTACLE.bridgeMovable) prev.type = g.type;
       continue;
     }
@@ -821,6 +842,7 @@ function dedupePlaces(places: Place[]): Place[] {
       kind: p.kind,
       lat: Math.round(p.lat * 1e5) / 1e5,
       lon: Math.round(p.lon * 1e5) / 1e5,
+      ...(p.info ? { info: p.info } : {}),
     });
   }
   return out;

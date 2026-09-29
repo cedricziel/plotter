@@ -848,8 +848,8 @@ export class App {
       this.wpMarkers.get(id)?.remove();
       this.wpMarkers.delete(id);
       this.waypoints.delete(id);
-      await db.remove('waypoints', id);
     }
+    await db.removeMany('waypoints', route.waypointIds);
     route.waypointIds = [];
   }
 

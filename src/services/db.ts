@@ -47,6 +47,11 @@ export async function remove(store: Store, id: string): Promise<void> {
   await (await db()).delete(store, id);
 }
 
+export async function removeMany(store: Store, ids: string[]): Promise<void> {
+  const tx = (await db()).transaction(store, 'readwrite');
+  await Promise.all([...ids.map((id) => tx.store.delete(id)), tx.done]);
+}
+
 export async function getKv<T>(key: string): Promise<T | undefined> {
   return (await db()).get('kv', key) as Promise<T | undefined>;
 }

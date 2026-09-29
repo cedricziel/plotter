@@ -14,6 +14,10 @@ export interface ApiSearchResponse {
   results: ApiSearchResult[];
 }
 
+export interface ApiPlacesResponse {
+  places: Place[];
+}
+
 export interface ApiVessel {
   /** metres */
   airDraft?: number | null;

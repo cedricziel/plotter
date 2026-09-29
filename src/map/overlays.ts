@@ -1,4 +1,4 @@
-import type { LayerSpecification, SourceSpecification } from '@maplibre/maplibre-gl-style-spec';
+import type { ExpressionSpecification, LayerSpecification, SourceSpecification } from '@maplibre/maplibre-gl-style-spec';
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl';
 import type { Theme } from './style';
 
@@ -8,7 +8,12 @@ const OVERLAY = {
   night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f', nav: '#ff3b3b' },
 };
 
-export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
+const PLACE_COLORS = {
+  day: { harbour: '#0b7285', structure: '#5f3dc4', town: '#495057' },
+  night: { harbour: '#ff6b6b', structure: '#c92a2a', town: '#8a1f1f' },
+};
+
+export const OVERLAY_SOURCES = ['place-marks', 'accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number];
 
 export const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -19,7 +24,42 @@ export function overlaySources(): Record<string, SourceSpecification> {
 
 export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpecification[] {
   const c = OVERLAY[theme];
+  const pc = PLACE_COLORS[theme];
+  const byGroup = (harbour: string | number, structure: string | number, town: string | number) =>
+    ['match', ['get', 'group'], 'harbour', harbour, 'structure', structure, town] as ExpressionSpecification;
   return [
+    {
+      id: 'place-marks',
+      type: 'circle',
+      source: 'place-marks',
+      minzoom: 11,
+      paint: {
+        'circle-color': byGroup(pc.harbour, pc.structure, pc.town),
+        'circle-radius': byGroup(6, 5, 4),
+        'circle-stroke-color': p.labelHalo,
+        'circle-stroke-width': 2,
+      },
+    },
+    {
+      id: 'place-marks-label',
+      type: 'symbol',
+      source: 'place-marks',
+      minzoom: 12,
+      filter: ['!=', ['get', 'group'], 'town'],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Medium'],
+        'text-size': 11,
+        'text-offset': [0, 0.9],
+        'text-anchor': 'top',
+        'text-max-width': 8,
+      },
+      paint: {
+        'text-color': byGroup(pc.harbour, pc.structure, pc.town),
+        'text-halo-color': p.labelHalo,
+        'text-halo-width': 2,
+      },
+    },
     {
       id: 'accuracy',
       type: 'fill',

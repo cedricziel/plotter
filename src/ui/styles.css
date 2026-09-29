@@ -74,8 +74,8 @@ body {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   grid-template-columns: minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
 }
 #instruments { grid-row: 1; }
 #navstrip { grid-row: 2; }
@@ -99,6 +99,9 @@ button {
   color: var(--inst-fg);
   padding-top: var(--safe-t);
   z-index: 3;
+}
+@media (display-mode: standalone) {
+  #instruments { padding-top: calc(var(--safe-t) + 12px); }
 }
 .inst {
   padding: 4px 10px 6px;
@@ -592,6 +595,10 @@ body.placing .fabs { bottom: calc(var(--tap) + 130px + var(--safe-b)); }
 body.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }
 #dest-bar .search-results { max-height: 30vh; overflow-y: auto; }
 .dest-card .btn.block { margin-bottom: 8px; }
+.dest-info { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 10px; font-size: 14px; }
+.dest-info dt { color: var(--fg-dim); font-weight: 700; }
+.dest-info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.dest-info a { color: inherit; font-weight: 700; }
 .dest-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .dest-pin {
   width: 22px;

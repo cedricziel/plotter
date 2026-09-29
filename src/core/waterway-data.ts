@@ -73,11 +73,23 @@ export interface WaterwayFile {
 
 export type PlaceKind = 'harbour' | 'marina' | 'mooring' | 'lock' | 'bridge' | 'city' | 'town' | 'village' | 'waterway' | 'waypoint';
 
+export interface PlaceInfo {
+  vhf?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  berths?: number;
+  operator?: string;
+  /** metres */
+  clearance?: number;
+}
+
 export interface Place {
   name: string;
   kind: PlaceKind;
   lat: number;
   lon: number;
+  info?: PlaceInfo;
 }
 
 export interface DataManifest {
