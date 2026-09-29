@@ -6,7 +6,6 @@
 # Skipped while current.json is younger than MAX_AGE_DAYS, unless FORCE=1.
 # Env: OUT (default /out/data), OSM_PBF_URL, MAX_AGE_DAYS (30), FORCE, WORK (scratch dir), OWNER (568:568).
 set -eu
-( set -o pipefail ) 2>/dev/null && set -o pipefail
 OUT="${OUT:-/out/data}"
 URL="${OSM_PBF_URL:-https://download.openstreetmap.fr/extracts/europe/netherlands-latest.osm.pbf}"
 MAX_AGE_DAYS="${MAX_AGE_DAYS:-30}"
@@ -35,6 +34,7 @@ osmium tags-filter "$WORK/nl.osm.pbf" \
 rm -f "$WORK/nl.osm.pbf"
 
 echo "building"
-osmium add-locations-to-ways --ignore-missing-nodes -f opl -o - "$WORK/filtered.osm.pbf" \
-  | node --max-old-space-size="${NODE_HEAP_MB:-3072}" /app/waterways.mjs --out "$OUT" --source "$URL" --chown "$OWNER"
+osmium add-locations-to-ways --ignore-missing-nodes -f opl -o "$WORK/filtered.opl" --overwrite "$WORK/filtered.osm.pbf"
+rm -f "$WORK/filtered.osm.pbf"
+node --max-old-space-size="${NODE_HEAP_MB:-3072}" /app/waterways.mjs --out "$OUT" --source "$URL" --chown "$OWNER" --input "$WORK/filtered.opl"
 echo "published $(cat "$OUT/current.json")"

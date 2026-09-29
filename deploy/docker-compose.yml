@@ -16,7 +16,7 @@ services:
       - /mnt/hive/apps/plotter/tiles:/out/tiles
   waterways:
     image: ghcr.io/cedricziel/plotter-server:${PLOTTER_TAG:-latest}
-    restart: "no"
+    restart: on-failure:3
     # Root so it can write and chown the dataset for uid 568. The first run downloads ~1.6 GB and
     # takes a few minutes; later runs exit at once while the data is younger than MAX_AGE_DAYS.
     user: "0:0"
