@@ -64,7 +64,7 @@
 
 ## 7. Integration and device verification
 
-- [ ] 7.1 **Full checks.** Run `npm run typecheck`, `npm test` and `npm run build`. Verify: all pass.
+- [x] 7.1 **Full checks.** Run `npm run typecheck`, `npm test` and `npm run build`. Verify: all pass.
 - [ ] 7.2 **iPhone checks, Safari tab and home-screen app.**
   - German device with Auto → the app opens in German.
   - Switching to English and back while a route is active and the Settings sheet is open → everything relabels, guidance continues, and taps keep working.
