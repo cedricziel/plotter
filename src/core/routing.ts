@@ -28,6 +28,7 @@ export type ManeuverType =
   | 'sharp-left'
   | 'sharp-right'
   | 'continue'
+  | 'via'
   | 'lock'
   | 'bridge-open'
   | 'bridge-fixed'
@@ -256,6 +257,43 @@ export function decodeGraph(file: WaterwayFile): Graph {
   return g;
 }
 
+/** Edge owning global point index `k`. */
+function edgeOfPoint(g: Graph, k: number): number {
+  let lo = 0;
+  let hi = g.edgeCount - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (g.pstart[mid] <= k) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+/** Edges with a segment within `radius` metres of the point. */
+export function edgesNear(g: Graph, pt: { lat: number; lon: number }, radius: number): Set<number> {
+  const kx = Math.cos((pt.lat * Math.PI) / 180) * 111_195;
+  const ky = 111_195;
+  const out = new Set<number>();
+  const cy1 = Math.floor((pt.lat - radius / ky) / CELL_LAT);
+  const cy2 = Math.floor((pt.lat + radius / ky) / CELL_LAT);
+  const cx1 = Math.floor((pt.lon - radius / kx) / CELL_LON);
+  const cx2 = Math.floor((pt.lon + radius / kx) / CELL_LON);
+  for (let cy = cy1; cy <= cy2; cy++) {
+    for (let cx = cx1; cx <= cx2; cx++) {
+      for (const k of g.grid.get(cellKey(cy, cx)) ?? []) {
+        const sx = (g.plon[k + 1] - g.plon[k]) * kx;
+        const sy = (g.plat[k + 1] - g.plat[k]) * ky;
+        const px = (pt.lon - g.plon[k]) * kx;
+        const py = (pt.lat - g.plat[k]) * ky;
+        const len2 = sx * sx + sy * sy;
+        const t = len2 > 0 ? Math.min(1, Math.max(0, (px * sx + py * sy) / len2)) : 0;
+        if (Math.hypot(px - t * sx, py - t * sy) <= radius) out.add(edgeOfPoint(g, k));
+      }
+    }
+  }
+  return out;
+}
+
 export interface SnapOptions {
   /** restrict to this component; defaults to the largest */
   component?: number;
@@ -276,17 +314,7 @@ export function snapToGraph(g: Graph, pt: { lat: number; lon: number }, opts: Sn
   const maxRing = Math.ceil(maxDist / cellM) + 1;
   const seen = new Set<number>();
   let best = null as { k: number; t: number; dist: number } | null;
-  const edgeOf = (k: number) => {
-    // binary search: the edge whose point range contains k
-    let lo = 0;
-    let hi = g.edgeCount - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (g.pstart[mid] <= k) lo = mid;
-      else hi = mid - 1;
-    }
-    return lo;
-  };
+  const edgeOf = (k: number) => edgeOfPoint(g, k);
   for (let ring = 0; ring <= maxRing; ring++) {
     for (let cy = cy0 - ring; cy <= cy0 + ring; cy++) {
       for (let cx = cx0 - ring; cx <= cx0 + ring; cx++) {
@@ -600,6 +628,12 @@ function obstacleManeuver(o: ObstacleTuple, names: string[]): Pick<Maneuver, 'ty
   };
 }
 
+function routeWarnings(maneuvers: Maneuver[], profile?: VesselProfile): string[] {
+  if (!profile?.airDraft) return [];
+  const unknown = maneuvers.filter((m) => m.type === 'bridge-fixed' && m.clearance == null).length;
+  return unknown > 0 ? [`${unknown} fixed bridge${unknown === 1 ? '' : 's'} with unknown clearance`] : [];
+}
+
 function assemble(
   g: Graph,
   path: Traversal[],
@@ -612,7 +646,6 @@ function assemble(
   const maneuvers: Maneuver[] = [];
   const pieces = path.map((t) => slice(g, t));
   let base = 0;
-  let unknownFixed = 0;
   const firstName = g.names[g.ename[path[0].edge]];
   maneuvers.push({
     type: 'depart',
@@ -630,7 +663,6 @@ function assemble(
     if (!forward) inRange.reverse();
     for (const o of inRange) {
       const m = obstacleManeuver(o, g.names);
-      if (o[1] === OBSTACLE.bridgeFixed && !o[2]) unknownFixed++;
       maneuvers.push({
         ...m,
         ...pointAtPos(g, t.edge, o[0]),
@@ -690,17 +722,13 @@ function assemble(
       const sameLock = prev && (prev.text === m.text || !prev.text.includes('(lock)') || !m.text.includes('(lock)'));
       return !(sameLock && m.dist - prev.dist <= LOCK_MERGE_M);
     });
-  const warnings: string[] = [];
-  if (opts.profile?.airDraft && unknownFixed > 0) {
-    warnings.push(`${unknownFixed} fixed bridge${unknownFixed === 1 ? '' : 's'} with unknown clearance`);
-  }
   return {
     ok: true,
     shape,
     distance: base,
     duration: base / speed,
     maneuvers: [maneuvers[0], ...middle, maneuvers[maneuvers.length - 1]],
-    warnings,
+    warnings: routeWarnings(middle, opts.profile),
     snapStart: s,
     snapEnd: d,
     edges: path.map((t) => t.edge),
@@ -745,5 +773,47 @@ export function findRoute(
     ok: false,
     reason: 'unreachable',
     message: 'No navigable connection to the destination in the routing data',
+  };
+}
+
+/** Route through intermediate stops; each stop becomes a "via" maneuver. */
+export function findRouteVia(g: Graph, stops: { lat: number; lon: number }[], opts: RouteOptions = {}): RouteResult {
+  if (stops.length === 2) return findRoute(g, stops[0], stops[1], opts);
+  const legs: Extract<RouteResult, { ok: true }>[] = [];
+  for (let i = 0; i + 1 < stops.length; i++) {
+    const last = i + 2 === stops.length;
+    const leg = findRoute(g, stops[i], stops[i + 1], { ...opts, destName: last ? opts.destName : undefined });
+    if (!leg.ok) return leg;
+    legs.push(leg);
+  }
+  const shape: [number, number][] = [];
+  const maneuvers: Maneuver[] = [];
+  const edges: number[] = [];
+  let offset = 0;
+  legs.forEach((leg, i) => {
+    shape.push(...(i === 0 ? leg.shape : leg.shape.slice(1)));
+    leg.maneuvers.forEach((m, k) => {
+      if (i > 0 && k === 0) return;
+      const isJoin = i + 1 < legs.length && k === leg.maneuvers.length - 1;
+      maneuvers.push({
+        ...m,
+        dist: m.dist + offset,
+        ...(isJoin ? { type: 'via' as const, text: `Via stop ${i + 1}` } : {}),
+      });
+    });
+    edges.push(...leg.edges);
+    offset += leg.distance;
+  });
+  const speed = opts.speed && opts.speed > 0 ? opts.speed : DEFAULT_SPEED;
+  return {
+    ok: true,
+    shape,
+    distance: offset,
+    duration: offset / speed,
+    maneuvers,
+    warnings: routeWarnings(maneuvers, opts.profile),
+    snapStart: legs[0].snapStart,
+    snapEnd: legs[legs.length - 1].snapEnd,
+    edges,
   };
 }

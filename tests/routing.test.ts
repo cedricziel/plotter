@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeGraph, findRoute, snapToGraph, type RouteResult } from '../src/core/routing';
+import { decodeGraph, findRoute, findRouteVia, snapToGraph, type RouteResult } from '../src/core/routing';
 import { fixture, latlon, type FixtureEdge } from './graph-fixture';
 
 type Ok = Extract<RouteResult, { ok: true }>;
@@ -354,5 +354,28 @@ describe('maneuvers', () => {
   it('computes an ETA from the distance and speed', () => {
     const r = ok(route([{ a: 'S', b: 'T' }], { S, T }, S, T, { speed: 2.5 }));
     expect(r.duration).toBeCloseTo(4000, -1);
+  });
+});
+
+describe('via stops', () => {
+  const vertices: Record<string, [number, number]> = { S, J: [5000, 0], T };
+  const edges: FixtureEdge[] = [
+    { a: 'S', b: 'J', name: 'Eerste Vaart' },
+    { a: 'J', b: 'T', name: 'Tweede Vaart', obstacles: [{ pos: 2000, type: 'fixed' }] },
+  ];
+  const g = decodeGraph(fixture(vertices, edges));
+
+  it('chains legs into one route with a via maneuver at the stop', () => {
+    const r = ok(findRouteVia(g, [latlon(...S), latlon(5000, 100), latlon(...T)], { destName: 'Einde', profile: { airDraft: 4 } }));
+    expect(r.distance).toBeCloseTo(10000, -1);
+    expect(r.maneuvers.map((m) => m.type)).toEqual(['depart', 'via', 'continue', 'bridge-fixed', 'arrive']);
+    expect(r.maneuvers[1].dist).toBeCloseTo(5000, -1);
+    expect(r.maneuvers[3].dist).toBeCloseTo(7000, -1);
+    expect(r.maneuvers[4].text).toBe('Arrive at Einde');
+    expect(r.warnings).toEqual(['1 fixed bridge with unknown clearance']);
+  });
+
+  it('reports the failing leg', () => {
+    expect(findRouteVia(g, [latlon(...S), latlon(0, 400_000), latlon(...T)])).toMatchObject({ ok: false, reason: 'no-snap' });
   });
 });
