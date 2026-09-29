@@ -16,8 +16,7 @@
     "Search": "SearchBox",
     "Settings": "SettingsPanel",
     "Track": "TrackPanel",
-    "Waypoint": "WaypointPanel",
-    "Disclaimer": null
+    "Waypoint": "WaypointPanel"
   },
   "overrides": {
     "Toast": {
@@ -54,6 +53,10 @@
     "DestinationCard": {
       "cardMode": "single",
       "primaryStory": "MarinaWithFullInfo"
+    },
+    "Disclaimer": {
+      "cardMode": "single",
+      "primaryStory": "Modal"
     }
   },
   "readmeHeader": ".design-sync/conventions.md",

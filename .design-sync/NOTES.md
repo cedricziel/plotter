@@ -4,7 +4,7 @@
 - [GENERAL] Playwright's bundled chromium version doesn't match the container's. Export `DS_CHROMIUM_PATH=/opt/pw-browsers/chromium` for validate/compare.
 - [GENERAL] Sheets, `#dest-bar`, toast and modal are `position: fixed`. Outside a screen they render blank in cards. Stories wrap them in `src/stories/screen.tsx` (a transformed, phone-sized box that becomes their containing block), and their cards use `cardMode: "single"`.
 - [GENERAL] Stories must not call module-level helpers that the bundle doesn't export. Those imports redirect to `window.Plotter` and come back undefined. Toast has a `message` prop and Disclaimer has an `open` prop for that reason, and `seedSearch` is exported from `src/ui/index.ts`.
-- Disclaimer is excluded (`titleMap.Disclaimer: null`). Its heading starts with "⚠", and validate/compare treat a cell whose text starts with ⚠ as a caught render error, so it can't be graded. The preview itself matched Storybook. Decide whether to change the heading or keep it out.
+- The disclaimer's ⚠ is a CSS `::before` on its heading, not text. Validate/compare read a cell whose text starts with ⚠ as a caught render error, so keep that glyph (and any other leading ⚠) out of a component's leading text.
 - NavStrip "Long Maneuver Name" is graded `close`: the long maneuver wraps and ellipsizes at a different point because the capture widths differ. Same markup and CSS.
 
 ## Re-sync risks

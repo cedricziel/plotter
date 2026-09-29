@@ -60,7 +60,7 @@ export function Disclaimer({ open = false }: { open?: boolean }) {
       onClick={dismiss}
     >
       <div className="modal-card">
-        <h2 id="disc-title">⚠ Not for navigation</h2>
+        <h2 id="disc-title">Not for navigation</h2>
         <p>{DISCLAIMER}</p>
         <button className="btn primary block">I understand</button>
       </div>
