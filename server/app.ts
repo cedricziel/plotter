@@ -171,6 +171,18 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       built: s.manifest.built,
       source: s.manifest.source,
       counts: { vertices: s.vertices, edges: s.edges, places: s.places.length },
+      ...(s.fis
+        ? {
+            fis: {
+              generation: s.fis.file.generation,
+              bridges: s.fis.file.bridges.length,
+              locks: s.fis.file.locks.length,
+              berths: s.fis.file.berths.length,
+              matched: s.fis.matched,
+              obstacles: s.fis.obstacles,
+            },
+          }
+        : {}),
       chart: archive?.name ?? null,
       telemetry,
     };
@@ -221,7 +233,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       if (!Number.isInteger(limit) || limit < 1) throw new HttpError(400, 'limit must be a positive integer');
       limit = Math.min(limit, 500);
     }
-    const found = ready().places.filter(
+    const found = ready().mapPlaces.filter(
       (p) => PLACE_RANK[p.kind] !== undefined && p.lon >= west && p.lon <= east && p.lat >= south && p.lat <= north,
     );
     found.sort((a, b) => PLACE_RANK[a.kind]! - PLACE_RANK[b.kind]!);
@@ -320,7 +332,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       estimatedBytes,
       estimate,
       graph: subgraph(s.graph, shape, buffer, { built: s.manifest.built, source: s.manifest.source }),
-      places: placesInCorridor(s.places, shape, buffer),
+      places: placesInCorridor(s.mapPlaces, shape, buffer),
     };
   }
 

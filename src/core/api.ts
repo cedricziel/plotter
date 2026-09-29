@@ -74,6 +74,8 @@ export interface ApiMeta {
   built?: string;
   source?: string;
   counts?: { vertices: number; edges: number; places: number };
+  /** official fairway data (Vaarweginformatie), when loaded; `matched` of `obstacles` graph bridges got its values */
+  fis?: { generation: number; bridges: number; locks: number; berths: number; matched: number; obstacles: number };
   chart?: string | null;
   /** whether /api/otel forwards browser telemetry */
   telemetry?: boolean;
