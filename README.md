@@ -74,7 +74,7 @@ osmium tags-filter nl.osm.pbf w/waterway=river,canal,fairway w/bridge w/seamark:
     n/seamark:type=bridge n/waterway=lock_gate w/lock=yes nw/leisure=marina nw/harbour \
     nw/seamark:type=harbour nw/mooring n/place=city,town,village -o filtered.osm.pbf
 osmium add-locations-to-ways --ignore-missing-nodes -f opl filtered.osm.pbf \
-    | node tools/waterways/cli.ts --out data --source nl.osm.pbf
+    | node server-dist/waterways.mjs --out data --source nl.osm.pbf
 DATA_DIR=data TILES_DIR=public/tiles npm run serve   # API on :8080
 npm run dev                                          # proxies /api to :8080 (API_PROXY=… to change)
 ```
@@ -394,10 +394,11 @@ create the dataset (e.g. `hive/apps/plotter`) and install the compose file as a
 *Custom App*. Put a reverse proxy/tunnel with TLS in front, e.g. Pangolin/newt
 with target `http://<host>:30250`; the app needs HTTPS for GPS.
 
-Local build: `docker build --build-arg BUILD_ID=$(git rev-parse --short HEAD) -t plotter .`
-(add `--target server` for the API/data image),
-then `docker run -p 8080:80 -v $PWD/public/tiles:/srv/tiles:ro plotter` (the
-mounted files must be readable by uid 568).
+Local build: `docker build --build-arg BUILD_ID=$(git rev-parse --short HEAD) --target web -t plotter .`
+and `docker build --target server -t plotter-server .` for the API/data image.
+Run the web image with `docker run -p 8080:80 -v $PWD/public/tiles:/srv/tiles:ro plotter`
+and the API with `docker run -p 8081:8080 -v $PWD/data:/srv/data:ro plotter-server`
+(the mounted files must be readable by uid 568).
 
 The running build is shown in *Menu → About* (and in `data-build` on `<html>`).
 The service worker checks for a new version hourly, when the page becomes
