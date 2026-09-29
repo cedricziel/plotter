@@ -6,6 +6,7 @@ import { PMTiles, Protocol } from 'pmtiles';
 import { alarmDebounce, checkAnchor, type AnchorCheck, type AnchorWatch } from './core/anchor';
 import { Announcer, OffCourseMonitor, pointAlong, shapeInfo, shapeProgress, withConnectors, type ShapeInfo } from './core/course';
 import { circlePolygon, destination, routeLegs, timeToGo, type LatLon } from './core/geo';
+import { PositionHold } from './core/position-hold';
 import type { CourseDestination, CourseManeuver, Route, Track, Waypoint } from './core/model';
 import { uid } from './core/model';
 import { routeProgress, type RouteProgress } from './core/navigation';
@@ -86,6 +87,9 @@ export class App {
   /** Adaptive zoom while following a route; off after the user zooms, back on with ⌖. */
   autoZoom = true;
   private followToken = 0;
+  private readonly hold = new PositionHold();
+  /** Where the boat is drawn: the fix, held still while a stopped boat's fix wanders. */
+  private shown: LatLon | null = null;
   private ship!: Marker;
   private wpMarkers = new Map<string, Marker>();
   private listeners = new Set<Listener>();
@@ -251,7 +255,7 @@ export class App {
   setFollow(on: boolean): void {
     if (on) {
       this.autoZoom = true;
-      if (this.fix) this.followCamera(this.fix, 500);
+      if (this.fix) this.followCamera(this.shownFix(), 500);
     }
     if (this.follow === on) return;
     this.follow = on;
@@ -349,12 +353,13 @@ export class App {
   private onFix(f: Fix): void {
     const first = !this.fix;
     this.fix = f;
+    const shown = (this.shown = this.hold.update(f));
 
-    this.ship.setLngLat([f.lon, f.lat]);
+    this.ship.setLngLat([shown.lon, shown.lat]);
     this.orientShip();
     if (first) {
       this.ship.addTo(this.map);
-      this.map.jumpTo({ center: [f.lon, f.lat], zoom: Math.max(this.map.getZoom(), 14) });
+      this.map.jumpTo({ center: [shown.lon, shown.lat], zoom: Math.max(this.map.getZoom(), 14) });
     }
 
     if (this.recording) this.logTrackPoint(f);
@@ -362,7 +367,7 @@ export class App {
     else if (this.anchor) this.anchorCheck = checkAnchor(this.anchor, f, f.accuracy);
 
     this.updateProgress();
-    if (!first && this.follow) this.followCamera(f, 600);
+    if (!first && this.follow) this.followCamera(this.shownFix(), 600);
     this.renderPositionOverlays();
     this.emit();
   }
@@ -378,8 +383,13 @@ export class App {
     this.renderAnchor();
   }
 
+  /** The current fix at the position the boat is drawn. */
+  private shownFix(): Fix {
+    return { ...this.fix!, ...this.shown };
+  }
+
   private renderPositionOverlays(): void {
-    const f = this.fix;
+    const f = this.fix ? this.shownFix() : null;
     if (!f || !this.map.getSource('cog')) return;
     setOverlay(this.map, 'accuracy', {
       type: 'Feature',
@@ -682,7 +692,7 @@ export class App {
   /** Deselect the active route/destination. */
   async stopNavigation(): Promise<void> {
     await this.updateSettings({ activeRouteId: null });
-    if (this.follow && this.fix) this.followCamera(this.fix, 500);
+    if (this.follow && this.fix) this.followCamera(this.shownFix(), 500);
   }
 
   setNextIndex(i: number): void {
