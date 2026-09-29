@@ -7,3 +7,6 @@ body {
   display: block;
   position: static;
 }
+html[data-frame='viewport'] [data-device] {
+  width: 100vw !important;
+}

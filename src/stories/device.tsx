@@ -29,6 +29,7 @@ export function Device({
   const [width, height] = DEVICES[device];
   return (
     <div
+      data-device={device}
       data-theme={theme}
       style={{
         position: 'relative',
