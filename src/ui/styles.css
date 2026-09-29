@@ -246,18 +246,28 @@ button {
 }
 
 /* ---- floating buttons ----------------------------------------------------- */
+/* One column on tall screens; more columns as the screen gets shorter, so the buttons stay inside the chart. */
 .fabs {
+  --fab: min(var(--tap), max(44px, 15cqh));
   position: fixed;
   right: 10px;
   bottom: calc(var(--tap) + 30px + var(--safe-b));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-rows: repeat(6, auto);
+  grid-auto-flow: column;
+  justify-content: end;
+  gap: min(10px, 2.5cqh);
   z-index: 4;
 }
+@container plotter (max-height: 700px) {
+  .fabs { grid-template-rows: repeat(3, auto); }
+}
+@container plotter (max-height: 480px) {
+  .fabs { grid-template-rows: repeat(2, auto); }
+}
 .fab {
-  width: var(--tap);
-  height: var(--tap);
+  width: var(--fab);
+  height: var(--fab);
   border-radius: 50%;
   border: 2px solid var(--border);
   background: var(--panel);
@@ -602,8 +612,15 @@ select {
 .plotter.destcard #btn-follow,
 .plotter.destcard #btn-orient,
 .plotter.destcard #btn-dest { display: none; }
-.plotter.placing .fabs { bottom: calc(var(--tap) + 130px + var(--safe-b)); }
-.plotter.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }
+/* Above the bar by its measured height (set by PlotterScreen); on wide screens the bar leaves the buttons room instead. */
+.plotter:is(.placing, .destcard) .fabs {
+  bottom: calc(var(--tap) + 24px + var(--safe-b) + var(--bottom-bar-h, 0px));
+  grid-template-rows: repeat(2, auto);
+}
+@container plotter (min-width: 720px) {
+  #dest-bar { right: calc(var(--tap) + 28px); }
+  .plotter:is(.placing, .destcard) .fabs { bottom: calc(var(--tap) + 30px + var(--safe-b)); }
+}
 #dest-bar .search-results { max-height: 30cqh; overflow-y: auto; }
 .dest-card .btn.block { margin-bottom: 8px; }
 .dest-info { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 10px; font-size: 14px; }

@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type Ref, type RefObject } from 'react';
 import type { App } from '../app';
 import { t } from '../i18n';
 import { alarmText } from '../i18n/texts';
@@ -154,6 +154,21 @@ export interface ScreenBottom {
 }
 
 /**
+ * Keeps `--bottom-bar-h` on the screen at the bottom bar's rendered height, so the map buttons can sit above a
+ * destination card or placement bar of any height.
+ */
+function useBottomBarHeight(root: RefObject<HTMLElement | null>, bar: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const rootEl = root.current;
+    const barEl = bar.current;
+    if (!rootEl || !barEl || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => rootEl.style.setProperty('--bottom-bar-h', `${barEl.offsetHeight}px`));
+    observer.observe(barEl);
+    return () => observer.disconnect();
+  }, [root, bar]);
+}
+
+/**
  * The whole screen, drawn from props: instruments, guidance, chart, map buttons, toolbar, and whichever sheet, bottom
  * bar, toast, alarm or disclaimer is up. `.plotter` is the layout's size container, so the screen adapts to whatever
  * box it is given: the viewport in the app, a device frame in Storybook.
@@ -194,15 +209,23 @@ export function PlotterScreen({
     bottom?.kind === 'card' && 'destcard',
   ];
   const sheetUp = !!sheet && !sheet.closing;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  useBottomBarHeight(rootRef, barRef);
   return (
-    <div className={cls.filter(Boolean).join(' ')} data-theme={s.theme} data-sheet={sheetUp ? sheet.key : undefined}>
+    <div
+      ref={rootRef}
+      className={cls.filter(Boolean).join(' ')}
+      data-theme={s.theme}
+      data-sheet={sheetUp ? sheet.key : undefined}
+    >
       <Instruments app={app} />
       <NavStrip app={app} />
       <main id="map" aria-label={t('map.label')} ref={mapRef}>
         {chart}
         {bottom?.kind === 'placing' && <div id="crosshair" aria-hidden="true" />}
       </main>
-      <div id="dest-bar" hidden={!bottom}>
+      <div id="dest-bar" ref={barRef} hidden={!bottom}>
         {bottom?.content}
       </div>
 
