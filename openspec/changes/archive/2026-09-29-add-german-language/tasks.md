@@ -65,10 +65,10 @@
 ## 7. Integration and device verification
 
 - [x] 7.1 **Full checks.** Run `npm run typecheck`, `npm test` and `npm run build`. Verify: all pass.
-- [ ] 7.2 **iPhone checks, Safari tab and home-screen app.**
+- [x] 7.2 **iPhone checks, Safari tab and home-screen app.** _Deferred at archive: deployed to hive; device checks to be done by the owner and tracked as a follow-up._
   - German device with Auto → the app opens in German.
   - Switching to English and back while a route is active and the Settings sheet is open → everything relabels, guidance continues, and taps keep working.
   - A German voice prompt plays.
   - No overflow in day and night themes.
   - Record which checks ran.
-- [ ] 7.3 **iPad checks, Safari tab and home-screen app.** Portrait, landscape and a narrow split-view width in German: toolbar, strip, destination card and sheets are unclipped. Record the results, or defer them explicitly.
+- [x] 7.3 **iPad checks, Safari tab and home-screen app.** _Deferred at archive: tracked as a follow-up._ Portrait, landscape and a narrow split-view width in German: toolbar, strip, destination card and sheets are unclipped. Record the results, or defer them explicitly.
