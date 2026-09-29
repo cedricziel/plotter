@@ -165,6 +165,7 @@ button {
 #navstrip small { white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--fg-dim); letter-spacing: 0.04em; }
 .nav-top { display: flex; align-items: center; gap: 10px; }
 .nav-to { flex: 1; min-width: 0; font-size: 24px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-wait { padding: 4px 0 2px; font-size: 15px; font-weight: 600; opacity: 0.85; }
 .nav-steer { font-size: 26px; font-weight: 800; white-space: nowrap; color: var(--warn); }
 .nav-steer.on { color: var(--ok); font-size: 20px; }
 .nav-steer.far { color: var(--danger); }
@@ -264,6 +265,10 @@ button {
 .fab:active { transform: scale(0.94); }
 body.following #btn-follow { background: var(--accent); color: var(--accent-fg); }
 body.seamarks-on #btn-seamarks { background: var(--accent); color: var(--accent-fg); }
+#btn-orient .needle { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; font-size: 15px; color: #d0342c; transition: transform 0.3s linear; }
+#btn-orient .needle small { font-size: 11px; font-weight: 800; color: var(--fg); }
+body.north-up #btn-orient { background: var(--accent); }
+body.north-up #btn-orient .needle small { color: var(--accent-fg); }
 body[data-sheet] .fabs { display: none; }
 
 #notice {
@@ -577,9 +582,11 @@ select {
 .dest-read { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
 body.placing #btn-seamarks,
 body.placing #btn-follow,
+body.placing #btn-orient,
 body.placing #btn-dest,
 body.destcard #btn-seamarks,
 body.destcard #btn-follow,
+body.destcard #btn-orient,
 body.destcard #btn-dest { display: none; }
 body.placing .fabs { bottom: calc(var(--tap) + 130px + var(--safe-b)); }
 body.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }

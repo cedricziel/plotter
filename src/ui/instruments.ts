@@ -115,6 +115,23 @@ export function mountInstruments(app: App): () => void {
             : null,
         ),
       );
+    } else if (app.activeRoute && pts.length) {
+      const why =
+        st === 'denied'
+          ? 'Location is blocked. Allow it for this site to start guidance.'
+          : st === 'unavailable' || st === 'lost'
+            ? 'No GPS signal yet. Guidance starts with the first fix.'
+            : 'Waiting for a GPS fix. Guidance starts with the first fix.';
+      nav.hidden = false;
+      nav.replaceChildren(
+        h(
+          'div',
+          { class: 'nav-top' },
+          h('span', { class: 'nav-to' }, `➤ ${pts[pts.length - 1].name}`),
+          h('button', { class: 'nav-stop', 'aria-label': 'Stop navigation', title: 'Stop navigation', onclick: () => void app.stopNavigation() }, '✕'),
+        ),
+        h('div', { class: 'nav-wait' }, why),
+      );
     } else {
       nav.hidden = true;
     }

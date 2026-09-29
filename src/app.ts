@@ -24,6 +24,7 @@ import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
 import { speak } from './services/voice';
 import { WakeLock } from './services/wakelock';
+import { navBearing, navZoom } from './core/camera';
 import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
 import { $, h, toast } from './ui/dom';
 
@@ -75,6 +76,9 @@ export class App {
   recalculating = false;
 
   follow = true;
+  /** Adaptive zoom while following a route; off after the user zooms, back on with ⌖. */
+  autoZoom = true;
+  private followToken = 0;
   private ship!: Marker;
   private wpMarkers = new Map<string, Marker>();
   private listeners = new Set<Listener>();
@@ -128,7 +132,13 @@ export class App {
     this.ship = new Marker({ element: shipElement(), rotationAlignment: 'map', pitchAlignment: 'map' });
 
     this.map.on('style.load', () => this.renderOverlays());
-    this.map.on('dragstart', () => this.setFollow(false));
+    this.map.on('dragstart', () => {
+      this.followToken++;
+      this.setFollow(false);
+    });
+    this.map.on('zoomstart', (e) => {
+      if ((e as { originalEvent?: Event }).originalEvent) this.autoZoom = false;
+    });
     this.map.on('moveend', () => {
       const c = this.map.getCenter();
       void db.setKv('view', { center: [c.lng, c.lat], zoom: this.map.getZoom() });
@@ -217,10 +227,53 @@ export class App {
   }
 
   setFollow(on: boolean): void {
+    if (on) {
+      this.autoZoom = true;
+      if (this.fix) this.followCamera(this.fix, 500);
+    }
     if (this.follow === on) return;
     this.follow = on;
-    if (on && this.fix) this.map.easeTo({ center: [this.fix.lon, this.fix.lat], duration: 500 });
     this.emit();
+  }
+
+  /** Follow again after `ms` unless the user moves the map in the meantime. */
+  resumeFollowAfter(ms: number): void {
+    const token = ++this.followToken;
+    setTimeout(() => {
+      if (token === this.followToken && this.fix) this.setFollow(true);
+    }, ms);
+  }
+
+  get navigating(): boolean {
+    return !!this.progress && !this.progress.finished;
+  }
+
+  private followCamera(f: Fix, duration: number): void {
+    const map = this.map;
+    const h = map.getContainer().clientHeight;
+    const center: [number, number] = [f.lon, f.lat];
+    if (!this.navigating) {
+      map.easeTo({ center, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration, easing: (t) => t });
+      return;
+    }
+    const courseUp = this.settings.orientation === 'course';
+    const zoom = this.autoZoom
+      ? navZoom({
+          sog: f.sog,
+          toManeuver: this.progress!.dtw,
+          lat: f.lat,
+          screenPx: h * (courseUp ? 0.6 : 0.45),
+          current: map.getZoom(),
+        })
+      : map.getZoom();
+    map.easeTo({
+      center,
+      zoom,
+      bearing: navBearing(this.settings.orientation, f.cog, f.sog, map.getBearing()),
+      padding: { top: courseUp ? Math.round(h * 0.35) : 0, bottom: 0, left: 0, right: 0 },
+      duration,
+      easing: (t) => t,
+    });
   }
 
   // ---- GPS ---------------------------------------------------------------
@@ -243,8 +296,6 @@ export class App {
     if (first) {
       this.ship.addTo(this.map);
       this.map.jumpTo({ center: [f.lon, f.lat], zoom: Math.max(this.map.getZoom(), 14) });
-    } else if (this.follow) {
-      this.map.easeTo({ center: [f.lon, f.lat], duration: 600, easing: (t) => t });
     }
 
     if (this.recording) this.logTrackPoint(f);
@@ -252,6 +303,7 @@ export class App {
     else if (this.anchor) this.anchorCheck = checkAnchor(this.anchor, f, f.accuracy);
 
     this.updateProgress();
+    if (!first && this.follow) this.followCamera(f, 600);
     this.renderPositionOverlays();
     this.emit();
   }
@@ -569,8 +621,9 @@ export class App {
   }
 
   /** Deselect the active route/destination. */
-  stopNavigation(): Promise<void> {
-    return this.updateSettings({ activeRouteId: null });
+  async stopNavigation(): Promise<void> {
+    await this.updateSettings({ activeRouteId: null });
+    if (this.follow && this.fix) this.followCamera(this.fix, 500);
   }
 
   setNextIndex(i: number): void {
@@ -703,7 +756,12 @@ export class App {
   async chartCourse(dest: CourseDestination, opts: { via?: LatLon[]; keep?: boolean } = {}): Promise<boolean> {
     const f = this.fix;
     if (!f) {
-      toast('Waiting for a GPS fix before a course can be charted');
+      toast(
+        this.gpsStatus === 'denied'
+          ? 'Location is blocked. Allow it for this site to chart a course.'
+          : 'Waiting for a GPS fix before a course can be charted',
+        6000,
+      );
       return false;
     }
     const from = { lat: f.lat, lon: f.lon };
