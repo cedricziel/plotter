@@ -1,5 +1,6 @@
 import type { Orientation } from './core/camera';
 import type { DistanceUnit, SpeedUnit } from './core/units';
+import type { LanguageChoice } from './i18n';
 import type { Theme } from './map/style';
 import { DEFAULT_CHART_URL } from './services/chart';
 import { getKv, setKv } from './services/db';
@@ -7,6 +8,8 @@ import { getKv, setKv } from './services/db';
 export type CogMinutes = 0 | 5 | 10 | 30;
 
 export interface Settings {
+  /** 'auto' follows the device's preferred languages */
+  language: LanguageChoice;
   speedUnit: SpeedUnit;
   distanceUnit: DistanceUnit;
   cogMinutes: CogMinutes;
@@ -36,6 +39,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  language: 'auto',
   speedUnit: 'kmh',
   distanceUnit: 'metric',
   cogMinutes: 10,

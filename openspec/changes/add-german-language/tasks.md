@@ -2,9 +2,9 @@
 
 ## 1. i18n core
 
-- [ ] 1.1 **Language resolution (test first).** Write `tests/i18n.test.ts` for `resolveLanguage`: de-first → `de`, nl-then-en → `en`, fr-only → `en`, and an explicit `en`/`de` choice wins over the device. Show it failing, then implement `resolveLanguage`, `language()` and `setLanguage()` in `src/i18n/index.ts`. Verify: the tests pass.
-- [ ] 1.2 **Dictionaries (test first).** Add tests that every key in `en` exists in `de`, no German value is empty, and each key has the same set of `{placeholders}` in both. Add `t()` interpolation and one/other plural tests. Implement `src/i18n/en.ts`, `src/i18n/de.ts` (typed `Record<keyof typeof en, string>`) and `t()`. Verify: the tests pass and `npm run typecheck` fails when a German key is deleted.
-- [ ] 1.3 **Setting.** Add `language: 'auto' | 'en' | 'de'` (default `'auto'`) to `Settings`. Extend `tests/i18n.test.ts` so stored settings without `language` load as `'auto'`. Verify: the tests pass.
+- [x] 1.1 **Language resolution (test first).** Write `tests/i18n.test.ts` for `resolveLanguage`: de-first → `de`, nl-then-en → `en`, fr-only → `en`, and an explicit `en`/`de` choice wins over the device. Show it failing, then implement `resolveLanguage`, `language()` and `setLanguage()` in `src/i18n/index.ts`. Verify: the tests pass.
+- [x] 1.2 **Dictionaries (test first).** Add tests that every key in `en` exists in `de`, no German value is empty, and each key has the same set of `{placeholders}` in both. Add `t()` interpolation and one/other plural tests. Implement `src/i18n/en.ts`, `src/i18n/de.ts` (typed `Record<keyof typeof en, string>`) and `t()`. Verify: the tests pass and `npm run typecheck` fails when a German key is deleted.
+- [x] 1.3 **Setting.** Add `language: 'auto' | 'en' | 'de'` (default `'auto'`) to `Settings`. Extend `tests/i18n.test.ts` so stored settings without `language` load as `'auto'`. Verify: the tests pass.
 
 ## 2. Numbers and times
 
