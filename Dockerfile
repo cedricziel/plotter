@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=server-build /app/server-dist /app
 COPY deploy/waterways.sh /usr/local/bin/plotter-waterways
 RUN chmod 755 /usr/local/bin/plotter-waterways
-ENV NODE_ENV=production DATA_DIR=/srv/data TILES_DIR=/srv/tiles PORT=8080
+ENV NODE_ENV=production DATA_DIR=/srv/data TILES_DIR=/srv/tiles PORT=8080 BUILD_ID=${BUILD_ID}
 EXPOSE 8080
 # Runs as uid 568 ("apps" on TrueNAS) like the web workers; the waterways job
 # is started as root by compose so it can write and chown the data dataset.

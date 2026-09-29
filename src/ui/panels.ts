@@ -4,6 +4,7 @@ import { parseGpx, toGpx } from '../core/gpx';
 import type { Route } from '../core/model';
 import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../core/units';
 import { type CogMinutes, DEFAULT_SETTINGS } from '../settings';
+import { setTelemetryEnabled, telemetryEnabled } from '../telemetry';
 import { chartAndShow, showDestinationCard, startPlacement } from './destination';
 import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
 import { download, fileStamp, h, pickFile, toast } from './dom';
@@ -726,6 +727,11 @@ function menuBody(app: App): HTMLElement {
     h('button', { class: 'btn block', onclick: () => void clearTileCaches() }, 'Clear cached map tiles'),
 
     h('h3', null, 'About'),
+    onOff('Send diagnostics', telemetryEnabled(), (v) => {
+      setTelemetryEnabled(v);
+      refresh(app);
+    }),
+    h('p', { class: 'hint' }, 'Errors, load timing and request durations, never your position or searches. Off stops sending now; On applies after a reload.'),
     h('p', { class: 'hint' }, DISCLAIMER),
     h('button', { class: 'btn block', onclick: () => showDisclaimerOnce(true) }, 'Show disclaimer'),
     h('p', { class: 'hint' }, `GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${__APP_VERSION__} (${__BUILD_ID__})`),

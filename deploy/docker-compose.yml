@@ -36,6 +36,10 @@ services:
       DATA_DIR: /srv/data
       TILES_DIR: /srv/tiles
       TRUST_PROXY: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://o11y-ingest.58lab.org
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: plotter-server
+      OTEL_EXPORTER_OTLP_HEADERS: ${PLOTTER_OTEL_HEADERS:-}
     volumes:
       - /mnt/hive/apps/plotter/data:/srv/data:ro
       - /mnt/hive/apps/plotter/tiles:/srv/tiles:ro
