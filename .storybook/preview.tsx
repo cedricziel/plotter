@@ -1,16 +1,16 @@
-import type { Decorator, Preview } from '@storybook/html-vite';
+import type { Decorator, Preview } from '@storybook/react-vite';
 import '../src/ui/styles.css';
 import './preview.css';
 
 const SAFE_AREAS = { none: ['0px', '0px'], notch: ['59px', '34px'] } as const;
 
-const withGlobals: Decorator = (story, context) => {
+const withGlobals: Decorator = (Story, context) => {
   const root = document.documentElement;
   root.dataset.theme = context.globals.theme === 'night' ? 'night' : 'day';
   const [top, bottom] = SAFE_AREAS[context.globals.safeAreas as keyof typeof SAFE_AREAS] ?? SAFE_AREAS.none;
   root.style.setProperty('--safe-t', top);
   root.style.setProperty('--safe-b', bottom);
-  return story(context.args, context);
+  return <Story />;
 };
 
 const preview: Preview = {

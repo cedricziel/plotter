@@ -77,6 +77,8 @@ body {
   position: fixed;
   inset: 0;
 }
+/* React's root takes no box: the screen's parts stay grid items of body. */
+#root { display: contents; }
 #instruments { grid-row: 1; }
 #navstrip { grid-row: 2; }
 #map { grid-row: 3; }

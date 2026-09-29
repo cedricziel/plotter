@@ -30,16 +30,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) =>
   root.querySelector(sel) as T;
 
-let toastTimer: number | undefined;
-export function toast(msg: string, ms = 3500, onTap?: () => void): void {
-  const el = $('#toast');
-  el.textContent = msg;
-  el.onclick = onTap ?? null;
-  el.classList.toggle('tap', !!onTap);
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => el.classList.remove('show'), ms);
-}
+export { toast } from './toast';
 
 export function download(filename: string, content: string, type = 'application/gpx+xml'): void {
   const url = URL.createObjectURL(new Blob([content], { type }));
