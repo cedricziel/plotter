@@ -164,9 +164,8 @@ export function buildFis(raw: FisRaw, meta: FisMeta): FisFile {
   for (const b of raw.berth) {
     const at = b.Geometry ? parseWkt(b.Geometry) : null;
     const status = b.Status ?? [];
-    const privateOnly = status.includes('PRIVATE') && !status.includes('PUBLIC');
-    if (!at || !b.Name || !inUse(b) || privateOnly || b.Category === 'LOADING_AND_UNLOADING' || !inNetherlands(at))
-      continue;
+    const open = status.includes('PUBLIC') || b.Category === 'WAITING_AREA';
+    if (!at || !b.Name || !inUse(b) || !open || !inNetherlands(at)) continue;
     berths.push({ name: b.Name, ...at });
   }
 

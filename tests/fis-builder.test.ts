@@ -150,6 +150,7 @@ describe('joining', () => {
         Status: ['PRIVATE', 'UN_WATCHED'],
       },
       { Id: 34, Name: 'Kade Havenbedrijf', Geometry: 'POINT (5.5 52.3)', Category: 'LOADING_AND_UNLOADING' },
+      { Id: 35, Name: 'Wachtplaats', Geometry: 'POINT (5.6 52.3)', Category: 'WAITING_AREA', Status: [] },
     ],
   };
   const fis = buildFis(raw, meta);
@@ -180,7 +181,7 @@ describe('joining', () => {
   it('drops bridges outside the Netherlands', () => {
     expect(fis.bridges.map((b) => b.name)).not.toContain('Duitse brug');
     expect(fis.locks.map((l) => l.name)).toEqual(['Sluis']);
-    expect(fis.berths.map((b) => b.name)).toEqual(['Ligplaats A']);
+    expect(fis.berths.map((b) => b.name)).not.toContain('Ligplaats B');
   });
 
   it('joins VHF channels from call-in points of bridges and locks only', () => {
@@ -202,8 +203,8 @@ describe('joining', () => {
     });
   });
 
-  it('skips private berths and industrial quays', () => {
-    expect(fis.berths.map((b) => b.name)).toEqual(['Ligplaats A']);
+  it('keeps public berths and waiting areas only', () => {
+    expect(fis.berths.map((b) => b.name)).toEqual(['Ligplaats A', 'Wachtplaats']);
   });
 
   it('records the generation', () => {
