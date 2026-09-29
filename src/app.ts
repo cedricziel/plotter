@@ -1,3 +1,4 @@
+import type { Span } from '@opentelemetry/api';
 import { AttributionControl, Map as MlMap, Marker, ScaleControl, addProtocol, setWorkerUrl } from 'maplibre-gl';
 // MapLibre 6 locates its module worker at runtime; let Vite bundle it explicitly.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
@@ -23,6 +24,7 @@ import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
 import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
 import { speak } from './services/voice';
+import { traced } from './telemetry';
 import { WakeLock } from './services/wakelock';
 import { navBearing, navZoom } from './core/camera';
 import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
@@ -766,10 +768,24 @@ export class App {
     }
     const from = { lat: f.lat, lon: f.lon };
     if (dest.kind) this.rememberPlace({ name: dest.name, kind: dest.kind, lat: dest.lat, lon: dest.lon });
-    const plan = await planCourse(
-      { route: (req) => api.route(req), trips: this.trips, tripRouter: this.tripRouter },
-      { from, to: dest, via: opts.via ?? [], vessel: this.vesselProfile(), speed: this.settings.cruiseSpeed },
-    );
+    const plan = await traced('course.chart', async (span) => {
+      const planned = await planCourse(
+        { route: (req) => api.route(req), trips: this.trips, tripRouter: this.tripRouter },
+        { from, to: dest, via: opts.via ?? [], vessel: this.vesselProfile(), speed: this.settings.cruiseSpeed },
+      );
+      if ('charted' in planned) {
+        const { source, maneuvers } = planned.charted;
+        span.setAttributes({
+          'course.success': true,
+          'course.source': source,
+          'course.distance_m': maneuvers.at(-1)?.dist ?? 0,
+          'course.maneuvers': maneuvers.length,
+        });
+      } else {
+        span.setAttribute('course.success', false);
+      }
+      return planned;
+    });
     const charted = 'charted' in plan ? plan.charted : null;
     const problem = 'problem' in plan ? plan.problem : '';
     if (!charted) {
@@ -846,7 +862,11 @@ export class App {
     try {
       toast(auto ? 'Off course – recalculating…' : 'Recalculating…', 2500);
       const { name, lat, lon, kind } = route.dest;
-      const ok = await this.chartCourse({ name, lat, lon, kind: kind ?? 'waterway' }, { keep: true });
+      const ok = await traced(
+        'course.recalculate',
+        () => this.chartCourse({ name, lat, lon, kind: kind ?? 'waterway' }, { keep: true }),
+        { 'course.auto': auto },
+      );
       if (ok && this.settings.voicePrompts) speak('New course charted');
     } finally {
       this.recalculating = false;
@@ -871,7 +891,12 @@ export class App {
    * confirms the size, then loads the map tiles through the PMTiles client (the service worker
    * caches the ranges) and keeps the routing graph and places in IndexedDB.
    */
-  async saveForOffline(route: Route): Promise<void> {
+  saveForOffline(route: Route): Promise<void> {
+    return traced('trip.save', (span) => this.saveTrip(route, span));
+  }
+
+  private async saveTrip(route: Route, span: Span): Promise<void> {
+    span.setAttribute('trip.success', false);
     if (this.offline || !route.shape) return;
     const ac = new AbortController();
     const job = { routeId: route.id, phase: 'estimating' as const, done: 0, total: 0, cancel: () => ac.abort() };
@@ -931,6 +956,7 @@ export class App {
       this.trips.push(trip);
       route.tripId = trip.id;
       await this.saveRoute(route);
+      span.setAttributes({ 'trip.success': true, 'trip.tiles': trip.tileCount, 'trip.bytes': trip.bytes });
       toast(`Saved for offline: ${trip.name}, ${(trip.bytes / 1e6).toFixed(1)} MB`);
     } catch (e) {
       if ((e as Error).name === 'AbortError') toast('Offline save cancelled');

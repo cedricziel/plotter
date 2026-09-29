@@ -1,3 +1,4 @@
+import './telemetry';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './ui/styles.css';
 import { App } from './app';
