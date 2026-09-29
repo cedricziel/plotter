@@ -1,4 +1,5 @@
-import { bearing, destination, distance } from '../core/geo';
+import { destination } from '../core/geo';
+import { MotionEstimator } from '../core/motion';
 
 export interface Fix {
   lat: number;
@@ -20,20 +21,16 @@ export interface GpsCallbacks {
   onStatus(status: GpsStatus, message?: string): void;
 }
 
-/** Below this speed COG is meaningless noise (≈ 1 km/h). */
-const COG_MIN_SPEED = 0.28;
 const LOST_AFTER_MS = 30_000;
 
 /**
  * Wraps navigator.geolocation.watchPosition and derives SOG/COG, falling back
- * to position deltas when the device does not report speed/heading.
+ * to a fit over recent fixes when the device does not report speed/heading.
  */
 export class Gps {
   private watchId: number | null = null;
   private lostTimer: number | undefined;
-  private prev: { lat: number; lon: number; time: number } | null = null;
-  private sog: number | null = null;
-  private cog: number | null = null;
+  private motion = new MotionEstimator();
   private sim: Simulator | null = null;
 
   constructor(private cb: GpsCallbacks) {}
@@ -83,31 +80,10 @@ export class Gps {
     heading: number | null,
     time: number,
   ): void {
-    const here = { lat, lon, time };
-    let derivedSpeed: number | null = null;
-    let derivedCourse: number | null = null;
-    if (this.prev) {
-      const dt = (time - this.prev.time) / 1000;
-      const d = distance(this.prev, here);
-      if (dt > 0.5) derivedSpeed = d / dt;
-      // Only trust a position-delta course when movement exceeds the noise.
-      if (d > Math.max(3, accuracy * 0.5)) derivedCourse = bearing(this.prev, here);
-    }
-
-    const rawSpeed = speed != null && Number.isFinite(speed) && speed >= 0 ? speed : derivedSpeed;
-    if (rawSpeed != null) this.sog = this.sog == null ? rawSpeed : this.sog * 0.6 + rawSpeed * 0.4;
-
-    const rawCourse = heading != null && Number.isFinite(heading) ? heading : derivedCourse;
-    if (this.sog != null && this.sog < COG_MIN_SPEED) {
-      // keep last COG for symbol orientation, but don't update from noise
-    } else if (rawCourse != null) {
-      this.cog = rawCourse;
-    }
-
-    if (!this.prev || distance(this.prev, here) > 1 || time - this.prev.time > 5000) this.prev = here;
+    const { sog, cog } = this.motion.update({ lat, lon, accuracy, speed, heading, time });
 
     this.cb.onStatus('ok');
-    this.cb.onFix({ lat, lon, accuracy, sog: this.sog, cog: this.cog, time });
+    this.cb.onFix({ lat, lon, accuracy, sog, cog, time });
 
     clearTimeout(this.lostTimer);
     this.lostTimer = window.setTimeout(() => this.cb.onStatus('lost', 'No GPS fix for 30 s'), LOST_AFTER_MS);
