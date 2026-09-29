@@ -475,6 +475,12 @@ select {
 .leg-name { font-size: 17px; font-weight: 700; }
 .leg-eta { font-variant-numeric: tabular-nums; font-weight: 700; }
 .leg-actions { display: flex; }
+.leg-actions .icon-btn { min-width: 44px; min-height: 44px; }
+/* On a narrow phone the three action buttons move under the waypoint name, so the name keeps its width. */
+@container plotter (max-width: 380px) {
+  .leg { grid-template-columns: 28px minmax(0, 1fr) auto; }
+  .leg-actions { grid-column: 2 / -1; justify-content: flex-end; }
+}
 
 /* ---- modal / alarm / toast ------------------------------------------------ */
 .modal {
