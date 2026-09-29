@@ -339,7 +339,7 @@ describe('places', () => {
     });
 
     it('omits info when no tag applies and drops non-http websites', () => {
-      const bare = node(90, { leisure: 'marina', name: 'A' }, 5.0, 52.0);
+      const bare = node(90, { leisure: 'marina', name: 'A', 'contact:vhf': 'none' }, 5.0, 52.0);
       const js = node(91, { leisure: 'marina', name: 'B', website: 'javascript:alert(1)' }, 5.1, 52.0);
       const { places } = build([bare, js]);
       expect(places.every((p) => !('info' in p))).toBe(true);

@@ -60,7 +60,7 @@ export function placeInfo(t: Record<string, string>): PlaceInfo | undefined {
   const vhfKey = Object.keys(t).find((k) => k === 'vhf' || k.endsWith(':vhf'));
   const berths = parseInt(first(t, ['capacity:berths', 'seamark:harbour:berths', 'capacity']) ?? '', 10);
   const info: PlaceInfo = {
-    vhf: vhfKey ? first(t, [vhfKey]) : undefined,
+    vhf: vhfKey && !/^(no|none)$/i.test(t[vhfKey].trim()) ? first(t, [vhfKey]) : undefined,
     phone: first(t, ['phone', 'contact:phone']),
     website: webUrl(first(t, ['website', 'contact:website', 'url'])),
     openingHours: first(t, ['opening_hours']),
