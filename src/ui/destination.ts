@@ -3,7 +3,7 @@ import type { App } from '../app';
 import { shapeInfo } from '../core/course';
 import { bearing, distance } from '../core/geo';
 import { formatBearing, formatDistance } from '../core/units';
-import type { Place } from '../core/waterway-data';
+import type { Place, PlaceInfo } from '../core/waterway-data';
 import { $, h, toast } from './dom';
 import { KIND_LABEL, kindIcon, iconEl } from './icons';
 import { resetSearch, searchBox } from './search';
@@ -192,6 +192,7 @@ export function showDestinationCard(app: App, place: Place): void {
         iconEl(kindIcon(place.kind), 'result-ico'),
         h('span', { class: 'result-text' }, h('b', null, place.name), h('small', null, sub)),
       ),
+      infoRows(place.info),
       chartBtn,
       h(
         'div',
@@ -233,6 +234,26 @@ export function showDestinationCard(app: App, place: Place): void {
   );
   bar.hidden = false;
   wire(app);
+}
+
+function infoRows(info: PlaceInfo | undefined): HTMLElement | null {
+  if (!info) return null;
+  const rows: [string, string | HTMLElement][] = [];
+  if (info.vhf) rows.push(['VHF', `channel ${info.vhf}`]);
+  if (info.berths) rows.push(['Berths', String(info.berths)]);
+  if (info.clearance) rows.push(['Clearance', `${info.clearance} m`]);
+  if (info.openingHours) rows.push(['Hours', info.openingHours]);
+  if (info.operator) rows.push(['Operator', info.operator]);
+  if (info.phone) {
+    const digits = info.phone.replace(/[^\d+]/g, '');
+    rows.push(['Phone', digits ? h('a', { href: `tel:${digits}` }, info.phone) : info.phone]);
+  }
+  if (info.website && /^https?:\/\//i.test(info.website)) {
+    const host = new URL(info.website).hostname.replace(/^www\./, '');
+    rows.push(['Web', h('a', { href: info.website, target: '_blank', rel: 'noopener' }, host)]);
+  }
+  if (!rows.length) return null;
+  return h('dl', { class: 'dest-info' }, ...rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)]));
 }
 
 function update(app: App): void {
