@@ -611,6 +611,7 @@ body.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }
 .seamark-card .dest-title .btn { margin-left: auto; }
 .seamark-card .dest-info { margin-bottom: 0; }
 .seamark-card .result-ico img { display: block; }
+.seamark-card .result-text b { white-space: normal; }
 .dest-pin {
   width: 22px;
   height: 22px;
