@@ -8,6 +8,7 @@ const SAFE_AREAS = { none: ['0px', '0px'], notch: ['59px', '34px'] } as const;
 const withGlobals: Decorator = (Story, context) => {
   const root = document.documentElement;
   root.dataset.theme = context.globals.theme === 'night' ? 'night' : 'day';
+  root.dataset.frame = context.globals.frame === 'viewport' ? 'viewport' : 'device';
   const [top, bottom] = SAFE_AREAS[context.globals.safeAreas as keyof typeof SAFE_AREAS] ?? SAFE_AREAS.none;
   root.style.setProperty('--safe-t', top);
   root.style.setProperty('--safe-b', bottom);
@@ -21,6 +22,7 @@ const preview: Preview = {
     theme: 'day',
     safeAreas: 'none',
     language: 'en',
+    frame: 'device',
     viewport: { value: 'iphone14', isRotated: false },
   },
   globalTypes: {
@@ -45,6 +47,18 @@ const preview: Preview = {
         items: [
           { value: 'en', title: 'English' },
           { value: 'de', title: 'Deutsch' },
+        ],
+      },
+    },
+    frame: {
+      description: 'Device frames keep their own width, or follow the viewport width',
+      toolbar: {
+        title: 'Frame',
+        icon: 'grow',
+        dynamicTitle: true,
+        items: [
+          { value: 'device', title: 'Frame: device width' },
+          { value: 'viewport', title: 'Frame: viewport width' },
         ],
       },
     },
