@@ -11,7 +11,7 @@ import {
   type SettingsApp,
   type TrackApp,
   type WaypointApp,
-} from '../ui/panels';
+} from '../ui/panels/bodies';
 import { ACTIVE_ROUTE, makeFix, makePanelApp } from './fakes';
 
 const Sheet = ({ title, children }: { title: string; children: ReactNode }) => (
@@ -118,7 +118,7 @@ export const AnchorArmed: Story = {
 export const Settings: Story = {
   render: () => (
     <Sheet title="Settings">
-      <SettingsPanel app={makePanelApp() as unknown as SettingsApp} />
+      <SettingsPanel app={makePanelApp() as unknown as SettingsApp} telemetry={{ enabled: () => true, set() {} }} version="1.0.0 (storybook)" />
     </Sheet>
   ),
 };

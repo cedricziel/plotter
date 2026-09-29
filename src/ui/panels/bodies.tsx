@@ -1,17 +1,16 @@
 import { type InputHTMLAttributes, type ReactNode, useReducer, useRef } from 'react';
-import type { App } from '../app';
-import { bearing, distance, routeLegs, timeToGo } from '../core/geo';
-import { parseGpx, toGpx } from '../core/gpx';
-import type { Route } from '../core/model';
-import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../core/units';
-import { type CogMinutes, DEFAULT_SETTINGS } from '../settings';
-import { setTelemetryEnabled, telemetryEnabled } from '../telemetry';
-import { chartAndShow, showDestinationCard, startPlacement } from './destination';
-import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
-import { download, fileStamp, pickFile, toast } from './dom';
-import { ManeuverIcon } from './icons';
-import { SearchBox } from './search';
-import { closeSheet, openSheet } from './sheet';
+import type { App } from '../../app';
+import { bearing, distance, routeLegs, timeToGo } from '../../core/geo';
+import { parseGpx, toGpx } from '../../core/gpx';
+import type { Route } from '../../core/model';
+import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../../core/units';
+import { type CogMinutes, DEFAULT_SETTINGS } from '../../settings';
+import { chartAndShow, showDestinationCard, startPlacement } from '../destination';
+import { DISCLAIMER, showDisclaimerOnce } from '../disclaimer';
+import { download, fileStamp, pickFile, toast } from '../dom';
+import { ManeuverIcon } from '../icons';
+import { SearchBox } from '../search';
+import { closeSheet, openSheet } from '../sheet';
 
 type Opt<T> = { value: T; label: string };
 
@@ -823,7 +822,13 @@ export type SettingsApp = Pick<
   | 'importData'
 >;
 
-export function SettingsPanel({ app }: { app: SettingsApp }) {
+/** Diagnostics opt-in and the build version are passed in so the bodies stay free of telemetry side effects and build-time globals. */
+export interface Telemetry {
+  enabled(): boolean;
+  set(v: boolean): void;
+}
+
+export function SettingsPanel({ app, telemetry, version }: { app: SettingsApp; telemetry: Telemetry; version: string }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const s = app.settings;
   const urlRef = useRef<HTMLInputElement>(null);
@@ -924,9 +929,9 @@ export function SettingsPanel({ app }: { app: SettingsApp }) {
       <h3>About</h3>
       <OnOff
         label="Send diagnostics"
-        value={telemetryEnabled()}
+        value={telemetry.enabled()}
         onPick={(v) => {
-          setTelemetryEnabled(v);
+          telemetry.set(v);
           rerender();
         }}
       />
@@ -935,13 +940,9 @@ export function SettingsPanel({ app }: { app: SettingsApp }) {
       <button className="btn block" onClick={() => showDisclaimerOnce(true)}>
         Show disclaimer
       </button>
-      <p className="hint">{`GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${__APP_VERSION__} (${__BUILD_ID__})`}</p>
+      <p className="hint">{`GPS: ${app.gpsStatus}${app.gpsMessage ? ` – ${app.gpsMessage}` : ''} · v${version}`}</p>
     </div>
   );
-}
-
-export function openMenu(app: App): void {
-  openSheet('menu', 'Settings', () => <SettingsPanel app={app} />);
 }
 
 async function importGpx(app: Pick<App, 'importData'>): Promise<void> {
