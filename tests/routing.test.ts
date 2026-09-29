@@ -164,9 +164,22 @@ describe('route cost', () => {
 
   it('fails cleanly when the destination cannot be reached', () => {
     const trap = route([{ a: 'S', b: 'T', oneway: 'rev' }], { S, T }, S, T);
-    expect(trap).toMatchObject({ ok: false, reason: 'unreachable' });
+    expect(trap).toMatchObject({
+      ok: false,
+      reason: 'unreachable',
+      code: 'unreachable',
+      message: 'No navigable connection to the destination in the routing data',
+    });
     const far = route([{ a: 'S', b: 'T' }], { S, T }, S, [0, 400_000]);
-    expect(far).toMatchObject({ ok: false, reason: 'no-snap' });
+    expect(far).toMatchObject({
+      ok: false,
+      reason: 'no-snap',
+      code: 'no-snap-destination',
+      params: { km: 5 },
+      message: 'No charted waterway within 5 km of the destination',
+    });
+    const lost = route([{ a: 'S', b: 'T' }], { S, T }, [0, 400_000], T);
+    expect(lost).toMatchObject({ reason: 'no-snap', code: 'no-snap-start', params: { km: 5 } });
   });
 });
 
@@ -186,8 +199,14 @@ describe('vessel profile', () => {
 
   describe('start or destination in a canal the vessel cannot leave', () => {
     const verts: Record<string, [number, number]> = {
-      A: [0, 0], E: [2000, 0], H: [8000, 0], B: [10000, 0],
-      C: [0, 150], D: [2000, 150], F: [8000, 150], G: [10000, 150],
+      A: [0, 0],
+      E: [2000, 0],
+      H: [8000, 0],
+      B: [10000, 0],
+      C: [0, 150],
+      D: [2000, 150],
+      F: [8000, 150],
+      G: [10000, 150],
     };
     const edges: FixtureEdge[] = [
       { a: 'A', b: 'E', name: 'IJ' },
@@ -221,13 +240,15 @@ describe('vessel profile', () => {
     const r = route([{ a: 'S', b: 'T', obstacles: [{ pos: 1, type: 'fixed', clearance: 300 }] }], { S, T }, S, T, {
       profile: { airDraft: 4 },
     });
-    expect(r).toMatchObject({ ok: false, reason: 'blocked' });
+    expect(r).toMatchObject({ ok: false, reason: 'blocked', code: 'blocked' });
   });
 
   it('warns about fixed bridges with unknown clearance but does not block', () => {
     const r = ok(route(bridge(0), vertices, S, T, { profile: { airDraft: 4 } }));
     expect(r.distance).toBeCloseTo(10000, -1);
-    expect(r.warnings).toEqual(['1 fixed bridge with unknown clearance']);
+    expect(r.warnings).toEqual([
+      { code: 'unknown-clearance', params: { count: 1 }, text: '1 fixed bridge with unknown clearance' },
+    ]);
     expect(ok(route(bridge(0), vertices, S, T, {})).warnings).toEqual([]);
   });
 
@@ -435,7 +456,9 @@ describe('via stops', () => {
     expect(r.maneuvers[1]).toMatchObject({ type: 'via', text: 'Via stop 1', name: null, stop: 1 });
     expect(r.maneuvers[4]).toMatchObject({ name: 'Einde' });
     expect(r.maneuvers.filter((m) => m.type !== 'via').every((m) => m.stop === undefined)).toBe(true);
-    expect(r.warnings).toEqual(['1 fixed bridge with unknown clearance']);
+    expect(r.warnings).toEqual([
+      { code: 'unknown-clearance', params: { count: 1 }, text: '1 fixed bridge with unknown clearance' },
+    ]);
   });
 
   it('reports the failing leg', () => {

@@ -7,25 +7,26 @@ export interface KnownOverflow {
   reason: string;
 }
 
+/** Stories the layout suite leaves out, by story id, with the reason. */
+export const SKIPPED_STORIES: Record<string, string> = {
+  'pages-plotter-screen--overview':
+    'A contact sheet of scaled-down phone screens in a four-column grid; it is wider than any viewport by design.',
+};
+
 /** Overflows the layout suite accepts. Remove an entry as soon as its overflow is fixed. */
 export const KNOWN_OVERFLOWS: KnownOverflow[] = [
-  {
-    selector: '#instruments, #instruments > .inst-pos',
-    widths: [360],
-    reason:
-      'Instrument bar: the position readout does not fit a 360 px row and runs past the right edge. Not fixed yet.',
-  },
   {
     selector: '.stats > .stat > .stat-label, .stats > .stat > .stat-value',
     reason:
       'Sheet stat tiles (route, track, anchor, settings): long labels and values such as "Verbleibend", ' +
-      '"GPS-Genauigkeit", "Holding" or ETA times are wider than their tile on phones and in the side panel. Not fixed yet.',
+      '"GPS-Genauigkeit", "Holding" or ETA times are wider than their tile. Not fixed yet.',
   },
   {
     selector: '.legs > .leg',
-    widths: [360, 390],
+    widths: [390],
     reason:
-      'Route sheet: a leg row with a long name, distance, course and ETA is wider than a phone sheet. Not fixed yet.',
+      'Route sheet: at 390 px a leg row with a long name, distance, course, ETA and its buttons is wider than ' +
+      'the sheet; below 380 px the buttons wrap onto a second line and it fits. Not fixed yet.',
   },
   {
     selector: '#dest-bar .btn',

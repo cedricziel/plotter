@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { KNOWN_OVERFLOWS } from './known-overflows';
+import { KNOWN_OVERFLOWS, SKIPPED_STORIES } from './known-overflows';
 
 interface IndexEntry {
   type: 'story' | 'docs';
@@ -10,7 +10,9 @@ interface IndexEntry {
 const index = JSON.parse(readFileSync('storybook-static/index.json', 'utf8')) as {
   entries: Record<string, IndexEntry>;
 };
-const stories = Object.values(index.entries).filter((entry) => entry.type === 'story');
+const stories = Object.values(index.entries).filter(
+  (entry) => entry.type === 'story' && !(entry.id in SKIPPED_STORIES),
+);
 
 const VIEWPORTS = [
   { width: 360, height: 740 },
@@ -122,7 +124,10 @@ for (const story of stories) {
               unexpected.push(`${viewport.width} px ${overflow.kind}: ${overflow.element} ${overflow.detail}`);
           }
         }
-        expect(unexpected, 'elements overflow horizontally; exceptions live in e2e/known-overflows.ts').toEqual([]);
+        expect(
+          unexpected,
+          'elements overflow horizontally; exceptions live in tests/layout/known-overflows.ts',
+        ).toEqual([]);
       });
     }
   }

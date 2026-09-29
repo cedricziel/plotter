@@ -7,6 +7,8 @@ dev-dist/
 public/tiles/*.pmtiles
 server-dist/
 storybook-static/
+test-results/
+playwright-report/
 .design-sync/sb-reference/
 .design-sync/learnings/
 .design-sync/.cache/
@@ -14,5 +16,3 @@ storybook-static/
 .ds-sync/
 ds-bundle/
 types/
-test-results/
-playwright-report/

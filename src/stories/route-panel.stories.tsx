@@ -47,6 +47,8 @@ export const Empty: Story = { render: () => empty() };
 
 export const Active: Story = { render: () => active() };
 
+export const PhoneSmall: Story = { render: () => active('phone-small') };
+
 export const PhoneLandscape: Story = { render: () => active('phone-landscape') };
 
 export const TabletPortrait: Story = { render: () => active('tablet-portrait') };

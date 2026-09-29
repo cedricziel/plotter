@@ -8,7 +8,7 @@ const preinstalled = '/opt/pw-browsers/chromium';
 const executablePath = !existsSync(chromium.executablePath()) && existsSync(preinstalled) ? preinstalled : undefined;
 
 export default defineConfig({
-  testDir: 'e2e',
+  testDir: 'tests/layout',
   fullyParallel: true,
   workers: process.env.CI ? 4 : undefined,
   forbidOnly: !!process.env.CI,

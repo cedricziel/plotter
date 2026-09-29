@@ -12,11 +12,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:layout": "playwright test",
     "build:server": "vite build -c vite.server.config.ts",
     "serve": "node server-dist/server.mjs",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "test:layout": "storybook build --quiet && playwright test"
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

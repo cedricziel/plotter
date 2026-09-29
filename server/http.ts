@@ -5,12 +5,17 @@ import { promisify } from 'node:util';
 const gzipAsync = promisify(gzip);
 const GZIP_MIN_BYTES = 1024;
 
+const STATUS_CODES: Record<number, string> = { 404: 'not-found', 429: 'rate-limited', 503: 'not-ready' };
+
+/** `code` lets the client word the error in its language; it defaults from the status. */
 export class HttpError extends Error {
   readonly status: number;
+  readonly code: string;
   readonly extra: Record<string, unknown>;
-  constructor(status: number, message: string, extra: Record<string, unknown> = {}) {
+  constructor(status: number, message: string, extra: Record<string, unknown> = {}, code?: string) {
     super(message);
     this.status = status;
+    this.code = code ?? STATUS_CODES[status] ?? (status >= 500 ? 'internal' : 'bad-request');
     this.extra = extra;
   }
 }

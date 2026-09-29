@@ -5,7 +5,7 @@ import { DestinationCard, PlacementBar } from '../ui/destination';
 import { RoutePanel, SettingsPanel, type RouteApp, type SettingsApp } from '../ui/panels/bodies';
 import { PlotterScreen, type ScreenBottom, type ScreenSheet } from '../ui/screen';
 import { ChartBackdrop } from './chart';
-import { Device, type DeviceName } from './device';
+import { DEVICES, Device, type DeviceName } from './device';
 import { makeCardApp, makeScreenApp, type ScreenOptions } from './fakes';
 
 interface Page {
@@ -86,6 +86,43 @@ const meta: Meta = { title: 'Pages/Plotter screen', component: PlotterScreen };
 export default meta;
 
 type Story = StoryObj;
+
+const OVERVIEW_LABELS: Record<keyof typeof PAGES, string> = {
+  chart: 'Chart',
+  navigating: 'Navigating',
+  routeSheet: 'Route sheet',
+  settings: 'Settings',
+  destination: 'Destination',
+  placing: 'Placing',
+  anchorAlarm: 'Anchor alarm',
+  night: 'Night',
+};
+
+const OVERVIEW_SCALE = 0.6;
+
+/** Every screen state side by side on a phone, so the page reads at a glance. */
+export const Overview: Story = {
+  render: () => {
+    const [width, height] = DEVICES['phone-portrait'];
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, max-content)', gap: 16 }}>
+        {(Object.keys(PAGES) as (keyof typeof PAGES)[]).map((name) => {
+          const Screen = page(name, 'phone-portrait');
+          return (
+            <figure key={name} style={{ margin: 0 }}>
+              <div style={{ width: width * OVERVIEW_SCALE, height: height * OVERVIEW_SCALE, overflow: 'hidden' }}>
+                <div style={{ transform: `scale(${OVERVIEW_SCALE})`, transformOrigin: '0 0' }}>
+                  <Screen />
+                </div>
+              </div>
+              <figcaption style={{ font: '600 13px system-ui', marginTop: 6 }}>{OVERVIEW_LABELS[name]}</figcaption>
+            </figure>
+          );
+        })}
+      </div>
+    );
+  },
+};
 
 export const ChartPhonePortrait: Story = { render: page('chart', 'phone-portrait') };
 export const ChartPhoneLandscape: Story = { render: page('chart', 'phone-landscape') };

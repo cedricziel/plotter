@@ -61,16 +61,16 @@ npm run dev        # http://localhost:5173 – add ?sim for a simulated boat on 
 npm test           # Vitest: geodesy, ETA, route progress, anchor check, GPX
 npm run build      # type-check + production build into dist/
 npm run preview    # serve dist/ locally (service worker active)
-npm run test:layout  # Playwright: every Storybook story, checked for horizontal overflow
+npm run build-storybook && npm run test:layout  # Playwright: every story, checked for overflow
 ```
 
-`npm run test:layout` builds Storybook and opens every story from its
+`npm run test:layout` serves the built Storybook and opens every story from its
 `index.json` in Chromium at 360, 390, 820 and 1180 px wide, in day and night
 themes and in English and German. A story fails when an element runs past the
 viewport's edge, or when an element's content is wider than its box although it
 neither scrolls nor ends in an ellipsis. Accepted overflows are listed, each with
-a reason, in `e2e/known-overflows.ts`; remove an entry once its overflow is
-fixed. Run `npx playwright install chromium` once before the first run.
+a reason, in `tests/layout/known-overflows.ts`, together with the few stories the
+check leaves out; remove an entry once its overflow is fixed. Run `npx playwright install chromium` once before the first run.
 
 Search and course charting need the API server (`server/`) and its data; the
 map, GPS, waypoints, tracks and the anchor alarm work without it, and *Chart
