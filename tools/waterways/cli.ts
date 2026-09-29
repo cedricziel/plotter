@@ -68,7 +68,12 @@ await writePlaces(join(out, `${pName}.part`), places);
 await rename(join(out, `${wName}.part`), join(out, wName));
 await rename(join(out, `${pName}.part`), join(out, pName));
 
-const manifest: DataManifest = { waterways: `./data/${wName}`, places: `./data/${pName}`, built: file.built, source: file.source };
+const manifest: DataManifest = {
+  waterways: `./data/${wName}`,
+  places: `./data/${pName}`,
+  built: file.built,
+  source: file.source,
+};
 await writeFile(join(out, 'current.json.new'), `${JSON.stringify(manifest)}\n`);
 await rename(join(out, 'current.json.new'), join(out, 'current.json'));
 

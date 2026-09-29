@@ -17,7 +17,19 @@ export function parseCm(value: string | undefined): number {
 }
 
 const MOVABLE_BRIDGE = new Set([
-  'movable', 'bascule', 'drawbridge', 'lift', 'swing', 'retractable', 'rolling', 'transporter', 'pontoon', 'opening', 'lifting', 'tilt', 'folding',
+  'movable',
+  'bascule',
+  'drawbridge',
+  'lift',
+  'swing',
+  'retractable',
+  'rolling',
+  'transporter',
+  'pontoon',
+  'opening',
+  'lifting',
+  'tilt',
+  'folding',
 ]);
 
 export function isMovableBridge(tags: Record<string, string>): boolean {

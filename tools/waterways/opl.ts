@@ -16,7 +16,9 @@ export interface OplWay {
 }
 
 export function decodeOplValue(s: string): string {
-  return s.includes('%') ? s.replace(/%([0-9a-fA-F]+)%/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16))) : s;
+  return s.includes('%')
+    ? s.replace(/%([0-9a-fA-F]+)%/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    : s;
 }
 
 const E6 = 1e6;
@@ -74,7 +76,11 @@ export function parseOplLine(line: string): OplNode | OplWay | null {
       const lon = ref.slice(xi + 1, yi);
       const lat = ref.slice(yi + 1);
       if (!lon || !lat) continue;
-      nodes.push({ id: Number(ref.slice(1, xi)), lat: Math.round(parseFloat(lat) * E6), lon: Math.round(parseFloat(lon) * E6) });
+      nodes.push({
+        id: Number(ref.slice(1, xi)),
+        lat: Math.round(parseFloat(lat) * E6),
+        lon: Math.round(parseFloat(lon) * E6),
+      });
     }
   }
   return { type: 'w', id, tags, nodes };

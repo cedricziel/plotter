@@ -1,4 +1,4 @@
-import { distance } from "../../src/core/geo.ts";
+import { distance } from '../../src/core/geo.ts';
 import {
   FLAG,
   FORMAT_VERSION,
@@ -11,9 +11,9 @@ import {
   type Place,
   type PlaceKind,
   type WaterwayFile,
-} from "../../src/core/waterway-data.ts";
-import { parseOplLine, type OplNode, type OplWay } from "./opl.ts";
-import { isMovableBridge, parseCm } from "./parse.ts";
+} from '../../src/core/waterway-data.ts';
+import { parseOplLine, type OplNode, type OplWay } from './opl.ts';
+import { isMovableBridge, parseCm } from './parse.ts';
 
 export interface BuildOptions {
   source: string;
@@ -51,20 +51,15 @@ const WATERWAY_KIND: Record<string, number> = {
 };
 const MIN_COMPONENT_M = 1000;
 const SEAMARK_SNAP_M = 35;
-const LOCK_SNAP_M = 60;
+const LOCK_SNAP_M = 50;
+const LOCK_GATE_SNAP_M = 25;
 const LOCK_CLUSTER_M = 250;
 const BRIDGE_MERGE_SEAMARK_M = 60;
 const BRIDGE_MERGE_DUAL_M = 30;
 const PLACE_DEDUPE_M = 300;
 const M_PER_E6 = 0.111195;
-const IGNORED_BRIDGE = new Set([
-  "no",
-  "aqueduct",
-  "causeway",
-  "low_water_crossing",
-  "culvert",
-]);
-const BRIDGE_CARRIER = ["highway", "railway", "man_made", "aerialway"];
+const IGNORED_BRIDGE = new Set(['no', 'aqueduct', 'causeway', 'low_water_crossing', 'culvert']);
+const BRIDGE_CARRIER = ['highway', 'railway', 'man_made', 'aerialway'];
 
 interface NavWay {
   id: number;
@@ -102,6 +97,7 @@ interface LockMember {
   lat: number;
   lon: number;
   name: string;
+  lockName: string;
   wayId: number | null;
 }
 
@@ -142,25 +138,15 @@ const emptyStats = (): BuildStats => ({
   places: {},
 });
 
-const seg = (pts: number[], i: number) =>
-  [pts[2 * i], pts[2 * i + 1], pts[2 * i + 2], pts[2 * i + 3]] as const;
+const seg = (pts: number[], i: number) => [pts[2 * i], pts[2 * i + 1], pts[2 * i + 2], pts[2 * i + 3]] as const;
 
-function pointDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  return distance(
-    { lat: lat1 / 1e6, lon: lon1 / 1e6 },
-    { lat: lat2 / 1e6, lon: lon2 / 1e6 },
-  );
+function pointDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  return distance({ lat: lat1 / 1e6, lon: lon1 / 1e6 }, { lat: lat2 / 1e6, lon: lon2 / 1e6 });
 }
 
 function polylineLength(pts: number[]): number {
   let len = 0;
-  for (let i = 0; i + 3 < pts.length; i += 2)
-    len += pointDistance(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]);
+  for (let i = 0; i + 3 < pts.length; i += 2) len += pointDistance(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]);
   return len;
 }
 
@@ -171,10 +157,7 @@ function pointAlong(pts: number[], along: number): [number, number] {
     const d = pointDistance(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]);
     if (rest <= d || i + 4 >= pts.length) {
       const t = d > 0 ? Math.min(1, Math.max(0, rest / d)) : 0;
-      return [
-        pts[i] + (pts[i + 2] - pts[i]) * t,
-        pts[i + 1] + (pts[i + 3] - pts[i + 1]) * t,
-      ];
+      return [pts[i] + (pts[i + 2] - pts[i]) * t, pts[i + 1] + (pts[i + 3] - pts[i + 1]) * t];
     }
     rest -= d;
   }
@@ -216,8 +199,7 @@ function intersect(
 
 const CELL_LAT = 4000;
 const CELL_LON = 6000;
-const cellKey = (cy: number, cx: number) =>
-  (cy + 30000) * 100000 + (cx + 40000);
+const cellKey = (cy: number, cx: number) => (cy + 30000) * 100000 + (cx + 40000);
 
 /** Grid over the segments of all edges: entry = edge * 2^21 + segment. */
 class SegmentIndex {
@@ -244,23 +226,10 @@ class SegmentIndex {
   }
 
   /** Entries whose cells overlap the box (1e-6 degrees). */
-  query(
-    minLat: number,
-    minLon: number,
-    maxLat: number,
-    maxLon: number,
-  ): Set<number> {
+  query(minLat: number, minLon: number, maxLat: number, maxLon: number): Set<number> {
     const out = new Set<number>();
-    for (
-      let cy = Math.floor(minLat / CELL_LAT);
-      cy <= Math.floor(maxLat / CELL_LAT);
-      cy++
-    ) {
-      for (
-        let cx = Math.floor(minLon / CELL_LON);
-        cx <= Math.floor(maxLon / CELL_LON);
-        cx++
-      ) {
+    for (let cy = Math.floor(minLat / CELL_LAT); cy <= Math.floor(maxLat / CELL_LAT); cy++) {
+      for (let cx = Math.floor(minLon / CELL_LON); cx <= Math.floor(maxLon / CELL_LON); cx++) {
         const list = this.cells.get(cellKey(cy, cx));
         if (list) for (const v of list) out.add(v);
       }
@@ -291,21 +260,22 @@ export class WaterwayBuilder {
   add(line: string): void {
     const o = parseOplLine(line);
     if (!o) return;
-    if (o.type === "w") this.addWay(o);
+    if (o.type === 'w') this.addWay(o);
     else this.addNode(o);
   }
 
   private addNode(n: OplNode): void {
     const t = n.tags;
-    if (t.waterway === "lock_gate") {
+    if (t.waterway === 'lock_gate') {
       this.gates.push({
         lat: n.lat,
         lon: n.lon,
-        name: t.lock_name || t.name || "",
+        name: t.name || '',
+        lockName: t.lock_name || '',
         wayId: null,
       });
     }
-    if (t["seamark:type"] === "bridge") {
+    if (t['seamark:type'] === 'bridge') {
       this.seamarkBridges.push(seamarkBridge(n.lat, n.lon, t));
     }
     const kind = featureKind(t) ?? placeKind(t);
@@ -321,12 +291,11 @@ export class WaterwayBuilder {
   private addWay(w: OplWay): void {
     const t = w.tags;
     if (w.nodes.length < 2) return;
-    const kind = WATERWAY_KIND[t.waterway ?? ""];
+    const kind = WATERWAY_KIND[t.waterway ?? ''];
     if (kind !== undefined) {
       const excluded = exclusion(t);
       if (excluded) {
-        this.stats.excluded[excluded] =
-          (this.stats.excluded[excluded] ?? 0) + 1;
+        this.stats.excluded[excluded] = (this.stats.excluded[excluded] ?? 0) + 1;
         return;
       }
       this.stats.navigableWays++;
@@ -335,25 +304,21 @@ export class WaterwayBuilder {
         ids: w.nodes.map((n) => n.id),
         lat: w.nodes.map((n) => n.lat),
         lon: w.nodes.map((n) => n.lon),
-        name: t.name ?? "",
+        name: t.name ?? '',
         kind,
         cemt: cemtRank(t.CEMT ?? t.cemt),
         flags: flagsOf(t),
         maxDraught: parseCm(t.maxdraught),
         maxWidth: parseCm(t.maxwidth),
         maxHeight: parseCm(t.maxheight),
-        lock: t.lock === "yes",
+        lock: t.lock === 'yes',
       };
       this.navWays.push(way);
       if (way.lock) {
         const pts = flat(way.lat, way.lon);
         const [lat, lon] = pointAlong(pts, polylineLength(pts) / 2);
-        this.lockMembers.push({
-          lat,
-          lon,
-          name: t.lock_name || t.name || "",
-          wayId: w.id,
-        });
+        const member = { name: t.name || '', lockName: t.lock_name || '', wayId: w.id };
+        this.lockMembers.push({ lat, lon, ...member });
       }
       return;
     }
@@ -364,27 +329,22 @@ export class WaterwayBuilder {
       );
       return pointAlong(pts, polylineLength(pts) / 2);
     };
-    if (t["seamark:type"] === "bridge") {
+    if (t['seamark:type'] === 'bridge') {
       const [lat, lon] = mid();
       this.seamarkBridges.push(seamarkBridge(lat, lon, t));
     }
-    if (
-      t.bridge &&
-      !IGNORED_BRIDGE.has(t.bridge) &&
-      !t.waterway &&
-      BRIDGE_CARRIER.some((k) => t[k])
-    ) {
+    if (t.bridge && !IGNORED_BRIDGE.has(t.bridge) && !t.waterway && BRIDGE_CARRIER.some((k) => t[k])) {
       this.stats.bridgeWaysSeen++;
       this.bridgeWays.push({
         lat: w.nodes.map((n) => n.lat),
         lon: w.nodes.map((n) => n.lon),
-        name: t.name ?? "",
+        name: t.name ?? '',
         movable: isMovableBridge(t),
         clearance: parseCm(
-          t["seamark:bridge:clearance_height_closed"] ??
-            t["seamark:bridge:clearance_height"] ??
+          t['seamark:bridge:clearance_height_closed'] ??
+            t['seamark:bridge:clearance_height'] ??
             t.clearance ??
-            t["maxheight:physical"],
+            t['maxheight:physical'],
         ),
         roadMax: parseCm(t.maxheight),
       });
@@ -408,7 +368,7 @@ export class WaterwayBuilder {
 
   finish(): BuildResult {
     const stats = this.stats;
-    const names = new Map<string, number>([["", 0]]);
+    const names = new Map<string, number>([['', 0]]);
     const nameIdx = (s: string) => {
       let i = names.get(s);
       if (i === undefined) names.set(s, (i = names.size));
@@ -433,10 +393,7 @@ export class WaterwayBuilder {
       if (!e.cum) {
         const c = [0];
         for (let i = 0; i + 3 < e.pts.length; i += 2)
-          c.push(
-            c[c.length - 1] +
-              pointDistance(e.pts[i], e.pts[i + 1], e.pts[i + 2], e.pts[i + 3]),
-          );
+          c.push(c[c.length - 1] + pointDistance(e.pts[i], e.pts[i + 1], e.pts[i + 2], e.pts[i + 3]));
         e.cum = c;
       }
       return e.cum;
@@ -444,26 +401,16 @@ export class WaterwayBuilder {
     const candidates: Candidate[][] = edges.map(() => []);
     const lockPlaces: Place[] = [];
 
-    const snap = (
-      lat: number,
-      lon: number,
-      maxM: number,
-      only?: (ei: number) => boolean,
-    ) => {
+    /** Closest point on every edge within `maxM` metres. */
+    const snapAll = (lat: number, lon: number, maxM: number) => {
       const dLat = maxM / M_PER_E6;
-      const dLon = maxM / (planar(lat).kx || M_PER_E6);
-      let best: { edge: number; pos: number; dist: number } | null = null;
       const { kx, ky } = planar(lat);
-      for (const entry of index.query(
-        lat - dLat,
-        lon - dLon,
-        lat + dLat,
-        lon + dLon,
-      )) {
+      const dLon = maxM / kx;
+      const best = new Map<number, { edge: number; pos: number; dist: number }>();
+      for (const entry of index.query(lat - dLat, lon - dLon, lat + dLat, lon + dLon)) {
         const ei = Math.floor(entry / 2097152);
         const s = entry % 2097152;
         const e = edges[ei];
-        if (only && !only(ei)) continue;
         const [y1, x1, y2, x2] = seg(e.pts, s);
         const sx = (x2 - x1) * kx;
         const sy = (y2 - y1) * ky;
@@ -472,13 +419,19 @@ export class WaterwayBuilder {
         const py = (lat - y1) * ky;
         const t = len2 > 0 ? frac((px * sx + py * sy) / len2) : 0;
         const dist = Math.hypot(px - t * sx, py - t * sy);
-        if (dist <= maxM && (!best || dist < best.dist)) {
+        const prev = best.get(ei);
+        if (dist <= maxM && (!prev || dist < prev.dist)) {
           const c = cum(e);
-          best = { edge: ei, pos: c[s] + t * (c[s + 1] - c[s]), dist };
+          best.set(ei, { edge: ei, pos: c[s] + t * (c[s + 1] - c[s]), dist });
         }
       }
-      return best;
+      return [...best.values()];
     };
+    const snap = (lat: number, lon: number, maxM: number) =>
+      snapAll(lat, lon, maxM).reduce<{ edge: number; pos: number; dist: number } | null>(
+        (m, c) => (!m || c.dist < m.dist ? c : m),
+        null,
+      );
 
     // ---- bridges from geometry --------------------------------------------
     for (const b of this.bridgeWays) {
@@ -527,51 +480,27 @@ export class WaterwayBuilder {
       });
     }
     // ---- locks -------------------------------------------------------------
-    const wayEdges = new Map<number, number[]>();
-    edges.forEach((e, i) =>
-      wayEdges.set(e.way.id, [...(wayEdges.get(e.way.id) ?? []), i]),
-    );
-    const clusters = clusterPoints(
-      [...this.lockMembers, ...this.gates],
-      LOCK_CLUSTER_M,
-    );
+    // A lock is often mapped as parallel chamber ways while the fairway runs
+    // through them, so every waterway edge that passes a chamber or a gate of
+    // the lock gets the obstacle (once per lock and edge).
+    const clusters = clusterPoints([...this.lockMembers, ...this.gates], LOCK_CLUSTER_M);
     for (const cluster of clusters) {
-      const wayMembers = cluster.filter((m) => m.wayId != null);
-      const name =
-        (wayMembers.find((m) => m.name) ?? cluster.find((m) => m.name))?.name ??
-        "";
-      const lat = cluster.reduce((s, m) => s + m.lat, 0) / cluster.length;
-      const lon = cluster.reduce((s, m) => s + m.lon, 0) / cluster.length;
-      const add = (ei: number, pos: number) =>
-        candidates[ei].push({
-          pos,
-          type: OBSTACLE.lock,
-          clearance: 0,
-          name,
-          roadMax: 0,
-          seamark: false,
-        });
-      let placed = false;
-      if (wayMembers.length) {
-        for (const m of wayMembers) {
-          const own = new Set(wayEdges.get(m.wayId!) ?? []);
-          const s = own.size
-            ? snap(m.lat, m.lon, LOCK_SNAP_M, (ei) => own.has(ei))
-            : null;
-          if (s) {
-            add(s.edge, s.pos);
-            placed = true;
-          }
-        }
-      } else {
-        const s = snap(lat, lon, LOCK_SNAP_M);
-        if (s) {
-          add(s.edge, s.pos);
-          placed = true;
+      const name = cluster.find((m) => m.name)?.name || cluster.find((m) => m.lockName)?.lockName || '';
+      const reach = cluster.flatMap((m) =>
+        m.wayId != null ? [{ m, radius: LOCK_SNAP_M }] : [{ m, radius: LOCK_GATE_SNAP_M }],
+      );
+      const seen = new Set<number>();
+      for (const { m, radius } of reach) {
+        for (const s of snapAll(m.lat, m.lon, radius).sort((a, b) => a.dist - b.dist)) {
+          if (seen.has(s.edge)) continue;
+          seen.add(s.edge);
+          candidates[s.edge].push({ pos: s.pos, type: OBSTACLE.lock, clearance: 0, name, roadMax: 0, seamark: false });
         }
       }
-      if (placed && name)
-        lockPlaces.push({ name, kind: "lock", lat: lat / 1e6, lon: lon / 1e6 });
+      if (seen.size && name) {
+        const c = centroid(cluster);
+        lockPlaces.push({ name, kind: 'lock', lat: c.lat / 1e6, lon: c.lon / 1e6 });
+      }
     }
 
     // ---- finalise obstacles per edge ---------------------------------------
@@ -590,19 +519,13 @@ export class WaterwayBuilder {
             const [lat, lon] = pointAlong(e.pts, o.pos);
             namedBridges.push({
               name: o.name,
-              kind: "bridge",
+              kind: 'bridge',
               lat: lat / 1e6,
               lon: lon / 1e6,
             });
           }
         }
-        return [
-          Math.round(o.pos),
-          o.type,
-          o.clearance,
-          o.name ? nameIdx(o.name) : 0,
-          o.roadMax,
-        ];
+        return [Math.round(o.pos), o.type, o.clearance, o.name ? nameIdx(o.name) : 0, o.roadMax];
       });
       const poly: number[] = [];
       let pLat = e.pts[0];
@@ -631,23 +554,15 @@ export class WaterwayBuilder {
 
     // ---- places ------------------------------------------------------------
     const waterwayPlaces = this.waterwayPlaces(edges);
-    const places = dedupePlaces([
-      ...this.featurePlaces,
-      ...lockPlaces,
-      ...namedBridges,
-      ...waterwayPlaces,
-    ]);
-    for (const p of places)
-      stats.places[p.kind] = (stats.places[p.kind] ?? 0) + 1;
+    const places = dedupePlaces([...this.featurePlaces, ...lockPlaces, ...namedBridges, ...waterwayPlaces]);
+    for (const p of places) stats.places[p.kind] = (stats.places[p.kind] ?? 0) + 1;
 
     stats.vertices = keptLat.length;
     stats.edges = edges.length;
-    stats.totalLengthKm =
-      Math.round(edges.reduce((s, e) => s + e.length, 0) / 100) / 10;
+    stats.totalLengthKm = Math.round(edges.reduce((s, e) => s + e.length, 0) / 100) / 10;
 
     const vertices: number[] = [];
-    for (let i = 0; i < keptLat.length; i++)
-      vertices.push(keptLat[i], keptLon[i]);
+    for (let i = 0; i < keptLat.length; i++) vertices.push(keptLat[i], keptLon[i]);
     return {
       file: {
         version: FORMAT_VERSION,
@@ -664,8 +579,7 @@ export class WaterwayBuilder {
 
   private topology() {
     const usage = new Map<number, number>();
-    for (const w of this.navWays)
-      for (const id of w.ids) usage.set(id, (usage.get(id) ?? 0) + 1);
+    for (const w of this.navWays) for (const id of w.ids) usage.set(id, (usage.get(id) ?? 0) + 1);
     const vertexOf = new Map<number, number>();
     const vlat: number[] = [];
     const vlon: number[] = [];
@@ -689,12 +603,7 @@ export class WaterwayBuilder {
         const b = vertex(w.ids[i], w.lat[i], w.lon[i]);
         const pts: number[] = [];
         for (let k = start; k <= i; k++) {
-          if (
-            k > start &&
-            w.lat[k] === w.lat[k - 1] &&
-            w.lon[k] === w.lon[k - 1]
-          )
-            continue;
+          if (k > start && w.lat[k] === w.lat[k - 1] && w.lon[k] === w.lon[k - 1]) continue;
           pts.push(w.lat[k], w.lon[k]);
         }
         start = i;
@@ -728,17 +637,13 @@ export class WaterwayBuilder {
         largestLen = len;
       }
     }
-    const keep = (r: number) =>
-      r === largest || (total.get(r) ?? 0) > MIN_COMPONENT_M;
+    const keep = (r: number) => r === largest || (total.get(r) ?? 0) > MIN_COMPONENT_M;
     this.stats.components = total.size;
-    this.stats.droppedComponents = [...total.keys()].filter(
-      (r) => !keep(r),
-    ).length;
+    this.stats.droppedComponents = [...total.keys()].filter((r) => !keep(r)).length;
     const kept = edges.filter((e) => keep(find(e.a)));
     const vertexMap = new Map<number, number>();
     for (const e of kept) {
-      for (const v of [e.a, e.b])
-        if (!vertexMap.has(v)) vertexMap.set(v, vertexMap.size);
+      for (const v of [e.a, e.b]) if (!vertexMap.has(v)) vertexMap.set(v, vertexMap.size);
     }
     return { edges: kept, vertexMap };
   }
@@ -754,12 +659,8 @@ export class WaterwayBuilder {
     const out: Place[] = [];
     for (const [name, list] of byName) {
       const mids = list.map((e) => pointAlong(e.pts, e.length / 2));
-      const cLat =
-        mids.reduce((s, m, i) => s + m[0] * list[i].length, 0) /
-        list.reduce((s, e) => s + e.length, 0);
-      const cLon =
-        mids.reduce((s, m, i) => s + m[1] * list[i].length, 0) /
-        list.reduce((s, e) => s + e.length, 0);
+      const cLat = mids.reduce((s, m, i) => s + m[0] * list[i].length, 0) / list.reduce((s, e) => s + e.length, 0);
+      const cLon = mids.reduce((s, m, i) => s + m[1] * list[i].length, 0) / list.reduce((s, e) => s + e.length, 0);
       let best = 0;
       let bestD = Infinity;
       mids.forEach((m, i) => {
@@ -771,7 +672,7 @@ export class WaterwayBuilder {
       });
       out.push({
         name,
-        kind: "waterway",
+        kind: 'waterway',
         lat: mids[best][0] / 1e6,
         lon: mids[best][1] / 1e6,
       });
@@ -780,10 +681,7 @@ export class WaterwayBuilder {
   }
 }
 
-export function buildWaterways(
-  lines: Iterable<string>,
-  opts: BuildOptions,
-): BuildResult {
+export function buildWaterways(lines: Iterable<string>, opts: BuildOptions): BuildResult {
   const b = new WaterwayBuilder(opts);
   for (const l of lines) b.add(l);
   return b.finish();
@@ -796,51 +694,46 @@ function flat(lat: number[], lon: number[]): number[] {
 }
 
 function exclusion(t: Record<string, string>): string | null {
-  if (t.tunnel === "culvert") return "culvert";
-  if (t.motorboat === "no") return "motorboat=no";
-  if (t.boat === "no" && t.motorboat !== "yes") return "boat=no";
+  if (t.tunnel === 'culvert') return 'culvert';
+  if (t.motorboat === 'no') return 'motorboat=no';
+  if (t.boat === 'no' && t.motorboat !== 'yes') return 'boat=no';
   return null;
 }
 
 function flagsOf(t: Record<string, string>): number {
   let f = 0;
-  if (t.oneway === "yes" || t.oneway === "1" || t.oneway === "true")
-    f |= FLAG.ONEWAY_FWD;
-  else if (t.oneway === "-1" || t.oneway === "reverse") f |= FLAG.ONEWAY_REV;
-  if (t.boat === "yes" || t.motorboat === "yes") f |= FLAG.BOAT_YES;
+  if (t.oneway === 'yes' || t.oneway === '1' || t.oneway === 'true') f |= FLAG.ONEWAY_FWD;
+  else if (t.oneway === '-1' || t.oneway === 'reverse') f |= FLAG.ONEWAY_REV;
+  if (t.boat === 'yes' || t.motorboat === 'yes') f |= FLAG.BOAT_YES;
   return f;
 }
 
-function seamarkBridge(
-  lat: number,
-  lon: number,
-  t: Record<string, string>,
-): SeamarkBridge {
+function seamarkBridge(lat: number, lon: number, t: Record<string, string>): SeamarkBridge {
   return {
     lat,
     lon,
-    name: t["seamark:name"] || t.name || "",
+    name: t['seamark:name'] || t.name || '',
     movable: isMovableBridge(t),
-    clearance: parseCm(
-      t["seamark:bridge:clearance_height_closed"] ??
-        t["seamark:bridge:clearance_height"],
-    ),
+    clearance: parseCm(t['seamark:bridge:clearance_height_closed'] ?? t['seamark:bridge:clearance_height']),
   };
 }
 
 function featureKind(t: Record<string, string>): PlaceKind | null {
-  if (t.leisure === "marina") return "marina";
-  if ((t.harbour && t.harbour !== "no") || t["seamark:type"] === "harbour")
-    return "harbour";
-  if (t.mooring && t.mooring !== "no" && t.mooring !== "private")
-    return "mooring";
+  if (t.leisure === 'marina') return 'marina';
+  if ((t.harbour && t.harbour !== 'no') || t['seamark:type'] === 'harbour') return 'harbour';
+  if (t.mooring && t.mooring !== 'no' && t.mooring !== 'private') return 'mooring';
   return null;
 }
 
 function placeKind(t: Record<string, string>): PlaceKind | null {
-  return t.place === "city" || t.place === "town" || t.place === "village"
-    ? t.place
-    : null;
+  return t.place === 'city' || t.place === 'town' || t.place === 'village' ? t.place : null;
+}
+
+function centroid(points: LockMember[]): { lat: number; lon: number } {
+  return {
+    lat: points.reduce((s, m) => s + m.lat, 0) / points.length,
+    lon: points.reduce((s, m) => s + m.lon, 0) / points.length,
+  };
 }
 
 /** Single-linkage clusters of points closer than `radius` metres. */
@@ -867,11 +760,7 @@ function clusterPoints(points: LockMember[], radius: number): LockMember[][] {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         for (const j of grid.get(cellKey(cy + dy, cx + dx)) ?? []) {
-          if (
-            j > i &&
-            pointDistance(p.lat, p.lon, points[j].lat, points[j].lon) <= radius
-          )
-            parent[find(j)] = find(i);
+          if (j > i && pointDistance(p.lat, p.lon, points[j].lat, points[j].lon) <= radius) parent[find(j)] = find(i);
         }
       }
     }
@@ -889,9 +778,7 @@ function clusterPoints(points: LockMember[], radius: number): LockMember[][] {
 function mergeObstacles(list: Candidate[]): Candidate[] {
   const locks = list.filter((c) => c.type === OBSTACLE.lock);
   const seamark = list.filter((c) => c.seamark).map((c) => ({ ...c }));
-  const geo = list
-    .filter((c) => c.type !== OBSTACLE.lock && !c.seamark)
-    .sort((a, b) => a.pos - b.pos);
+  const geo = list.filter((c) => c.type !== OBSTACLE.lock && !c.seamark).sort((a, b) => a.pos - b.pos);
   const leftover: Candidate[] = [];
   for (const g of geo) {
     let near: Candidate | null = null;
