@@ -18,6 +18,7 @@ import { onLongPress } from './map/longpress';
 import { EMPTY, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
 import { Alarm } from './services/alarm';
+import { Compass } from './services/compass';
 import { api } from './services/api';
 import { planCourse, type Charted } from './services/courses';
 import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
@@ -91,6 +92,9 @@ export class App {
   });
   readonly alarm = new Alarm();
   readonly wakeLock = new WakeLock();
+  readonly compass = new Compass((h) => this.onHeading(h));
+  /** Compass heading of the bow, when the compass is on and reading. */
+  heading: number | null = null;
   alarmReason: string | null = null;
 
   async init(container: HTMLElement): Promise<void> {
@@ -167,6 +171,7 @@ export class App {
     this.applyTheme();
     this.renderWaypointMarkers();
     this.gps.start();
+    if (this.settings.compass) this.compass.resumeOnTap();
     void this.updateWakeLock();
     setInterval(() => this.emit(), 1000); // clock + stale-fix display
   }
@@ -213,6 +218,7 @@ export class App {
     }
     if ('theme' in patch) this.applyTheme();
     if ('keepAwake' in patch) void this.updateWakeLock();
+    if (patch.compass === false) this.compass.disable();
     if ('activeRouteId' in patch) {
       this.nextIndex = 0;
       this.resetCourseTracking();
@@ -278,6 +284,29 @@ export class App {
     });
   }
 
+  /**
+   * Turn on the compass. Call straight from the tap: iOS asks for motion
+   * permission only inside one.
+   */
+  async enableCompass(): Promise<boolean> {
+    const ok = await this.compass.enable();
+    if (!ok) toast('Compass not available – allow Motion & Orientation access for this site');
+    await this.updateSettings({ compass: ok });
+    return ok;
+  }
+
+  private onHeading(h: number | null): void {
+    this.heading = h;
+    if (this.fix) this.orientShip();
+  }
+
+  /** The ship points where the bow does when the compass knows, otherwise along the course over ground. */
+  private orientShip(): void {
+    const dir = this.heading ?? this.fix?.cog ?? null;
+    this.ship.setRotation(dir ?? 0);
+    this.ship.getElement().classList.toggle('no-cog', dir == null);
+  }
+
   // ---- GPS ---------------------------------------------------------------
 
   private onGpsStatus(s: GpsStatus, msg?: string): void {
@@ -293,8 +322,8 @@ export class App {
     const first = !this.fix;
     this.fix = f;
 
-    this.ship.setLngLat([f.lon, f.lat]).setRotation(f.cog ?? 0);
-    this.ship.getElement().classList.toggle('no-cog', f.cog == null);
+    this.ship.setLngLat([f.lon, f.lat]);
+    this.orientShip();
     if (first) {
       this.ship.addTo(this.map);
       this.map.jumpTo({ center: [f.lon, f.lat], zoom: Math.max(this.map.getZoom(), 14) });

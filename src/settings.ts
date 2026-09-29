@@ -26,6 +26,8 @@ export interface Settings {
   voicePrompts: boolean;
   /** Map orientation while following a route. */
   orientation: Orientation;
+  /** Point the ship symbol by the device compass, taking the top of the screen as the bow. */
+  compass: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cruiseSpeed: 2.5,
   voicePrompts: false,
   orientation: 'course',
+  compass: false,
 };
 
 export async function loadSettings(): Promise<Settings> {

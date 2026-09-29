@@ -701,6 +701,10 @@ function menuBody(app: App): HTMLElement {
     ], (v) => void app.updateSettings({ theme: v })),
     onOff('OpenSeaMap seamarks (online)', s.seamarks, (v) => void app.updateSettings({ seamarks: v })),
     onOff('Keep screen awake', s.keepAwake, (v) => void app.updateSettings({ keepAwake: v })),
+    onOff('Ship heading from compass', s.compass, (v) =>
+      void (v ? app.enableCompass() : app.updateSettings({ compass: false })).then(() => refresh(app)),
+    ),
+    h('p', { class: 'hint' }, 'Points the ship symbol where the top of the screen faces: mount the device with its top towards the bow. The course line still shows the course over ground.'),
 
     h('h3', null, 'Vessel & routing'),
     ...vesselFields(app),
