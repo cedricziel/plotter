@@ -15,7 +15,10 @@ export interface StyleOptions {
   /** absolute URL of the .pmtiles archive */
   pmtilesUrl: string;
   glyphsUrl: string;
+  /** vector seamark symbols */
   seamarks: boolean;
+  /** OpenSeaMap raster tiles */
+  openseamap: boolean;
 }
 
 /**
@@ -423,25 +426,26 @@ export function buildStyle(o: StyleOptions): StyleSpecification {
     layers = osmRasterLayers(o.theme);
   }
 
-  sources.seamarks = {
-    type: 'raster',
-    tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    minzoom: 6,
-    maxzoom: 18,
-    attribution: '<a href="https://www.openseamap.org">OpenSeaMap</a>',
-  };
-  layers.push({
-    id: 'seamarks',
-    type: 'raster',
-    source: 'seamarks',
-    minzoom: 9,
-    layout: { visibility: o.seamarks ? 'visible' : 'none' },
-    paint: o.theme === 'night' ? { 'raster-saturation': -1, 'raster-brightness-max': 0.6 } : {},
-  });
+  if (o.openseamap) {
+    sources.openseamap = {
+      type: 'raster',
+      tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 6,
+      maxzoom: 18,
+      attribution: '<a href="https://www.openseamap.org">OpenSeaMap</a>',
+    };
+    layers.push({
+      id: 'openseamap',
+      type: 'raster',
+      source: 'openseamap',
+      minzoom: 9,
+      paint: o.theme === 'night' ? { 'raster-saturation': -1, 'raster-brightness-max': 0.6 } : {},
+    });
+  }
 
   Object.assign(sources, overlaySources());
-  layers.push(...overlayLayers(palette(o.theme), o.theme));
+  layers.push(...overlayLayers(palette(o.theme), o.theme, { seamarks: o.seamarks }));
 
   return {
     version: 8,

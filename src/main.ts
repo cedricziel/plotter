@@ -3,11 +3,13 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './ui/styles.css';
 import { App } from './app';
 import { mountPlaces } from './map/places';
-import { isPlacing, showDestinationCard, showTipOnce, startPlacement } from './ui/destination';
+import { mountSeamarks } from './map/seamarks';
+import { closeDestination, isPlacing, showCard, showDestinationCard, showTipOnce, startPlacement } from './ui/destination';
 import { showDisclaimerOnce } from './ui/disclaimer';
 import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
 import { openAnchor, openMenu, openRoute, openTrack, openWaypoint, refresh } from './ui/panels';
+import { seamarkCard } from './ui/seamark-card';
 import { closeSheet, sheetOpen } from './ui/sheet';
 import { initUpdates } from './update';
 
@@ -23,6 +25,15 @@ async function main() {
     blocked: isPlacing,
     onPick: (place) => showDestinationCard(app, place),
   });
+
+  const seamarks = mountSeamarks(app.map, {
+    trips: () => app.trips,
+    enabled: () => app.settings.seamarks,
+    theme: () => app.settings.theme,
+    blocked: isPlacing,
+    onPick: (seamark) => showCard(app, seamarkCard(seamark, app.settings.theme, closeDestination)),
+  });
+  app.subscribe(() => void seamarks.refresh());
 
   const renderInstruments = mountInstruments(app);
 

@@ -13,8 +13,10 @@ const PLACE_COLORS = {
   night: { harbour: '#ff6b6b', structure: '#c92a2a', town: '#8a1f1f', opening: '#ff8787' },
 };
 
-export const OVERLAY_SOURCES = ['place-marks', 'accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
+export const OVERLAY_SOURCES = ['seamark-marks', 'place-marks', 'accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number];
+
+export const SEAMARK_LAYERS = ['seamark-marks', 'seamark-flare', 'seamark-notices'] as const;
 
 export const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
@@ -22,12 +24,50 @@ export function overlaySources(): Record<string, SourceSpecification> {
   return Object.fromEntries(OVERLAY_SOURCES.map((s) => [s, { type: 'geojson', data: EMPTY }]));
 }
 
-export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpecification[] {
+const SEAMARK_ICON_SIZE: ExpressionSpecification = ['interpolate', ['linear'], ['zoom'], 12, 0.5, 14, 0.75, 16, 1, 18, 1.25];
+
+function seamarkLayers(visible: boolean): LayerSpecification[] {
+  const layout = {
+    visibility: visible ? 'visible' : 'none',
+    'icon-size': SEAMARK_ICON_SIZE,
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+  } as const;
+  return [
+    {
+      id: SEAMARK_LAYERS[0],
+      type: 'symbol',
+      source: 'seamark-marks',
+      minzoom: 12,
+      filter: ['==', ['get', 'notice'], false],
+      layout: { ...layout, 'icon-image': ['get', 'icon'] },
+    },
+    {
+      id: SEAMARK_LAYERS[1],
+      type: 'symbol',
+      source: 'seamark-marks',
+      minzoom: 12,
+      filter: ['==', ['get', 'flare'], true],
+      layout: { ...layout, 'icon-image': 'sm-flare', 'icon-anchor': 'bottom-left', 'icon-offset': [3, -3] },
+    },
+    {
+      id: SEAMARK_LAYERS[2],
+      type: 'symbol',
+      source: 'seamark-marks',
+      minzoom: 14,
+      filter: ['==', ['get', 'notice'], true],
+      layout: { ...layout, 'icon-image': ['get', 'icon'] },
+    },
+  ];
+}
+
+export function overlayLayers(p: { labelHalo: string }, theme: Theme, o: { seamarks: boolean }): LayerSpecification[] {
   const c = OVERLAY[theme];
   const pc = PLACE_COLORS[theme];
   const byGroup = (harbour: string | number, structure: string | number, town: string | number) =>
     ['match', ['get', 'group'], 'harbour', harbour, 'structure', structure, town] as ExpressionSpecification;
   return [
+    ...seamarkLayers(o.seamarks),
     {
       id: 'place-marks',
       type: 'circle',

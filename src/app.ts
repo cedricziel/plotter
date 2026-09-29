@@ -15,7 +15,7 @@ import type { Place } from './core/waterway-data';
 import { shouldLogPoint } from './core/track';
 import { formatDistance, formatDuration } from './core/units';
 import { onLongPress } from './map/longpress';
-import { EMPTY, setOverlay } from './map/overlays';
+import { EMPTY, SEAMARK_LAYERS, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
 import { Alarm } from './services/alarm';
 import { Compass } from './services/compass';
@@ -203,6 +203,7 @@ export class App {
       pmtilesUrl: absUrl(this.chartUrl),
       glyphsUrl: absUrl(this.settings.glyphsUrl),
       seamarks: this.settings.seamarks,
+      openseamap: this.settings.openseamap,
     });
   }
 
@@ -215,14 +216,16 @@ export class App {
       this.basemap = (await probePmtiles(absUrl(this.chartUrl))) ? 'pmtiles' : 'osm';
       if (this.basemap === 'osm') toast('PMTiles not reachable – using OpenStreetMap fallback');
     }
-    const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl'].some(
+    const restyle = ['theme', 'pmtilesUrl', 'glyphsUrl', 'openseamap'].some(
       (k) => k in patch && patch[k as keyof Settings] !== prev[k as keyof Settings],
     );
     if (restyle || (patch.pmtilesUrl != null && patch.pmtilesUrl !== prev.pmtilesUrl)) {
       this.map.setStyle(this.style(), { diff: false });
     }
-    if ('seamarks' in patch && this.map.getLayer('seamarks')) {
-      this.map.setLayoutProperty('seamarks', 'visibility', this.settings.seamarks ? 'visible' : 'none');
+    if ('seamarks' in patch) {
+      for (const id of SEAMARK_LAYERS) {
+        if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', this.settings.seamarks ? 'visible' : 'none');
+      }
     }
     if ('theme' in patch) this.applyTheme();
     if ('keepAwake' in patch) void this.updateWakeLock();
@@ -1002,6 +1005,7 @@ export class App {
         bytes: corridor.estimate === 'archive' ? corridor.estimatedBytes : bytes,
         graph: corridor.graph,
         places: corridor.places,
+        seamarks: corridor.seamarks,
       };
       await db.put('trips', trip);
       this.trips.push(trip);

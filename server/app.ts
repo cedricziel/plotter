@@ -26,7 +26,8 @@ import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
 import { HttpError, RateLimiter, clientKey, readBody, readJson, sendJson } from './http';
 import { emitLog, meter, tracer, withSpan, type Relay } from './telemetry';
-import type { PlaceKind, Seamark } from '../src/core/waterway-data';
+import { seamarkRank } from '../src/core/seamarks';
+import type { PlaceKind } from '../src/core/waterway-data';
 import { openChart, type ChartArchive } from './tiles';
 
 export interface ServerOptions {
@@ -71,7 +72,6 @@ const PLACE_RANK: Partial<Record<PlaceKind, number>> = {
   village: 2,
   bridge: 3,
 };
-const seamarkRank = (s: Seamark) => (s.type.startsWith('light_') ? 1 : s.type === 'notice' ? 2 : 0);
 const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024, otel: 256 * 1024 };
 const ROUTES = new Set([
   '/api/health',

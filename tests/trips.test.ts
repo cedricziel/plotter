@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { subgraph } from '../src/core/corridor';
 import { decodeGraph } from '../src/core/routing';
-import { TripRouter, searchTrips, type Trip } from '../src/core/trips';
+import { TripRouter, searchTrips, seamarksFromTrips, type Trip } from '../src/core/trips';
 import { fixture, latlon } from './graph-fixture';
 
 const full = decodeGraph(
@@ -46,6 +46,40 @@ describe('TripRouter', () => {
     expect(router.route([south, north], latlon(500, 0), latlon(500, 30000), {})).toBeNull();
     expect(router.route([south], latlon(500, 0), latlon(500, 15000), {})).toBeNull();
     expect(router.route([], latlon(500, 0), latlon(9500, 0), {})).toBeNull();
+  });
+});
+
+describe('seamarksFromTrips', () => {
+  const buoy = (name: string, x: number, y: number, type = 'buoy_lateral') => ({ ...latlon(x, y), type, name });
+  const withMarks = (t: Trip, seamarks?: Trip['seamarks']): Trip => ({ ...t, seamarks });
+  const box = (w: number, s: number, e: number, n: number) => {
+    const [sw, ne] = [latlon(w, s), latlon(e, n)];
+    return [sw.lon, sw.lat, ne.lon, ne.lat] as [number, number, number, number];
+  };
+
+  it('collects the saved seamarks inside the box, without duplicates', () => {
+    const shared = buoy('gedeeld', 100, 0);
+    const trips = [
+      withMarks(south, [shared, buoy('binnen', 200, 0), buoy('buiten', 9000, 0)]),
+      withMarks(north, [shared, buoy('noord', 200, 30000)]),
+    ];
+    expect(seamarksFromTrips(trips, box(0, -100, 1000, 100), 10).map((s) => s.name)).toEqual(['gedeeld', 'binnen']);
+  });
+
+  it('keeps marks before lights before notices when the limit cuts the list', () => {
+    const trips = [
+      withMarks(south, [
+        buoy('bord', 100, 0, 'notice'),
+        buoy('licht', 200, 0, 'light_minor'),
+        buoy('ton', 300, 0),
+        buoy('baken', 400, 0, 'beacon_lateral'),
+      ]),
+    ];
+    expect(seamarksFromTrips(trips, box(0, -100, 1000, 100), 3).map((s) => s.name)).toEqual(['ton', 'baken', 'licht']);
+  });
+
+  it('skips trips saved before seamarks were stored', () => {
+    expect(seamarksFromTrips([south, north], box(-1000, -1000, 20000, 40000), 10)).toEqual([]);
   });
 });
 

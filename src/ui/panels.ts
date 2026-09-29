@@ -699,7 +699,8 @@ function menuBody(app: App): HTMLElement {
       { value: 'day', label: '☀ Day' },
       { value: 'night', label: '☾ Night' },
     ], (v) => void app.updateSettings({ theme: v })),
-    onOff('OpenSeaMap seamarks (online)', s.seamarks, (v) => void app.updateSettings({ seamarks: v })),
+    onOff('Seamarks', s.seamarks, (v) => void app.updateSettings({ seamarks: v })),
+    onOff('OpenSeaMap overlay (online)', s.openseamap, (v) => void app.updateSettings({ openseamap: v })),
     onOff('Keep screen awake', s.keepAwake, (v) => void app.updateSettings({ keepAwake: v })),
     onOff('Ship heading from compass', s.compass, (v) =>
       void (v ? app.enableCompass() : app.updateSettings({ compass: false })).then(() => refresh(app)),
