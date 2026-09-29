@@ -1,17 +1,18 @@
-import type { Meta, StoryObj } from '@storybook/html-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Place } from '../core/waterway-data';
-import { destinationCard } from '../ui/destination';
-import { h } from '../ui/dom';
+import { DestinationCard } from '../ui/destination';
 import { makeCardApp } from './fakes';
+import { Screen } from './screen';
 
-const card = (place: Place) => () =>
-  h(
-    'div',
-    { id: 'dest-bar' },
-    destinationCard(makeCardApp(), place, async () => {}),
-  );
+const card = (place: Place) => () => (
+  <Screen>
+    <div id="dest-bar">
+      <DestinationCard app={makeCardApp()} place={place} chart={async () => {}} />
+    </div>
+  </Screen>
+);
 
-const meta: Meta = { title: 'Destination card' };
+const meta: Meta<typeof DestinationCard> = { title: 'Destination card', component: DestinationCard };
 export default meta;
 
 type Story = StoryObj;

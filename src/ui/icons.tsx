@@ -1,8 +1,22 @@
 import type { ManeuverType } from '../core/routing';
 import type { PlaceKind } from '../core/waterway-data';
 
-const svg = (paths: string, cls = 'ico') =>
-  `<svg class="${cls}" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths}"/></svg>`;
+const Svg = ({ d, className }: { d: string; className: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d={d} />
+  </svg>
+);
 
 const MANEUVER: Record<ManeuverType, string> = {
   depart: 'M12 4 L18 19 L12 16 L6 19 Z',
@@ -20,9 +34,13 @@ const MANEUVER: Record<ManeuverType, string> = {
   arrive: 'M6 21 V4 M6 5 H18 L15 9 L18 13 H6',
 };
 
-/** Icon for a maneuver, as markup for `innerHTML`. */
-export function maneuverIcon(type: ManeuverType): string {
-  return svg(MANEUVER[type] ?? MANEUVER.continue, 'ico mi');
+/** Icon for a maneuver, in a span of class `className`. */
+export function ManeuverIcon({ type, className }: { type: ManeuverType; className: string }) {
+  return (
+    <span className={className}>
+      <Svg d={MANEUVER[type] ?? MANEUVER.continue} className="ico mi" />
+    </span>
+  );
 }
 
 const KIND: Record<PlaceKind, string> = {
@@ -51,14 +69,11 @@ export const KIND_LABEL: Record<PlaceKind, string> = {
   waypoint: 'Waypoint',
 };
 
-export function kindIcon(kind: PlaceKind): string {
-  return svg(KIND[kind] ?? KIND.waypoint, 'ico ki');
-}
-
-/** An element holding an icon; `h()` sets a string `innerHTML` as an attribute, so this builds it by hand. */
-export function iconEl(markup: string, cls: string): HTMLElement {
-  const el = document.createElement('span');
-  el.className = cls;
-  el.innerHTML = markup;
-  return el;
+/** Icon for a kind of place, in a span of class `className`. */
+export function KindIcon({ kind, className }: { kind: PlaceKind; className: string }) {
+  return (
+    <span className={className}>
+      <Svg d={KIND[kind] ?? KIND.waypoint} className="ico ki" />
+    </span>
+  );
 }

@@ -77,6 +77,8 @@ body {
   position: fixed;
   inset: 0;
 }
+/* React's root takes no box: the screen's parts stay grid items of body. */
+#root { display: contents; }
 #instruments { grid-row: 1; }
 #navstrip { grid-row: 2; }
 #map { grid-row: 3; }
@@ -489,6 +491,8 @@ select {
   max-width: 480px;
 }
 .modal-card h2 { margin-top: 0; }
+/* Decorative, so screen readers announce just the title. */
+.disclaimer .modal-card h2::before { content: '⚠ '; }
 .modal-card p { font-size: 17px; line-height: 1.45; }
 
 #alarm {

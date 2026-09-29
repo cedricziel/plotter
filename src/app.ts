@@ -192,11 +192,15 @@ export class App {
 
   // ---- observers ---------------------------------------------------------
 
-  subscribe(fn: Listener): () => void {
+  /** Bumped on every emit, so views can tell a new state from the last one they drew. */
+  version = 0;
+
+  subscribe = (fn: Listener): (() => void) => {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
-  }
+  };
   emit(): void {
+    this.version++;
     this.listeners.forEach((l) => l());
   }
 

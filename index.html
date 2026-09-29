@@ -12,42 +12,7 @@
     <title>Plotter</title>
   </head>
   <body>
-    <header id="instruments" aria-live="off"></header>
-    <div id="navstrip" hidden></div>
-    <main id="map" aria-label="Chart"></main>
-    <div id="dest-bar" hidden></div>
-
-    <div class="fabs" role="toolbar" aria-label="Map controls">
-      <button id="btn-zoom-in" class="fab" aria-label="Zoom in">+</button>
-      <button id="btn-zoom-out" class="fab" aria-label="Zoom out">−</button>
-      <button id="btn-seamarks" class="fab" aria-label="Toggle seamarks" title="Seamarks">⛯</button>
-      <button id="btn-dest" class="fab" aria-label="Set destination" title="Set destination">⚑+</button>
-      <button id="btn-orient" class="fab" aria-label="Course up" title="Course up (tap for north up)"><span class="needle">▲<small>N</small></span></button>
-      <button id="btn-follow" class="fab" aria-label="Centre on own position">⌖</button>
-    </div>
-
-    <div id="notice" aria-hidden="true">Navigation aid only – not for navigation</div>
-
-    <nav id="toolbar" aria-label="Tools">
-      <button id="btn-route" class="tool"><span class="tool-ico">⚑</span><span>Route</span></button>
-      <button id="btn-track" class="tool"><span class="tool-ico rec-dot">●</span><span>Track</span></button>
-      <button id="btn-anchor" class="tool"><span class="tool-ico">⚓</span><span>Anchor</span></button>
-      <button id="btn-night" class="tool"><span class="tool-ico">☾</span><span>Night</span></button>
-      <button id="btn-menu" class="tool"><span class="tool-ico">☰</span><span>Menu</span></button>
-    </nav>
-
-    <section id="sheet" aria-live="polite"></section>
-
-    <div id="alarm" role="alertdialog" aria-labelledby="alarm-title" hidden>
-      <div class="alarm-card">
-        <h1 id="alarm-title">⚓ ALARM</h1>
-        <p id="alarm-reason"></p>
-        <button id="alarm-silence" class="btn block big">Silence</button>
-        <button id="alarm-disarm" class="btn block">Disarm anchor watch</button>
-      </div>
-    </div>
-
-    <div id="toast" role="status"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
