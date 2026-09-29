@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ApiCorridorResponse, ApiMeta, ApiRouteResponse, ApiSearchResponse } from '../src/core/api';
+import type {
+  ApiCorridorResponse,
+  ApiMeta,
+  ApiPlacesResponse,
+  ApiRouteResponse,
+  ApiSearchResponse,
+} from '../src/core/api';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
 import type { Place } from '../src/core/waterway-data';
 import { startServer, type RunningServer } from '../server/app';
@@ -33,7 +39,14 @@ const graph = fixture(vertices, [
 const at = (x: number, y: number) => ({ ...latlon(x, y) });
 const places: Place[] = [
   { name: 'Hoorn', kind: 'town', ...at(9000, 200) },
-  { name: 'Jachthaven Hoorn', kind: 'marina', ...at(9500, 100) },
+  {
+    name: 'Jachthaven Hoorn',
+    kind: 'marina',
+    ...at(9500, 100),
+    info: { vhf: '31', website: 'https://haven.example/', berths: 80 },
+  },
+  { name: 'Lage brug', kind: 'bridge', ...at(5000, 0), info: { clearance: 3 } },
+  { name: 'Sluis Noord', kind: 'lock', ...at(9200, 50) },
   { name: 'Hoofdvaart', kind: 'waterway', ...at(5000, 0) },
   { name: 'Verweggistan', kind: 'town', ...at(0, 90000) },
 ];
@@ -67,10 +80,10 @@ beforeAll(async () => {
     port: 0,
     pollMs: 0,
     maxTiles: 3000,
-    rateLimits: { search: 1000, route: 1000, corridor: 1000 },
+    rateLimits: { search: 1000, route: 1000, corridor: 1000, places: 1000 },
   });
   bare = await startServer({ dataDir: empty, port: 0, pollMs: 0 });
-  limited = await startServer({ dataDir: dir, port: 0, pollMs: 0, rateLimits: { search: 3 } });
+  limited = await startServer({ dataDir: dir, port: 0, pollMs: 0, rateLimits: { search: 3, places: 2 } });
 });
 
 afterAll(async () => {
@@ -92,7 +105,7 @@ describe('health and meta', () => {
     expect((await get(srv, '/api/health')).status).toBe(200);
     const meta = (await (await get(srv, '/api/meta')).json()) as ApiMeta;
     expect(meta).toMatchObject({ ready: true, built: '2026-01-01T00:00:00Z', source: 'test' });
-    expect(meta.counts).toEqual({ vertices: 5, edges: 5, places: 4 });
+    expect(meta.counts).toEqual({ vertices: 5, edges: 5, places: 6 });
   });
 
   it('stays healthy without data and answers 503 for data endpoints', async () => {
@@ -165,6 +178,54 @@ describe('GET /api/search', () => {
     } finally {
       await trusted.close();
     }
+  });
+});
+
+describe('GET /api/places', () => {
+  const box = '4.99,51.99,5.2,52.01';
+  const list = async (query: string) =>
+    ((await (await get(srv, `/api/places?${query}`)).json()) as ApiPlacesResponse).places;
+
+  it('returns the places inside the bbox, harbours first, without waterways', async () => {
+    expect((await list(`bbox=${box}`)).map((p) => p.name)).toEqual([
+      'Jachthaven Hoorn',
+      'Sluis Noord',
+      'Hoorn',
+      'Lage brug',
+    ]);
+  });
+
+  it('passes the details through and leaves them out when there are none', async () => {
+    const found = await list(`bbox=${box}`);
+    expect(found[0].info).toEqual({ vhf: '31', website: 'https://haven.example/', berths: 80 });
+    expect('info' in found[1]).toBe(false);
+  });
+
+  it('caps the result at limit', async () => {
+    expect((await list(`bbox=${box}&limit=2`)).map((p) => p.name)).toEqual(['Jachthaven Hoorn', 'Sluis Noord']);
+  });
+
+  it('is empty for a bbox without places and clamps to the Netherlands', async () => {
+    expect(await list('bbox=6,52.5,6.1,52.6')).toEqual([]);
+    expect(await list('bbox=0,0,1,1')).toEqual([]);
+    expect(await list('bbox=4.99,49.5,5.2,52.01')).toHaveLength(4);
+  });
+
+  it('rejects a malformed, inverted, outside or oversized bbox and a bad limit', async () => {
+    const status = async (q: string) => (await get(srv, `/api/places?${q}`)).status;
+    expect(await status('')).toBe(400);
+    expect(await status('bbox=1,2,3')).toBe(400);
+    expect(await status('bbox=a,b,c,d')).toBe(400);
+    expect(await status('bbox=5.2,51.99,4.99,52.01')).toBe(400);
+    expect(await status(`bbox=${box}&limit=0`)).toBe(400);
+    expect(await status('bbox=4,51,6,52')).toBe(422);
+    expect(await status('bbox=4,51,5,53')).toBe(422);
+  });
+
+  it('rate limits per client', async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 3; i++) codes.push((await get(limited, `/api/places?bbox=${box}`)).status);
+    expect(codes).toEqual([200, 200, 429]);
   });
 });
 

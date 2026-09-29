@@ -13,6 +13,7 @@ import type {
   ApiCorridorRequest,
   ApiCorridorResponse,
   ApiMeta,
+  ApiPlacesResponse,
   ApiRouteRequest,
   ApiRouteResponse,
   ApiSearchResponse,
@@ -24,6 +25,7 @@ import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
 import { HttpError, RateLimiter, clientKey, readBody, readJson, sendJson } from './http';
 import { emitLog, meter, tracer, withSpan, type Relay } from './telemetry';
+import type { PlaceKind } from '../src/core/waterway-data';
 import { openChart, type ChartArchive } from './tiles';
 
 export interface ServerOptions {
@@ -38,7 +40,7 @@ export interface ServerOptions {
   /** key rate limits on X-Forwarded-For (set when behind a reverse proxy) */
   trustProxy?: boolean;
   /** requests per minute and client */
-  rateLimits?: Partial<Record<'search' | 'route' | 'corridor' | 'otel', number>>;
+  rateLimits?: Partial<Record<keyof typeof LIMITS, number>>;
   /** where /api/otel/* forwards browser telemetry; unset answers 204 and drops it */
   relay?: Relay;
 }
@@ -56,9 +58,20 @@ const AVERAGE_TILE_BYTES = 20_000;
 const MAX_CHART_ZOOM = 15;
 const MAX_CORRIDOR_POINTS = 20_000;
 const MAX_CORRIDOR_METERS = 600_000;
-const LIMITS = { search: 120, route: 30, corridor: 6, otel: 60 };
+const LIMITS = { search: 120, route: 30, corridor: 6, otel: 60, places: 120 };
+const MAX_PLACES_SPAN_DEG = 1.5;
+const PLACE_RANK: Partial<Record<PlaceKind, number>> = {
+  harbour: 0,
+  marina: 0,
+  mooring: 0,
+  lock: 1,
+  city: 2,
+  town: 2,
+  village: 2,
+  bridge: 3,
+};
 const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024, otel: 256 * 1024 };
-const ROUTES = new Set(['/api/health', '/api/meta', '/api/search', '/api/route', '/api/corridor']);
+const ROUTES = new Set(['/api/health', '/api/meta', '/api/search', '/api/route', '/api/corridor', '/api/places']);
 const OTLP_TYPES = ['application/json', 'application/x-protobuf'];
 const REQUEST_SECONDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
@@ -187,6 +200,32 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       span.setAttributes({ 'search.result_count': results.length, 'search.limit': limit, 'search.near': !!near });
       return { results };
     });
+  }
+
+  function places(url: URL): ApiPlacesResponse {
+    const box = (url.searchParams.get('bbox') ?? '').split(',').map(Number);
+    if (box.length !== 4 || !box.every(num))
+      throw new HttpError(400, 'bbox must be "west,south,east,north" in degrees');
+    const [w, s, e, n] = box;
+    if (w >= e || s >= n) throw new HttpError(400, 'bbox must have west < east and south < north');
+    const west = Math.max(w, BBOX.minLon);
+    const east = Math.min(e, BBOX.maxLon);
+    const south = Math.max(s, BBOX.minLat);
+    const north = Math.min(n, BBOX.maxLat);
+    if (east - west > MAX_PLACES_SPAN_DEG || north - south > MAX_PLACES_SPAN_DEG)
+      throw new HttpError(422, `bbox is larger than ${MAX_PLACES_SPAN_DEG} degrees`);
+    let limit = 300;
+    const limitParam = url.searchParams.get('limit');
+    if (limitParam != null) {
+      limit = Number(limitParam);
+      if (!Number.isInteger(limit) || limit < 1) throw new HttpError(400, 'limit must be a positive integer');
+      limit = Math.min(limit, 500);
+    }
+    const found = ready().places.filter(
+      (p) => PLACE_RANK[p.kind] !== undefined && p.lon >= west && p.lon <= east && p.lat >= south && p.lat <= north,
+    );
+    found.sort((a, b) => PLACE_RANK[a.kind]! - PLACE_RANK[b.kind]!);
+    return { places: found.slice(0, limit) };
   }
 
   function route(body: unknown): ApiRouteResponse {
@@ -327,6 +366,10 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         allow('GET');
         guard(req, 'search');
         return sendJson(req, res, 200, search(url));
+      case '/api/places':
+        allow('GET');
+        guard(req, 'places');
+        return sendJson(req, res, 200, places(url));
       case '/api/route':
         allow('POST');
         guard(req, 'route');
