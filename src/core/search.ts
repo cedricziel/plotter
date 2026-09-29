@@ -28,6 +28,7 @@ const KIND_RANK: Record<PlaceKind, number> = {
   city: 1,
   town: 1,
   mooring: 2,
+  waypoint: 2,
   village: 3,
   waterway: 3,
   bridge: 5,

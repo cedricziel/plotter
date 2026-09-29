@@ -16,6 +16,13 @@ export interface Settings {
   pmtilesUrl: string;
   glyphsUrl: string;
   activeRouteId: string | null;
+  /** metres; null = unknown */
+  airDraft: number | null;
+  draft: number | null;
+  beam: number | null;
+  /** m/s, used for ETA while the boat is (nearly) stationary */
+  cruiseSpeed: number;
+  voicePrompts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -30,6 +37,11 @@ export const DEFAULT_SETTINGS: Settings = {
   // Latin glyph ranges are bundled in public/fonts so labels work offline.
   glyphsUrl: import.meta.env.VITE_GLYPHS_URL || './fonts/{fontstack}/{range}.pbf',
   activeRouteId: null,
+  airDraft: null,
+  draft: null,
+  beam: null,
+  cruiseSpeed: 2.5,
+  voicePrompts: false,
 };
 
 export async function loadSettings(): Promise<Settings> {
