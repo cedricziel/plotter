@@ -15,12 +15,16 @@ function buildId(): string {
   }
 }
 
+// The API server runs beside the dev and preview servers; nginx proxies /api in production.
+const apiTarget = process.env.API_PROXY ?? 'http://127.0.0.1:8080';
+
 export default defineConfig({
   // Relative base so the build works from any sub-directory (e.g. /apps/plotter/).
   base: './',
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_ID__: JSON.stringify(buildId()) },
   build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
-  server: { host: true },
+  server: { host: true, proxy: { '/api': apiTarget } },
+  preview: { proxy: { '/api': apiTarget } },
   worker: { format: 'es' },
   plugins: [
     VitePWA({
