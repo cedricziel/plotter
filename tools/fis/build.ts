@@ -13,7 +13,7 @@ export const GEOTYPES = ['bridge', 'opening', 'lock', 'operatingtimes', 'radioca
 export type Geotype = (typeof GEOTYPES)[number];
 
 const PAGE_SIZE = 500;
-const CONCURRENCY = 4;
+export const CONCURRENCY = 4;
 const RETRIES = 3;
 const NOTE_CHARS = 300;
 

@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { DataManifest } from '../../src/core/waterway-data.ts';
 import {
+  CONCURRENCY,
   GEOTYPES,
   buildFis,
   createLimiter,
@@ -62,7 +63,7 @@ if (!manifest?.waterways) {
   process.exit(1);
 }
 
-const limit = createLimiter(4);
+const limit = createLimiter(CONCURRENCY);
 const fetched = await Promise.all(GEOTYPES.map((t) => fetchAll(t, { generation, limit, signal })));
 const raw = Object.fromEntries(GEOTYPES.map((t, i) => [t, fetched[i]])) as FisRaw;
 const file = buildFis(raw, {
