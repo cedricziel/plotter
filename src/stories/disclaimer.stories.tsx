@@ -1,23 +1,24 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Disclaimer } from '../ui/disclaimer';
-import { Screen } from './screen';
+import { Device, type DeviceName } from './device';
 
 const meta: Meta<typeof Disclaimer> = { title: 'Disclaimer', component: Disclaimer };
 export default meta;
 
-export const Modal: StoryObj<typeof Disclaimer> = {
-  render: () => (
-    <Screen>
-      <Disclaimer open />
-    </Screen>
-  ),
-};
+const modal = (device: DeviceName = 'phone-portrait') => (
+  <Device device={device}>
+    <Disclaimer open />
+  </Device>
+);
 
-export const German: StoryObj<typeof Disclaimer> = {
-  globals: { language: 'de' },
-  render: () => (
-    <Screen>
-      <Disclaimer open />
-    </Screen>
-  ),
-};
+type Story = StoryObj<typeof Disclaimer>;
+
+export const Modal: Story = { render: () => modal() };
+
+export const PhoneLandscape: Story = { render: () => modal('phone-landscape') };
+
+export const TabletPortrait: Story = { render: () => modal('tablet-portrait') };
+
+export const TabletLandscape: Story = { render: () => modal('tablet-landscape') };
+
+export const German: Story = { globals: { language: 'de' }, render: () => modal() };
