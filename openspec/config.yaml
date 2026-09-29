@@ -1,0 +1,66 @@
+schema: spec-driven
+
+context: |
+  Plotter is a mobile-first virtual chartplotter PWA for Dutch inland waterways
+  (recreational boating). It is a navigation aid, not certified for navigation.
+
+  Stack: Vite + TypeScript, MapLibre GL, a Protomaps PMTiles basemap, an optional
+  OpenSeaMap overlay, a Workbox service worker, IndexedDB for local data, and a
+  small Node API server (search, routing, offline corridors, places, telemetry
+  relay) behind nginx. Data jobs build routing/place data from OpenStreetMap and
+  Rijkswaterstaat Vaarweginformatie. Deployed with Docker images from GHCR.
+
+  Target platforms are first-class, not afterthoughts:
+  - iPhone and iPad (iOS/iPadOS, current and previous major version), in Safari
+    and as an installed home-screen web app (standalone display mode).
+  - Respect safe-area insets (notch, Dynamic Island, home indicator), the
+    status-bar overlay in standalone mode, portrait and landscape, split view
+    and Stage Manager widths on iPad, and touch-only input.
+  - Desktop and Android browsers must keep working, but iOS behaviour decides
+    trade-offs.
+
+  Quality bar:
+  - Test-driven development: every behaviour change starts with a failing test
+    (Vitest for logic, server and data; Playwright for flows across the app).
+  - UI components are developed and reviewed in Storybook, with a story per
+    component state.
+  - Day and night (red) themes, metric units, large touch targets for use on a
+    moving boat, offline-first, and frugal mobile data use.
+  - Positions and other personal data never leave the device except for the
+    requests the user makes (routing, search); telemetry strips them.
+
+rules:
+  proposal:
+    - State the impact on iPhone and iPad (Safari and home-screen app), or say
+      explicitly that there is none.
+    - Name the tests that will prove the change, written before the code.
+    - Name the Storybook stories that will be added or changed for any UI work.
+  specs:
+    - Write scenarios that can be turned into automated tests.
+    - Cover iPhone and iPad for any requirement that touches layout, input or
+      device APIs (geolocation, wake lock, audio, storage, installation), and the
+      home-screen (standalone) app where behaviour differs.
+    - Cover day and night themes and offline behaviour where they apply.
+  design:
+    - Describe the Storybook stories and their states (day/night, 360 px and
+      390 px iPhone widths, iPad portrait and landscape, empty/loading/error).
+    - Describe the test strategy per layer (unit, server, browser) and which
+      failing tests come first.
+    - Call out safe-area, viewport-height and standalone-mode handling for any
+      layout change.
+  tasks:
+    - Order every implementation task as test first, then code, then refactor.
+    - Each UI task includes adding or updating its Storybook stories.
+    - Include a verification task on iPhone and iPad (Safari and the home-screen
+      app) for any change a user can see or touch.
+
+operations:
+  apply:
+    guidance:
+      - Write the failing test first and show it failing before implementing.
+      - Keep Storybook stories in sync with the components they cover.
+      - Report which checks ran on iPhone/iPad and which still need a device.
+  archive:
+    guidance:
+      - Before archiving, confirm the tests and stories named in the change exist
+        and pass, and that iOS verification was done or explicitly deferred.
