@@ -80,8 +80,13 @@ export interface PlaceInfo {
   openingHours?: string;
   berths?: number;
   operator?: string;
-  /** metres */
+  /** metres, closed */
   clearance?: number;
+  /** metres, widest passage */
+  width?: number;
+  canOpen?: boolean;
+  /** set when the values come from an official source, e.g. 'vaarweginformatie' */
+  source?: string;
 }
 
 export interface Place {
@@ -97,4 +102,7 @@ export interface DataManifest {
   places: string;
   built: string;
   source: string;
+  /** fairway data file, published by its own job */
+  fis?: string;
+  fisGeneration?: number;
 }
