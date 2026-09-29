@@ -12,7 +12,7 @@ The app SHALL offer the languages English and German with the choices Auto, Engl
 
 - With Auto, the app SHALL use German when German comes before English in the device's preferred languages. It SHALL use English otherwise, including when neither is listed.
 - The choice SHALL be saved on the device with the other settings.
-- The choice SHALL apply to the Safari tab and to the installed home-screen app on the same device.
+- iOS keeps separate storage for the Safari tab and the installed home-screen app, so each SHALL remember its own explicit choice. With Auto, both SHALL follow the device language.
 
 #### Scenario: German device
 
@@ -31,8 +31,13 @@ The app SHALL offer the languages English and German with the choices Auto, Engl
 
 #### Scenario: Explicit choice survives a reload
 
-- **WHEN** the user picks Deutsch on an English device and reloads the app or reopens it from the home screen
-- **THEN** the app is still shown in German
+- **WHEN** the user picks Deutsch in the home-screen app on an English device, then closes and reopens it from the home screen
+- **THEN** the home-screen app is still shown in German
+
+#### Scenario: Safari and home-screen app choose separately
+
+- **WHEN** the user picks Deutsch in the home-screen app on an English device, then opens the app in a Safari tab where Auto is still set
+- **THEN** the Safari tab is shown in English and the home-screen app stays German
 
 ### Requirement: Switching without reload
 

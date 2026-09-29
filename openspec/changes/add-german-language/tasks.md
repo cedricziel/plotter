@@ -12,7 +12,7 @@
 
 ## 3. Maneuvers and voice
 
-- [ ] 3.1 **Maneuver fields (test first).** Extend `tests/routing.test.ts` (and `tests/server.test.ts` for the API response) so maneuvers carry `name`, and `stop` for via points, while `text` stays byte-identical to today. Implement it in `src/core/routing.ts`. Verify: the routing and server tests pass.
+- [ ] 3.1 **Maneuver fields (test first).** Extend `tests/routing.test.ts` (and `tests/server.test.ts` for the API response) so every maneuver carries a `name` field (`null` when unnamed), and `stop` for via points, while `text` stays byte-identical to today. Implement it in `src/core/routing.ts`. Verify: the routing and server tests pass.
 - [ ] 3.2 **Maneuver texts (test first).** Write `tests/maneuver-text.test.ts` covering every `ManeuverType` in both languages:
   - turn into a name
   - continue on a name
@@ -20,7 +20,7 @@
   - opening and fixed bridge with clearance "5,4 m" in German
   - via stop number
   - arrive with and without a destination
-  - the fallback to `text` when `name` is undefined
+  - the fallback to `text` only when the `name` field is absent, and translation (not fallback) for `name: null`
 
   Implement `src/i18n/maneuvers.ts`. Verify: the tests pass.
 

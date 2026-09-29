@@ -65,7 +65,7 @@ Plotter is built for Dutch inland waterways, and many of the recreational boater
     - German and English texts for every maneuver type
     - the fallback to `text` when `name` is missing
   - `tests/course.test.ts`: German `Announcer` prompts.
-  - `tests/routing.test.ts`: maneuvers carry `name`.
+  - `tests/routing.test.ts`: every maneuver carries a `name` field (`null` when unnamed).
   - `tests/language-switch.test.ts` (happy-dom): changing the setting relabels the toolbar, notice and an open sheet without a reload, and sets `<html lang>`.
   - `tests/stories.test.ts`: renders every story in both languages.
 - **Storybook**:

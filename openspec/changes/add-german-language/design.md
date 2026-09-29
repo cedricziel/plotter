@@ -73,11 +73,11 @@
 ### 4. Maneuver text built on the client from structured fields
 
 - **Routing API**: `Maneuver` gains two optional fields:
-  - `name?: string | null`: the waterway, lock, bridge or destination name
+  - `name?: string | null`: the waterway, lock, bridge or destination name. The server always sets it on every maneuver, using `null` when there is no name, so the field's presence marks a structured maneuver.
   - `stop?: number`: the via-stop number
 - **Server**: `routing.ts` keeps producing the English `text` exactly as today. The lock-pair merge and older clients depend on it, so the API change is additive.
 - **Client**: `maneuverText(m)` in `src/i18n/maneuvers.ts` builds the text from `type`, `name`, `stop` and `clearance` with `t(...)`.
-  - It falls back to `m.text` when `name` is `undefined`. That covers cached courses from before the change and older servers.
+  - It falls back to `m.text` only when the `name` field is absent (`!('name' in m)`). That covers cached courses from before the change and older servers. A structured maneuver with `name: null` is still translated: an unnamed lock, a fixed bridge with only a clearance, a via stop with its number.
   - It is used by the strip, the route sheet and voice prompts.
   - A maneuver saved as a waypoint keeps the name produced at save time, in the current language.
 - **Alternative considered**: translating on the server with an `Accept-Language` header. Rejected for three reasons:
