@@ -33,7 +33,12 @@ async function main() {
     blocked: isPlacing,
     onPick: (seamark) => showCard(app, seamarkCard(seamark, app.settings.theme, closeDestination)),
   });
-  app.subscribe(() => void seamarks.refresh());
+  let seamarksOn = app.settings.seamarks;
+  app.subscribe(() => {
+    if (app.settings.seamarks === seamarksOn) return;
+    seamarksOn = app.settings.seamarks;
+    if (seamarksOn) void seamarks.refresh();
+  });
 
   const renderInstruments = mountInstruments(app);
 
