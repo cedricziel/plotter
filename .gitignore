@@ -6,3 +6,4 @@ dev-dist/
 # PMTiles extracts are large; build them locally (see README)
 public/tiles/*.pmtiles
 server-dist/
+storybook-static/

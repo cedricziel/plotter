@@ -14,9 +14,28 @@ function steerCue(steer: number | null, sog: number | null | undefined): HTMLEle
   return h('span', { class: `nav-steer${deg > 20 ? ' far' : ''}` }, steer < 0 ? `◀ ${deg}°` : `${deg}° ▶`);
 }
 
+export type InstrumentsApp = Pick<
+  App,
+  | 'fix'
+  | 'gpsStatus'
+  | 'settings'
+  | 'progress'
+  | 'activeRoute'
+  | 'offCourse'
+  | 'recalculating'
+  | 'routePoints'
+  | 'nextManeuver'
+  | 'updateSettings'
+  | 'stopNavigation'
+  | 'recalculate'
+>;
+
 /** Top instrument bar + navigation strip. Built once, updated in place. */
-export function mountInstruments(app: App): () => void {
-  const bar = $('#instruments');
+export function mountInstruments(
+  app: InstrumentsApp,
+  bar: HTMLElement = $('#instruments'),
+  nav: HTMLElement = $('#navstrip'),
+): () => void {
   const tile = (key: string, label: string, extra: Record<string, unknown> = {}) =>
     h(
       'div',
@@ -52,8 +71,6 @@ export function mountInstruments(app: App): () => void {
   const unit = (key: string, v: string) => {
     bar.querySelector(`[data-unit="${key}"]`)!.textContent = v ? ` ${v}` : '';
   };
-
-  const nav = $('#navstrip');
 
   return () => {
     const f = app.fix;

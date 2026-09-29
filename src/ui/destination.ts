@@ -145,6 +145,81 @@ export async function chartAndShow(app: App, to: Place | { lat: number; lon: num
   );
 }
 
+export type DestinationCardApp = Pick<App, 'fix' | 'settings' | 'goStraight' | 'addWaypoint' | 'addStop'>;
+
+/** The destination card: place details and the actions for it. `chart` runs after the card has closed. */
+export function destinationCard(app: DestinationCardApp, place: Place, chart: () => Promise<void>): HTMLElement {
+  const f = app.fix;
+  const du = app.settings.distanceUnit;
+  const sub = [
+    bridgeLabel(place.info) ?? KIND_LABEL[place.kind],
+    f ? `${formatDistance(distance(f, place), du)} · ${formatBearing(bearing(f, place))}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const chartBtn = h(
+    'button',
+    {
+      class: 'btn primary block big',
+      onclick: async () => {
+        chartBtn.disabled = true;
+        chartBtn.textContent = 'Charting…';
+        closeDestination();
+        await chart();
+      },
+    },
+    'Chart course',
+  );
+  return h(
+    'div',
+    { class: 'dest-card' },
+    h(
+      'div',
+      { class: 'dest-title' },
+      iconEl(kindIcon(place.kind), 'result-ico'),
+      h('span', { class: 'result-text' }, h('b', null, place.name), h('small', null, sub)),
+    ),
+    infoRows(place.info),
+    chartBtn,
+    h(
+      'div',
+      { class: 'row' },
+      h(
+        'button',
+        {
+          class: 'btn grow big',
+          onclick: async () => {
+            closeDestination();
+            await app.goStraight({ ...place });
+          },
+        },
+        'Go straight here',
+      ),
+      h(
+        'button',
+        {
+          class: 'btn grow big',
+          onclick: async () => {
+            closeDestination();
+            const w = await app.addWaypoint(place, false, place.name);
+            toast(`Added to ${(await app.addStop(w.id)).name}`);
+          },
+        },
+        'Add as stop',
+      ),
+      h(
+        'button',
+        {
+          class: 'btn big',
+          'aria-label': 'Close',
+          onclick: closeDestination,
+        },
+        '✕',
+      ),
+    ),
+  );
+}
+
 /** Fly to a search result and offer to chart a course, go straight there or add it as a stop. */
 export function showDestinationCard(app: App, place: Place): void {
   closeSheet();
@@ -163,78 +238,8 @@ export function showDestinationCard(app: App, place: Place): void {
     duration: 900,
   });
 
-  const f = app.fix;
-  const du = app.settings.distanceUnit;
-  const sub = [
-    bridgeLabel(place.info) ?? KIND_LABEL[place.kind],
-    f ? `${formatDistance(distance(f, place), du)} · ${formatBearing(bearing(f, place))}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const chartBtn = h(
-    'button',
-    {
-      class: 'btn primary block big',
-      onclick: async () => {
-        chartBtn.disabled = true;
-        chartBtn.textContent = 'Charting…';
-        closeDestination();
-        await chartAndShow(app, place);
-      },
-    },
-    'Chart course',
-  );
   const bar = $('#dest-bar');
-  bar.replaceChildren(
-    h(
-      'div',
-      { class: 'dest-card' },
-      h(
-        'div',
-        { class: 'dest-title' },
-        iconEl(kindIcon(place.kind), 'result-ico'),
-        h('span', { class: 'result-text' }, h('b', null, place.name), h('small', null, sub)),
-      ),
-      infoRows(place.info),
-      chartBtn,
-      h(
-        'div',
-        { class: 'row' },
-        h(
-          'button',
-          {
-            class: 'btn grow big',
-            onclick: async () => {
-              closeDestination();
-              await app.goStraight({ ...place });
-            },
-          },
-          'Go straight here',
-        ),
-        h(
-          'button',
-          {
-            class: 'btn grow big',
-            onclick: async () => {
-              closeDestination();
-              const w = await app.addWaypoint(place, false, place.name);
-              toast(`Added to ${(await app.addStop(w.id)).name}`);
-            },
-          },
-          'Add as stop',
-        ),
-        h(
-          'button',
-          {
-            class: 'btn big',
-            'aria-label': 'Close',
-            onclick: closeDestination,
-          },
-          '✕',
-        ),
-      ),
-    ),
-  );
+  bar.replaceChildren(destinationCard(app, place, () => chartAndShow(app, place)));
   bar.hidden = false;
   wire(app);
 }
