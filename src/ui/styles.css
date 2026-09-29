@@ -150,6 +150,12 @@ button {
 #instruments.stale .inst-sog .inst-value,
 #instruments.stale .inst-cog .inst-value { opacity: 0.45; }
 
+/* A 360 px phone: the position's two lines and the SOG and COG readings only fit side by side when a bit smaller. */
+@container plotter (max-width: 380px) {
+  .inst { padding-inline: 8px; }
+  .inst-pos .inst-value { font-size: 17px; }
+}
+
 @container plotter (min-width: 720px) {
   #instruments {
     grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr;
@@ -479,6 +485,12 @@ select {
 .leg-name { font-size: 17px; font-weight: 700; }
 .leg-eta { font-variant-numeric: tabular-nums; font-weight: 700; }
 .leg-actions { display: flex; }
+.leg-actions .icon-btn { min-width: 44px; min-height: 44px; }
+/* On a narrow phone the three action buttons move under the waypoint name, so the name keeps its width. */
+@container plotter (max-width: 380px) {
+  .leg { grid-template-columns: 28px minmax(0, 1fr) auto; }
+  .leg-actions { grid-column: 2 / -1; justify-content: flex-end; }
+}
 
 /* ---- modal / alarm / toast ------------------------------------------------ */
 .modal {
