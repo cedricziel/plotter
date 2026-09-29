@@ -59,6 +59,15 @@ describe('MotionEstimator', () => {
     expect(angleDiff(out.cog!, 0)).toBeLessThan(10);
   });
 
+  it('judges the fit by the worst fix in it, not just the newest', () => {
+    // Drifting north at 0.3 m/s, older fixes scatter ±30 m; the newest claims ±3 m.
+    const m = new MotionEstimator();
+    let out = m.update(fix(0, 0, 0, { accuracy: 30 }));
+    for (let t = 1; t <= 9; t++) out = m.update(fix(t, t % 2 ? 30 : -30, 0.3 * t, { accuracy: 30 }));
+    out = m.update(fix(10, 0, 3, { accuracy: 3 }));
+    expect(out.cog).toBeNull();
+  });
+
   it('keeps the last course while stopped', () => {
     const m = new MotionEstimator();
     m.update(fix(0, 0, 0, { speed: 2, heading: 45 }));
