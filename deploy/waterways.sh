@@ -1,6 +1,6 @@
 #!/bin/sh
 # One-shot job: build the waterway routing graph and place index from OpenStreetMap.
-# Downloads the Netherlands extract (~1.3 GB), keeps only the objects the
+# Downloads the Netherlands extract (~1.6 GB), keeps only the objects the
 # router needs, builds waterways-<date>.json + places-<date>.json and publishes
 # them by writing current.json last. The API server hot-swaps to the new data.
 # Skipped while current.json is younger than MAX_AGE_DAYS, unless FORCE=1.
