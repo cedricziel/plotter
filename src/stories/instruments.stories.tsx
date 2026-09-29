@@ -24,6 +24,12 @@ export const Denied: Story = {
   render: () => instruments({ status: 'denied', fix: null })(),
 };
 
+export const PhoneSmall: Story = { render: () => instruments({})('phone-small') };
+
+export const PhoneSmallStale: Story = {
+  render: () => instruments({ fix: makeFix({ time: Date.now() - 60_000 }) })('phone-small'),
+};
+
 export const PhoneLandscape: Story = { render: () => instruments({})('phone-landscape') };
 
 export const TabletPortrait: Story = { render: () => instruments({})('tablet-portrait') };

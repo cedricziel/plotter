@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export const DEVICES = {
   'phone-portrait': [390, 844],
+  'phone-small': [360, 740],
   'phone-landscape': [844, 390],
   'tablet-portrait': [820, 1180],
   'tablet-landscape': [1180, 820],
