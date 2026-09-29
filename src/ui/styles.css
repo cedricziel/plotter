@@ -165,6 +165,7 @@ button {
 #navstrip small { white-space: nowrap; font-size: 11px; font-weight: 700; color: var(--fg-dim); letter-spacing: 0.04em; }
 .nav-top { display: flex; align-items: center; gap: 10px; }
 .nav-to { flex: 1; min-width: 0; font-size: 24px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-wait { padding: 4px 0 2px; font-size: 15px; font-weight: 600; opacity: 0.85; }
 .nav-steer { font-size: 26px; font-weight: 800; white-space: nowrap; color: var(--warn); }
 .nav-steer.on { color: var(--ok); font-size: 20px; }
 .nav-steer.far { color: var(--danger); }

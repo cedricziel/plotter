@@ -703,7 +703,12 @@ export class App {
   async chartCourse(dest: CourseDestination, opts: { via?: LatLon[]; keep?: boolean } = {}): Promise<boolean> {
     const f = this.fix;
     if (!f) {
-      toast('Waiting for a GPS fix before a course can be charted');
+      toast(
+        this.gpsStatus === 'denied'
+          ? 'Location is blocked. Allow it for this site to chart a course.'
+          : 'Waiting for a GPS fix before a course can be charted',
+        6000,
+      );
       return false;
     }
     const from = { lat: f.lat, lon: f.lon };
