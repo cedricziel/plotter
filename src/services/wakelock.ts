@@ -4,7 +4,9 @@
  */
 export class WakeLock {
   private sentinel: WakeLockSentinel | null = null;
+  private pending: Promise<boolean> | null = null;
   private wanted = false;
+  private reported = false;
   onChange: (active: boolean) => void = () => {};
 
   constructor() {
@@ -30,19 +32,34 @@ export class WakeLock {
     this.wanted = false;
     await this.sentinel?.release();
     this.sentinel = null;
-    this.onChange(false);
+    this.report();
   }
 
-  private async acquire(): Promise<boolean> {
-    if (!this.supported || this.active) return this.active;
+  private acquire(): Promise<boolean> {
+    if (!this.supported || this.active) return Promise.resolve(this.active);
+    this.pending ??= this.request().finally(() => (this.pending = null));
+    return this.pending;
+  }
+
+  private async request(): Promise<boolean> {
     try {
-      this.sentinel = await navigator.wakeLock.request('screen');
-      this.sentinel.addEventListener('release', () => this.onChange(false));
-      this.onChange(true);
-      return true;
+      const sentinel = await navigator.wakeLock.request('screen');
+      if (this.wanted) {
+        this.sentinel = sentinel;
+        sentinel.addEventListener('release', () => this.report());
+      } else {
+        await sentinel.release();
+      }
     } catch {
-      this.onChange(false);
-      return false;
+      /* refused, e.g. no user gesture yet */
     }
+    this.report();
+    return this.active;
+  }
+
+  private report(): void {
+    if (this.active === this.reported) return;
+    this.reported = this.active;
+    this.onChange(this.reported);
   }
 }
