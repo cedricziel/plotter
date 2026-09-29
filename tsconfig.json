@@ -12,7 +12,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "noEmit": true,
-    "types": ["vite/client", "geojson"]
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client", "geojson", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "tools", "vite.config.ts", "vitest.config.ts"]
 }
