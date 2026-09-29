@@ -166,10 +166,12 @@ export class App {
     this.nextIndex = (await db.getKv<number>('nextIndex').catch(() => 0)) ?? 0;
 
     // Audio contexts and wake locks need a user gesture on some browsers.
+    // Stays silent once the lock is held: re-rendering on every tap makes iOS drop the click.
     onUserActivation(document, () => {
       if (this.anchor?.armed) this.alarm.prime();
-      void this.updateWakeLock();
+      if (this.wantsWakeLock && !this.wakeLock.active) void this.wakeLock.enable();
     });
+    this.wakeLock.onChange = () => this.emit();
 
     this.applyTheme();
     this.renderWaypointMarkers();
