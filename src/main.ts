@@ -2,7 +2,8 @@ import './telemetry';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './ui/styles.css';
 import { App } from './app';
-import { startPlacement, showTipOnce } from './ui/destination';
+import { mountPlaces } from './map/places';
+import { isPlacing, showDestinationCard, showTipOnce, startPlacement } from './ui/destination';
 import { showDisclaimerOnce } from './ui/disclaimer';
 import { $, toast } from './ui/dom';
 import { mountInstruments } from './ui/instruments';
@@ -16,6 +17,12 @@ async function main() {
   const app = new App();
   app.onWaypointTap = (id) => openWaypoint(app, id);
   await app.init($('#map'));
+
+  mountPlaces(app.map, {
+    trips: () => app.trips,
+    blocked: isPlacing,
+    onPick: (place) => showDestinationCard(app, place),
+  });
 
   const renderInstruments = mountInstruments(app);
 

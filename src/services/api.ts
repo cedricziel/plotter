@@ -2,10 +2,12 @@ import type {
   ApiCorridorRequest,
   ApiCorridorResponse,
   ApiMeta,
+  ApiPlacesResponse,
   ApiRouteRequest,
   ApiRouteResponse,
   ApiSearchResult,
 } from '../core/api';
+import type { Place } from '../core/waterway-data';
 import { absUrl } from '../settings';
 
 /** `unavailable`: the service could not be reached or has no data yet; `rejected`: it answered and said no. */
@@ -58,6 +60,10 @@ export const api = {
     const params = new URLSearchParams({ q, limit: '12' });
     if (near) params.set('near', `${near.lat.toFixed(5)},${near.lon.toFixed(5)}`);
     return (await call<{ results: ApiSearchResult[] }>(`/search?${params}`, { signal })).results;
+  },
+  async places(bbox: [number, number, number, number], limit: number, signal?: AbortSignal): Promise<Place[]> {
+    const params = new URLSearchParams({ bbox: bbox.map((v) => v.toFixed(4)).join(','), limit: String(limit) });
+    return (await call<ApiPlacesResponse>(`/places?${params}`, { signal })).places;
   },
   route: (req: ApiRouteRequest, signal?: AbortSignal) => call<ApiRouteResponse>('/route', json(req, signal)),
   corridor: (req: ApiCorridorRequest, signal?: AbortSignal) => call<ApiCorridorResponse>('/corridor', json(req, signal)),
