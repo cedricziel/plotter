@@ -17,15 +17,16 @@ import type {
   ApiRouteRequest,
   ApiRouteResponse,
   ApiSearchResponse,
+  ApiSeamarksResponse,
 } from '../src/core/api';
-import { CorridorTooLarge, corridorTiles, placesInCorridor, subgraph } from '../src/core/corridor';
+import { CorridorTooLarge, corridorTiles, pointsInCorridor, subgraph } from '../src/core/corridor';
 import { distance } from '../src/core/geo';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
 import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
 import { HttpError, RateLimiter, clientKey, readBody, readJson, sendJson } from './http';
 import { emitLog, meter, tracer, withSpan, type Relay } from './telemetry';
-import type { PlaceKind } from '../src/core/waterway-data';
+import type { PlaceKind, Seamark } from '../src/core/waterway-data';
 import { openChart, type ChartArchive } from './tiles';
 
 export interface ServerOptions {
@@ -58,8 +59,8 @@ const AVERAGE_TILE_BYTES = 20_000;
 const MAX_CHART_ZOOM = 15;
 const MAX_CORRIDOR_POINTS = 20_000;
 const MAX_CORRIDOR_METERS = 600_000;
-const LIMITS = { search: 120, route: 30, corridor: 6, otel: 60, places: 120 };
-const MAX_PLACES_SPAN_DEG = 1.5;
+const LIMITS = { search: 120, route: 30, corridor: 6, otel: 60, places: 120, seamarks: 120 };
+const MAX_BBOX_SPAN_DEG = 1.5;
 const PLACE_RANK: Partial<Record<PlaceKind, number>> = {
   harbour: 0,
   marina: 0,
@@ -70,8 +71,17 @@ const PLACE_RANK: Partial<Record<PlaceKind, number>> = {
   village: 2,
   bridge: 3,
 };
+const seamarkRank = (s: Seamark) => (s.type.startsWith('light_') ? 1 : s.type === 'notice' ? 2 : 0);
 const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024, otel: 256 * 1024 };
-const ROUTES = new Set(['/api/health', '/api/meta', '/api/search', '/api/route', '/api/corridor', '/api/places']);
+const ROUTES = new Set([
+  '/api/health',
+  '/api/meta',
+  '/api/search',
+  '/api/route',
+  '/api/corridor',
+  '/api/places',
+  '/api/seamarks',
+]);
 const OTLP_TYPES = ['application/json', 'application/x-protobuf'];
 const REQUEST_SECONDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
@@ -170,7 +180,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       ready: true,
       built: s.manifest.built,
       source: s.manifest.source,
-      counts: { vertices: s.vertices, edges: s.edges, places: s.places.length },
+      counts: { vertices: s.vertices, edges: s.edges, places: s.places.length, seamarks: s.seamarks.length },
       ...(s.fis
         ? {
             fis: {
@@ -214,7 +224,8 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     });
   }
 
-  function places(url: URL): ApiPlacesResponse {
+  /** The `bbox` and `limit` query of the map endpoints, with the box clamped to the Netherlands. */
+  function mapQuery(url: URL, defaultLimit: number, maxLimit: number) {
     const box = (url.searchParams.get('bbox') ?? '').split(',').map(Number);
     if (box.length !== 4 || !box.every(num))
       throw new HttpError(400, 'bbox must be "west,south,east,north" in degrees');
@@ -224,20 +235,32 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     const east = Math.min(e, BBOX.maxLon);
     const south = Math.max(s, BBOX.minLat);
     const north = Math.min(n, BBOX.maxLat);
-    if (east - west > MAX_PLACES_SPAN_DEG || north - south > MAX_PLACES_SPAN_DEG)
-      throw new HttpError(422, `bbox is larger than ${MAX_PLACES_SPAN_DEG} degrees`);
-    let limit = 300;
+    if (east - west > MAX_BBOX_SPAN_DEG || north - south > MAX_BBOX_SPAN_DEG)
+      throw new HttpError(422, `bbox is larger than ${MAX_BBOX_SPAN_DEG} degrees`);
+    let limit = defaultLimit;
     const limitParam = url.searchParams.get('limit');
     if (limitParam != null) {
       limit = Number(limitParam);
       if (!Number.isInteger(limit) || limit < 1) throw new HttpError(400, 'limit must be a positive integer');
-      limit = Math.min(limit, 500);
+      limit = Math.min(limit, maxLimit);
     }
-    const found = ready().mapPlaces.filter(
-      (p) => PLACE_RANK[p.kind] !== undefined && p.lon >= west && p.lon <= east && p.lat >= south && p.lat <= north,
-    );
+    const within = (p: { lat: number; lon: number }) =>
+      p.lon >= west && p.lon <= east && p.lat >= south && p.lat <= north;
+    return { within, limit };
+  }
+
+  function places(url: URL): ApiPlacesResponse {
+    const { within, limit } = mapQuery(url, 300, 500);
+    const found = ready().mapPlaces.filter((p) => PLACE_RANK[p.kind] !== undefined && within(p));
     found.sort((a, b) => PLACE_RANK[a.kind]! - PLACE_RANK[b.kind]!);
     return { places: found.slice(0, limit) };
+  }
+
+  function seamarks(url: URL): ApiSeamarksResponse {
+    const { within, limit } = mapQuery(url, 600, 1500);
+    const found = ready().seamarks.filter(within);
+    found.sort((a, b) => seamarkRank(a) - seamarkRank(b));
+    return { seamarks: found.slice(0, limit) };
   }
 
   function route(body: unknown): ApiRouteResponse {
@@ -332,7 +355,8 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       estimatedBytes,
       estimate,
       graph: subgraph(s.graph, shape, buffer, { built: s.manifest.built, source: s.manifest.source }),
-      places: placesInCorridor(s.mapPlaces, shape, buffer),
+      places: pointsInCorridor(s.mapPlaces, shape, buffer),
+      seamarks: pointsInCorridor(s.seamarks, shape, buffer),
     };
   }
 
@@ -382,6 +406,10 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         allow('GET');
         guard(req, 'places');
         return sendJson(req, res, 200, places(url));
+      case '/api/seamarks':
+        allow('GET');
+        guard(req, 'seamarks');
+        return sendJson(req, res, 200, seamarks(url));
       case '/api/route':
         allow('POST');
         guard(req, 'route');
@@ -399,6 +427,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
               'corridor.tile_count': built.tileCount,
               'corridor.edge_count': built.graph.edges.length,
               'corridor.place_count': built.places.length,
+              'corridor.seamark_count': built.seamarks.length,
             });
             return built;
           }),

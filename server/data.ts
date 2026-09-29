@@ -4,7 +4,13 @@ import { emitLog } from './telemetry';
 import { FIS_FORMAT_VERSION, mergeFisIntoGraph, mergeFisPlaces, type FisFile } from '../src/core/fis';
 import { PlaceIndex } from '../src/core/search';
 import { decodeGraph, type Graph } from '../src/core/routing';
-import { FORMAT_VERSION, type DataManifest, type Place, type WaterwayFile } from '../src/core/waterway-data';
+import {
+  FORMAT_VERSION,
+  type DataManifest,
+  type Place,
+  type Seamark,
+  type WaterwayFile,
+} from '../src/core/waterway-data';
 
 export interface DataState {
   key: string;
@@ -14,6 +20,7 @@ export interface DataState {
   places: Place[];
   /** places plus the official bridges, locks and berths; what the map and offline packs show */
   mapPlaces: Place[];
+  seamarks: Seamark[];
   index: PlaceIndex;
   edges: number;
   vertices: number;
@@ -65,6 +72,21 @@ export class DataStore {
     }
   }
 
+  /** Seamarks are an addition too: manifests from before they existed, or a broken file, leave the list empty. */
+  private async loadSeamarks(manifest: DataManifest): Promise<Seamark[]> {
+    if (!manifest.seamarks) return [];
+    try {
+      const list = JSON.parse(await readFile(join(this.dir, basename(manifest.seamarks)), 'utf8')) as Seamark[];
+      if (!Array.isArray(list)) throw new Error('seamarks file is not a list');
+      return list;
+    } catch (e) {
+      const message = `seamarks ignored: ${(e as Error).message}`;
+      console.error(message);
+      emitLog('ERROR', message);
+      return [];
+    }
+  }
+
   private async load(): Promise<boolean> {
     let manifest: DataManifest;
     try {
@@ -72,7 +94,7 @@ export class DataStore {
     } catch {
       return false;
     }
-    const key = `${manifest.waterways}|${manifest.places}|${manifest.built}|${manifest.fis ?? ''}`;
+    const key = `${manifest.waterways}|${manifest.places}|${manifest.built}|${manifest.fis ?? ''}|${manifest.seamarks ?? ''}`;
     if (this.state?.key === key) return false;
     try {
       const file = JSON.parse(await readFile(join(this.dir, basename(manifest.waterways)), 'utf8')) as WaterwayFile;
@@ -83,6 +105,7 @@ export class DataStore {
       if (!Array.isArray(places)) throw new Error('places file is not a list');
       const graph = decodeGraph(file);
       const fis = await this.loadFis(manifest);
+      const seamarks = await this.loadSeamarks(manifest);
       const merge = fis ? mergeFisIntoGraph(graph, fis) : null;
       this.state = {
         key,
@@ -90,6 +113,7 @@ export class DataStore {
         graph,
         places,
         mapPlaces: fis ? mergeFisPlaces(places, fis) : places,
+        seamarks,
         index: new PlaceIndex(places),
         edges: file.edges.length,
         vertices: file.vertices.length / 2,

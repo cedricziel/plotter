@@ -3,7 +3,7 @@ import {
   CorridorTooLarge,
   corridorTiles,
   lonLatToTile,
-  placesInCorridor,
+  pointsInCorridor,
   subgraph,
   tileSizeMeters,
 } from '../src/core/corridor';
@@ -118,7 +118,7 @@ describe('subgraph', () => {
   });
 });
 
-describe('placesInCorridor', () => {
+describe('pointsInCorridor', () => {
   it('selects places within the buffer of the polyline', () => {
     const shape = line([4.9, 52.38], 10);
     const near = destination({ lat: 52.38, lon: 4.9 }, 0, 500);
@@ -127,6 +127,6 @@ describe('placesInCorridor', () => {
       { name: 'Dichtbij', kind: 'marina' as const, lat: near.lat, lon: near.lon },
       { name: 'Ver', kind: 'marina' as const, lat: far.lat, lon: far.lon },
     ];
-    expect(placesInCorridor(places, shape, 1000).map((p) => p.name)).toEqual(['Dichtbij']);
+    expect(pointsInCorridor(places, shape, 1000).map((p) => p.name)).toEqual(['Dichtbij']);
   });
 });
