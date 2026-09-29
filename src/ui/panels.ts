@@ -373,7 +373,7 @@ function dimensionField(app: App, label: string, key: 'airDraft' | 'draft' | 'be
         input.value = value == null ? '' : String(value);
         return;
       }
-      void app.updateSettings({ [key]: n || null });
+      void app.updateSettings({ [key]: n });
     },
   });
   return h('div', { class: 'field' }, h('label', { class: 'field-label' }, label), input);

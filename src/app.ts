@@ -559,7 +559,7 @@ export class App {
     const active = this.activeRoute;
     const stop = this.waypoints.get(id);
     if (active?.shape && active.dest && stop) {
-      await this.chartCourse({ name: stop.name, lat: stop.lat, lon: stop.lon }, { via: [active.dest] });
+      await this.chartCourse(active.dest, { via: [{ lat: stop.lat, lon: stop.lon }] });
       return this.activeRoute ?? active;
     }
     const r = active ?? (await this.createRoute());
@@ -873,7 +873,7 @@ export class App {
       this.trips.push(trip);
       route.tripId = trip.id;
       await this.saveRoute(route);
-      toast(`Saved for offline: ${trip.name}, ${(bytes / 1e6).toFixed(1)} MB`);
+      toast(`Saved for offline: ${trip.name}, ${(trip.bytes / 1e6).toFixed(1)} MB`);
     } catch (e) {
       if ((e as Error).name === 'AbortError') toast('Offline save cancelled');
       else toast(`Offline save failed: ${(e as Error).message}`, 6000);
@@ -887,7 +887,11 @@ export class App {
     await db.remove('trips', id);
     this.trips = this.trips.filter((t) => t.id !== id);
     this.tripRouter.forget(id);
-    for (const r of this.routes.values()) if (r.tripId === id) delete r.tripId;
+    for (const r of this.routes.values()) {
+      if (r.tripId !== id) continue;
+      delete r.tripId;
+      await db.put('routes', r);
+    }
     this.emit();
   }
 
