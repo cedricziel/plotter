@@ -1,4 +1,5 @@
-import { h } from './dom';
+import type { SyntheticEvent } from 'react';
+import { createStore, useStore } from './store';
 
 const KEY = 'plotter.disclaimer.ack';
 const ACK_MS = 12 * 60 * 60 * 1000;
@@ -19,42 +20,48 @@ function acked(): boolean {
   }
 }
 
+export const disclaimerState = createStore<'hidden' | 'open' | 'closing'>('hidden');
+
 /** Modal shown at most every 12 hours, plus a permanent footer notice. */
 export function showDisclaimerOnce(force = false): void {
   if (!force && acked()) return;
-  document.querySelector('.modal.disclaimer')?.remove();
+  disclaimerState.set('open');
+}
 
-  const dismiss = (e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dlg.classList.contains('closing')) return dlg.remove();
-    try {
-      localStorage.setItem(KEY, String(Date.now()));
-    } catch {
-      /* ignore */
-    }
-    // Keep the invisible modal for a moment so the click that follows a pointerup cannot reach the chart.
-    dlg.classList.add('closing');
-    setTimeout(() => dlg.remove(), 500);
-  };
+function dismiss(e: SyntheticEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (disclaimerState.get() === 'closing') return disclaimerState.set('hidden');
+  try {
+    localStorage.setItem(KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+  // Keep the invisible modal for a moment so the click that follows a pointerup cannot reach the chart.
+  disclaimerState.set('closing');
+  setTimeout(() => {
+    if (disclaimerState.get() === 'closing') disclaimerState.set('hidden');
+  }, 500);
+}
+
+export function Disclaimer() {
+  const state = useStore(disclaimerState);
+  if (state === 'hidden') return null;
   // Dismiss on pointerup anywhere on the modal: a click can be lost on iOS while the map is busy.
-  const dlg = h(
-    'div',
-    {
-      class: 'modal disclaimer',
-      role: 'dialog',
-      'aria-modal': 'true',
-      'aria-labelledby': 'disc-title',
-      onpointerup: dismiss,
-      onclick: dismiss,
-    },
-    h(
-      'div',
-      { class: 'modal-card' },
-      h('h2', { id: 'disc-title' }, '⚠ Not for navigation'),
-      h('p', null, DISCLAIMER),
-      h('button', { class: 'btn primary block' }, 'I understand'),
-    ),
+  return (
+    <div
+      className={`modal disclaimer${state === 'closing' ? ' closing' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="disc-title"
+      onPointerUp={dismiss}
+      onClick={dismiss}
+    >
+      <div className="modal-card">
+        <h2 id="disc-title">⚠ Not for navigation</h2>
+        <p>{DISCLAIMER}</p>
+        <button className="btn primary block">I understand</button>
+      </div>
+    </div>
   );
-  document.body.append(dlg);
 }

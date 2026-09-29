@@ -1,19 +1,11 @@
-import type { Meta, StoryObj } from '@storybook/html-vite';
-import { h } from '../ui/dom';
-import { mountInstruments } from '../ui/instruments';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Instruments, NavStrip } from '../ui/instruments';
 import { LONG_MANEUVER, makeFix, makeGuidanceApp, type GuidanceOptions } from './fakes';
 
-const instruments = (options: GuidanceOptions) => () => {
-  const bar = h('header', { id: 'instruments' });
-  mountInstruments(makeGuidanceApp({ progress: null, ...options }), bar, h('div'))();
-  return bar;
-};
-
-const guidance = (options: GuidanceOptions) => () => {
-  const nav = h('div', { id: 'navstrip' });
-  mountInstruments(makeGuidanceApp(options), h('header'), nav)();
-  return nav;
-};
+const instruments = (options: GuidanceOptions) => () => (
+  <Instruments app={makeGuidanceApp({ progress: null, ...options })} />
+);
+const guidance = (options: GuidanceOptions) => () => <NavStrip app={makeGuidanceApp(options)} />;
 
 const meta: Meta = { title: 'Navigation' };
 export default meta;
