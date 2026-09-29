@@ -1,10 +1,12 @@
+import type { AlarmReason } from '../core/anchor';
 import type { CourseManeuver, Route, Waypoint } from '../core/model';
 import type { RouteProgress } from '../core/navigation';
-import { DEFAULT_SETTINGS } from '../settings';
+import { DEFAULT_SETTINGS, type Settings } from '../settings';
 import type { Fix, GpsStatus } from '../services/gps';
 import type { App } from '../app';
 import type { DestinationCardApp } from '../ui/destination';
 import type { InstrumentsApp } from '../ui/instruments';
+import type { ScreenApp } from '../ui/screen';
 
 export const makeFix = (over: Partial<Fix> = {}): Fix => ({
   lat: 52.3731,
@@ -175,3 +177,38 @@ export const ACTIVE_ROUTE: Route = {
   waypointIds: WAYPOINTS.map((w) => w.id),
   created: 0,
 };
+
+export interface ScreenOptions extends GuidanceOptions {
+  follow?: boolean;
+  recording?: boolean;
+  anchorArmed?: boolean;
+  alarmReason?: AlarmReason | null;
+  route?: boolean;
+  settings?: Partial<Settings>;
+}
+
+/** Everything a whole screen reads: guidance, panels and chrome; actions are inert. */
+export function makeScreenApp({
+  follow = false,
+  recording = false,
+  anchorArmed = false,
+  alarmReason = null,
+  route = false,
+  settings = {},
+  ...guidance
+}: ScreenOptions = {}): ScreenApp & ReturnType<typeof makePanelApp> {
+  const g = makeGuidanceApp(route ? guidance : { progress: null, ...guidance });
+  const panel = makePanelApp({ fix: g.fix, gpsStatus: g.gpsStatus, progress: g.progress });
+  return {
+    ...panel,
+    ...g,
+    activeRoute: route ? g.activeRoute : null,
+    settings: { ...g.settings, ...(route ? {} : { activeRouteId: null }), ...settings },
+    follow,
+    recording: recording ? { id: 't', name: 'Now', started: Date.now() - 3_600_000, points: [] } : null,
+    anchor: anchorArmed ? { lat: 52.3731, lon: 4.8922, radius: 40, armed: true } : null,
+    alarmReason,
+    silenceAlarm() {},
+    armAnchor: NOOP,
+  } as ScreenApp & ReturnType<typeof makePanelApp>;
+}
