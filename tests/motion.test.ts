@@ -68,6 +68,30 @@ describe('MotionEstimator', () => {
     expect(out.cog).toBeNull();
   });
 
+  it('does not read a jump in a poor fix as speed', () => {
+    // Moored, then the position source jumps 100 m (±97 m accuracy), as a Wi-Fi fix does.
+    const m = new MotionEstimator();
+    let fastest = 0;
+    for (let t = 0; t <= 60; t += 3) {
+      const out = m.update(fix(t, t < 30 ? 0 : 100, 0, { accuracy: 97 }));
+      fastest = Math.max(fastest, out.sog ?? 0);
+    }
+    expect(fastest).toBeLessThan(3);
+  });
+
+  it('still reads the speed of a boat through a poor fix, once the window is long enough', () => {
+    // Cruising at 3 m/s (11 km/h) north, fixes every 3 s scattering ±90 m east-west.
+    const m = new MotionEstimator();
+    let out = m.update(fix(0, 0, 0, { accuracy: 97 }));
+    let fastest = 0;
+    for (let t = 3; t <= 60; t += 3) {
+      out = m.update(fix(t, (t / 3) % 2 ? 90 : -90, 3 * t, { accuracy: 97 }));
+      fastest = Math.max(fastest, out.sog ?? 0);
+    }
+    expect(fastest).toBeLessThan(4.5);
+    expect(out.sog!).toBeGreaterThan(2);
+  });
+
   it('keeps the last course while stopped', () => {
     const m = new MotionEstimator();
     m.update(fix(0, 0, 0, { speed: 2, heading: 45 }));

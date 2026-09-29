@@ -67,7 +67,9 @@ interface Fit {
  * Least-squares velocity over the newest fixes, growing the stretch backwards
  * until the fitted speed is `CONFIDENCE` standard errors clear of zero, judged
  * by the worst accuracy among the fixes in the stretch. Falls back to the whole
- * window, marked unreliable, for the speed alone.
+ * window, marked unreliable, for the speed alone. The speed has the part that
+ * position noise alone would produce taken out, so a poor fix reads as slow,
+ * not fast.
  */
 function fitVelocity(fixes: RawFix[]): Fit | null {
   const last = fixes[fixes.length - 1];
@@ -99,9 +101,12 @@ function fitVelocity(fixes: RawFix[]): Fit | null {
     if (sxx <= 0) continue;
     const vx = (sxt - (st * sx) / n) / sxx;
     const vy = (syt - (st * sy) / n) / sxx;
-    const speed = Math.hypot(vx, vy);
+    const fitted = Math.hypot(vx, vy);
     const course = normalizeBearing(Math.atan2(vx, vy) / RAD);
-    const reliable = speed >= (CONFIDENCE * accuracy) / Math.sqrt(sxx);
+    // Standard error of each velocity component; position noise alone adds 2σ² to the fitted speed squared.
+    const sigma = accuracy / Math.sqrt(sxx);
+    const speed = Math.sqrt(Math.max(0, fitted * fitted - 2 * sigma * sigma));
+    const reliable = fitted >= CONFIDENCE * sigma;
     fit = { speed, course, reliable };
     if (reliable) return fit;
   }
