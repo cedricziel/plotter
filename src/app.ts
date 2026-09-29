@@ -25,7 +25,7 @@ import { DEFAULT_CHART_URL, resolveChartUrl } from './services/chart';
 import * as db from './services/db';
 import { Gps, type Fix, type GpsStatus } from './services/gps';
 import { speak } from './services/voice';
-import { traced } from './telemetry';
+import { logEvent, traced } from './telemetry';
 import { WakeLock } from './services/wakelock';
 import { navBearing, navZoom } from './core/camera';
 import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
@@ -39,6 +39,9 @@ const NL_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 export type Listener = () => void;
+
+/** How often the GPS quality summary goes to telemetry. */
+const GPS_REPORT_MS = 5 * 60_000;
 
 export class App {
   map!: MlMap;
@@ -174,6 +177,11 @@ export class App {
     if (this.settings.compass) this.compass.resumeOnTap();
     void this.updateWakeLock();
     setInterval(() => this.emit(), 1000); // clock + stale-fix display
+    setInterval(() => this.reportGps(), GPS_REPORT_MS);
+    // Capture phase, so the summary is queued before the telemetry SDK flushes on hide.
+    const reportOnHide = () => document.visibilityState === 'hidden' && this.reportGps();
+    document.addEventListener('visibilitychange', reportOnHide, { capture: true });
+    window.addEventListener('pagehide', () => this.reportGps(), { capture: true });
   }
 
   // ---- observers ---------------------------------------------------------
@@ -293,6 +301,18 @@ export class App {
     if (!ok) toast('Compass not available – allow Motion & Orientation access for this site');
     await this.updateSettings({ compass: ok });
     return ok;
+  }
+
+  /** Sends how the position source has been doing since the last report, then starts a new window. */
+  private reportGps(): void {
+    const summary = this.gps.stats.summary();
+    if (!summary) return;
+    this.gps.stats.reset();
+    logEvent('gps.summary', {
+      ...summary,
+      'plotter.compass.enabled': this.settings.compass,
+      'plotter.compass.reading': this.heading != null,
+    });
   }
 
   private onHeading(h: number | null): void {

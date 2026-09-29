@@ -1,4 +1,5 @@
 import { destination } from '../core/geo';
+import { GpsStats } from '../core/gps-stats';
 import { MotionEstimator } from '../core/motion';
 
 export interface Fix {
@@ -31,6 +32,8 @@ export class Gps {
   private watchId: number | null = null;
   private lostTimer: number | undefined;
   private motion = new MotionEstimator();
+  /** Quality of the position source since the last report; never positions. */
+  readonly stats = new GpsStats();
   private sim: Simulator | null = null;
 
   constructor(private cb: GpsCallbacks) {}
@@ -81,6 +84,7 @@ export class Gps {
     time: number,
   ): void {
     const { sog, cog } = this.motion.update({ lat, lon, accuracy, speed, heading, time });
+    this.stats.add({ time, accuracy, speed, heading });
 
     this.cb.onStatus('ok');
     this.cb.onFix({ lat, lon, accuracy, sog, cog, time });
