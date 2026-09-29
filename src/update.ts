@@ -12,7 +12,10 @@ function busy(app: App): boolean {
   if (app.anchor?.armed || app.alarmReason || app.recording) return true;
   if (app.settings.activeRouteId && app.progress && !app.progress.finished) return true;
   const a = document.activeElement;
-  return !!a?.closest('#sheet') && (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement);
+  return (
+    !!a?.closest('#sheet') &&
+    (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement || a instanceof HTMLSelectElement)
+  );
 }
 
 /** Check for a new service worker regularly and switch to it without user action. */

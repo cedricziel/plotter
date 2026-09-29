@@ -66,7 +66,11 @@ const json = (body: unknown, signal?: AbortSignal): RequestInit => ({
 
 export const api = {
   meta: () => call<ApiMeta>('/meta'),
-  async search(q: string, near?: { lat: number; lon: number } | null, signal?: AbortSignal): Promise<ApiSearchResult[]> {
+  async search(
+    q: string,
+    near?: { lat: number; lon: number } | null,
+    signal?: AbortSignal,
+  ): Promise<ApiSearchResult[]> {
     const params = new URLSearchParams({ q, limit: '12' });
     if (near) params.set('near', `${near.lat.toFixed(5)},${near.lon.toFixed(5)}`);
     return (await call<{ results: ApiSearchResult[] }>(`/search?${params}`, { signal })).results;
@@ -80,5 +84,6 @@ export const api = {
     return (await call<ApiSeamarksResponse>(`/seamarks?${params}`, { signal })).seamarks;
   },
   route: (req: ApiRouteRequest, signal?: AbortSignal) => call<ApiRouteResponse>('/route', json(req, signal)),
-  corridor: (req: ApiCorridorRequest, signal?: AbortSignal) => call<ApiCorridorResponse>('/corridor', json(req, signal)),
+  corridor: (req: ApiCorridorRequest, signal?: AbortSignal) =>
+    call<ApiCorridorResponse>('/corridor', json(req, signal)),
 };

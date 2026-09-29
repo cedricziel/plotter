@@ -57,7 +57,14 @@ export class Gps {
     this.cb.onStatus('searching');
     this.watchId = navigator.geolocation.watchPosition(
       (p) =>
-        this.handle(p.coords.latitude, p.coords.longitude, p.coords.accuracy, p.coords.speed, p.coords.heading, p.timestamp),
+        this.handle(
+          p.coords.latitude,
+          p.coords.longitude,
+          p.coords.accuracy,
+          p.coords.speed,
+          p.coords.heading,
+          p.timestamp,
+        ),
       (err) => {
         if (err.code === err.PERMISSION_DENIED) this.cb.onStatus('denied', t('gps.permissionDenied'));
         else if (err.code === err.TIMEOUT) this.cb.onStatus('lost', t('gps.timeout'));
@@ -101,7 +108,16 @@ class Simulator {
   private pos = { lat: 52.3812, lon: 4.8905 };
   private hdg = 75;
   private t = 0;
-  constructor(private emit: (f: { lat: number; lon: number; accuracy: number; speed: number; heading: number; time: number }) => void) {}
+  constructor(
+    private emit: (f: {
+      lat: number;
+      lon: number;
+      accuracy: number;
+      speed: number;
+      heading: number;
+      time: number;
+    }) => void,
+  ) {}
   start() {
     this.timer = window.setInterval(() => {
       this.t++;

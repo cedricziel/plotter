@@ -87,7 +87,15 @@ describe('parseGpx', () => {
 
 describe('gpx robustness', () => {
   it('omits <time> for track points without a valid time', () => {
-    const bad: Track = { id: 'x', name: 'x', started: 0, points: [{ lat: 1, lon: 2, time: NaN }, { lat: 1, lon: 2, time: 8.64e15 + 1 }] };
+    const bad: Track = {
+      id: 'x',
+      name: 'x',
+      started: 0,
+      points: [
+        { lat: 1, lon: 2, time: NaN },
+        { lat: 1, lon: 2, time: 8.64e15 + 1 },
+      ],
+    };
     const xml = toGpx({ tracks: [bad] });
     expect(xml).not.toContain('<time>');
     expect((xml.match(/<trkpt/g) || []).length).toBe(2);

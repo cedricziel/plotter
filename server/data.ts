@@ -122,7 +122,11 @@ export class DataStore {
       const fisNote = fis && merge ? `, fairway ${fis.generation}: ${merge.matched}/${merge.total} bridges` : '';
       const summary = `data loaded: ${file.edges.length} edges, ${places.length} places, built ${manifest.built}`;
       console.log(summary + fisNote);
-      emitLog('INFO', summary, { 'data.edges': file.edges.length, 'data.places': places.length, 'data.built': manifest.built });
+      emitLog('INFO', summary, {
+        'data.edges': file.edges.length,
+        'data.places': places.length,
+        'data.built': manifest.built,
+      });
       return true;
     } catch (e) {
       const message = `data reload failed, keeping previous data: ${(e as Error).message}`;

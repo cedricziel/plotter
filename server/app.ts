@@ -85,7 +85,8 @@ const ROUTES = new Set([
 const OTLP_TYPES = ['application/json', 'application/x-protobuf'];
 const REQUEST_SECONDS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
-const routeOf = (path: string) => (ROUTES.has(path) ? path : path.startsWith('/api/otel/') ? '/api/otel/*' : 'unmatched');
+const routeOf = (path: string) =>
+  ROUTES.has(path) ? path : path.startsWith('/api/otel/') ? '/api/otel/*' : 'unmatched';
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 

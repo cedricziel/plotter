@@ -67,7 +67,10 @@ export function startTelemetry(opts: { spanProcessors?: SpanProcessor[] } = {}):
     readers: [new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter(), exportIntervalMillis: 60_000 })],
   });
   metrics.setGlobalMeterProvider(meter);
-  const logger = new LoggerProvider({ resource, processors: [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter() })] });
+  const logger = new LoggerProvider({
+    resource,
+    processors: [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter() })],
+  });
   logs.setGlobalLoggerProvider(logger);
   providers.push(meter, logger);
 }
