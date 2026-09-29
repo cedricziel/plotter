@@ -1,10 +1,40 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeScreenApp } from '../src/stories/fakes';
 import { PlotterScreen } from '../src/ui/screen';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+/** A ResizeObserver whose callbacks the test fires by hand. */
+function stubResizeObserver() {
+  const observers: { callback: ResizeObserverCallback; targets: Element[] }[] = [];
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      targets: Element[] = [];
+      constructor(callback: ResizeObserverCallback) {
+        observers.push({ callback, targets: this.targets });
+      }
+      observe(el: Element) {
+        this.targets.push(el);
+      }
+      unobserve() {}
+      disconnect() {
+        this.targets.length = 0;
+      }
+    },
+  );
+  return (el: HTMLElement, height: number) => {
+    Object.defineProperty(el, 'offsetHeight', { configurable: true, value: height });
+    for (const o of observers.filter((o) => o.targets.includes(el))) {
+      act(() => o.callback([], {} as ResizeObserver));
+    }
+  };
+}
 
 describe('plotter screen', () => {
   it('keeps screen state and theme on its own root, not on body', () => {
@@ -50,5 +80,18 @@ describe('plotter screen', () => {
     const { container } = render(<PlotterScreen app={makeScreenApp({ alarmReason: { kind: 'drag', distance: 62, radius: 40 } })} />);
     expect(container.querySelector<HTMLElement>('#alarm')!.hidden).toBe(false);
     expect(container.querySelector('#alarm-reason')!.textContent).toContain('62');
+  });
+
+  it('tells the layout how tall the bottom bar is, so the map buttons can sit above it', () => {
+    const resize = stubResizeObserver();
+    const { container } = render(<PlotterScreen app={makeScreenApp()} bottom={{ kind: 'card', content: 'card' }} />);
+    const root = container.querySelector<HTMLElement>('.plotter')!;
+    const bar = container.querySelector<HTMLElement>('#dest-bar')!;
+
+    resize(bar, 312);
+    expect(root.style.getPropertyValue('--bottom-bar-h')).toBe('312px');
+
+    resize(bar, 148);
+    expect(root.style.getPropertyValue('--bottom-bar-h')).toBe('148px');
   });
 });
