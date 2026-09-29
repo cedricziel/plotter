@@ -70,7 +70,7 @@ export function mountSeamarks(map: MlMap, hooks: SeamarkHooks): { refresh: () =>
     shown = items;
     const mine = ++generation;
     const theme = hooks.theme();
-    const specs = new Map(items.map((s) => [imageId(symbolSpec(s)), symbolSpec(s)]));
+    const specs = new Map(items.map(symbolSpec).map((spec) => [imageId(spec), spec]));
     try {
       await Promise.all([
         ensureImage(map, FLARE_IMAGE, flareSvg(theme)),
