@@ -184,6 +184,39 @@ describe('vessel profile', () => {
     expect(ok(route(bridge(300), vertices, S, T, {})).distance).toBeCloseTo(10000, -1);
   });
 
+  describe('start or destination in a canal the vessel cannot leave', () => {
+    const verts: Record<string, [number, number]> = {
+      A: [0, 0], E: [2000, 0], H: [8000, 0], B: [10000, 0],
+      C: [0, 150], D: [2000, 150], F: [8000, 150], G: [10000, 150],
+    };
+    const edges: FixtureEdge[] = [
+      { a: 'A', b: 'E', name: 'IJ' },
+      { a: 'E', b: 'H', name: 'IJ' },
+      { a: 'H', b: 'B', name: 'IJ' },
+      { a: 'C', b: 'D', name: 'Gracht' },
+      { a: 'D', b: 'E', name: 'Gracht', obstacles: [{ pos: 50, type: 'fixed', clearance: 300 }] },
+      { a: 'F', b: 'G', name: 'Haven' },
+      { a: 'F', b: 'H', name: 'Haven', obstacles: [{ pos: 50, type: 'fixed', clearance: 300 }] },
+    ];
+
+    it('starts on the nearby waterway the vessel can leave', () => {
+      const r = ok(route(edges, verts, [500, 110], [9000, -20], { profile: { airDraft: 4 } }));
+      expect(r.snapStart.dist).toBeGreaterThan(100);
+      expect(r.distance).toBeCloseTo(8500, -2);
+    });
+
+    it('ends on the nearby waterway the vessel can reach', () => {
+      const r = ok(route(edges, verts, [500, -20], [9500, 110], { profile: { airDraft: 4 } }));
+      expect(r.snapEnd.dist).toBeGreaterThan(100);
+      expect(r.distance).toBeCloseTo(9000, -2);
+    });
+
+    it('still uses the canal when the vessel fits under its bridge', () => {
+      const r = ok(route(edges, verts, [500, 110], [9000, -20], { profile: { airDraft: 2 } }));
+      expect(r.snapStart.dist).toBeLessThan(50);
+    });
+  });
+
   it('reports blocked when the only way is too low', () => {
     const r = route([{ a: 'S', b: 'T', obstacles: [{ pos: 1, type: 'fixed', clearance: 300 }] }], { S, T }, S, T, {
       profile: { airDraft: 4 },
