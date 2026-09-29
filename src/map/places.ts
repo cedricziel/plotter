@@ -4,8 +4,7 @@ import type { Trip } from '../core/trips';
 import type { Place, PlaceKind } from '../core/waterway-data';
 import { api } from '../services/api';
 import { setOverlay } from './overlays';
-
-type Box = [west: number, south: number, east: number, north: number];
+import { viewportLoader, type Box } from './viewport';
 
 const MIN_ZOOM = 11;
 const DEBOUNCE_MS = 400;
@@ -61,16 +60,6 @@ export function basemapPlace(props: Record<string, unknown>, geometry: GeoJSON.G
   };
 }
 
-const inside = (b: Box, o: Box) => b[0] >= o[0] && b[1] >= o[1] && b[2] <= o[2] && b[3] <= o[3];
-
-/** The viewport grown by PAD on every side, never wider than the API accepts. */
-function padded([w, s, e, n]: Box): Box {
-  const grow = (span: number) => Math.max(0, Math.min(span * PAD, (MAX_SPAN_DEG - span) / 2));
-  const dx = grow(e - w);
-  const dy = grow(n - s);
-  return [w - dx, s - dy, e + dx, n + dy];
-}
-
 function fromTrips(trips: Trip[], [w, s, e, n]: Box): Place[] {
   const seen = new Set<string>();
   return trips
@@ -87,11 +76,9 @@ function fromTrips(trips: Trip[], [w, s, e, n]: Box): Place[] {
 /** Shows harbours, locks, bridges and towns from the places API on the map and opens one when tapped. */
 export function mountPlaces(map: MlMap, hooks: PlacesHooks): void {
   let shown: Place[] = [];
-  let fetched: { box: Box; zoom: number } | null = null;
-  let timer: number | undefined;
-  let pending: AbortController | undefined;
 
-  const render = () => {
+  const render = (items: Place[]) => {
+    shown = items;
     const source = map.getSource('place-marks') as GeoJSONSource | undefined;
     if (source) source.attribution = shown.some((p) => p.info?.source === FIS_SOURCE) ? FIS_ATTRIBUTION : '';
     setOverlay(map, 'place-marks', {
@@ -102,26 +89,6 @@ export function mountPlaces(map: MlMap, hooks: PlacesHooks): void {
         geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
       })),
     });
-  };
-
-  const refresh = async () => {
-    const zoom = map.getZoom();
-    if (zoom < MIN_ZOOM) return;
-    const b = map.getBounds();
-    const view: Box = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-    if (fetched && inside(view, fetched.box) && Math.abs(zoom - fetched.zoom) < 1) return;
-    pending?.abort();
-    const ctl = (pending = new AbortController());
-    const box = padded(view);
-    try {
-      shown = await api.places(box, LIMIT, ctl.signal);
-      fetched = { box, zoom };
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
-      shown = fromTrips(hooks.trips(), view);
-      fetched = null;
-    }
-    render();
   };
 
   const pick = ({ x, y }: { x: number; y: number }): Place | null => {
@@ -161,10 +128,13 @@ export function mountPlaces(map: MlMap, hooks: PlacesHooks): void {
   map.on('mousemove', (e) => {
     map.getCanvas().style.cursor = !hooks.blocked() && pick(e.point) ? 'pointer' : '';
   });
-  map.on('moveend', () => {
-    clearTimeout(timer);
-    timer = window.setTimeout(() => void refresh(), DEBOUNCE_MS);
+  viewportLoader<Place>(map, {
+    minZoom: MIN_ZOOM,
+    pad: PAD,
+    maxSpan: MAX_SPAN_DEG,
+    debounceMs: DEBOUNCE_MS,
+    load: (box, signal) => api.places(box, LIMIT, signal),
+    fallback: (view) => fromTrips(hooks.trips(), view),
+    render,
   });
-  map.on('style.load', render);
-  void refresh();
 }
