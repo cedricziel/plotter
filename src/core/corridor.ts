@@ -1,6 +1,6 @@
 import { distance } from './geo';
 import { edgesNear, type Graph } from './routing';
-import type { EdgeTuple, ObstacleTuple, Place, WaterwayFile } from './waterway-data';
+import type { EdgeTuple, ObstacleTuple, WaterwayFile } from './waterway-data';
 import { FORMAT_VERSION } from './waterway-data';
 
 const M_PER_DEG = 111_195;
@@ -147,8 +147,12 @@ export function subgraph(
   return { version: FORMAT_VERSION, built: meta.built, source: meta.source, names, vertices, edges: out };
 }
 
-/** Places within `buffer` metres of the polyline. */
-export function placesInCorridor(places: Place[], shape: [number, number][], buffer: number): Place[] {
+/** Points (places, seamarks) within `buffer` metres of the polyline. */
+export function pointsInCorridor<T extends { lat: number; lon: number }>(
+  places: T[],
+  shape: [number, number][],
+  buffer: number,
+): T[] {
   if (shape.length === 0) return [];
   const lats = shape.map((p) => p[1]);
   const lons = shape.map((p) => p[0]);

@@ -1,6 +1,7 @@
+import { seamarkRank } from './seamarks';
 import { PlaceIndex } from './search';
 import { decodeGraph, findRouteToPlace, type Graph, type RouteOptions, type RouteResult } from './routing';
-import type { Place, PlaceKind, WaterwayFile } from './waterway-data';
+import type { Place, PlaceKind, Seamark, WaterwayFile } from './waterway-data';
 
 /** A corridor saved for offline use: the part of the routing graph and the places along a charted course. */
 export interface Trip {
@@ -15,6 +16,8 @@ export interface Trip {
   bytes: number;
   graph: WaterwayFile;
   places: Place[];
+  /** absent on trips saved before seamarks were part of a corridor */
+  seamarks?: Seamark[];
 }
 
 /** Reroutes inside saved corridors; decoded graphs are kept per trip. */
@@ -49,6 +52,25 @@ export class TripRouter {
   forget(id: string): void {
     this.graphs.delete(id);
   }
+}
+
+/** The seamarks saved with the trips that lie in the box [west, south, east, north], marks first, at most `limit`. */
+export function seamarksFromTrips(
+  trips: Trip[],
+  [w, s, e, n]: [number, number, number, number],
+  limit: number,
+): Seamark[] {
+  const seen = new Set<string>();
+  return trips
+    .flatMap((t) => t.seamarks ?? [])
+    .filter((m) => {
+      const key = `${m.type}|${m.lat}|${m.lon}`;
+      if (m.lon < w || m.lon > e || m.lat < s || m.lat > n || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => seamarkRank(a) - seamarkRank(b))
+    .slice(0, limit);
 }
 
 export function searchTrips(trips: Trip[], query: string, near?: { lat: number; lon: number }, limit = 10): Place[] {

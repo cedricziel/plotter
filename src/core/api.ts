@@ -1,5 +1,5 @@
 import type { Maneuver } from './routing';
-import type { PlaceKind, WaterwayFile, Place } from './waterway-data';
+import type { PlaceKind, WaterwayFile, Place, Seamark } from './waterway-data';
 
 export interface ApiSearchResult {
   name: string;
@@ -16,6 +16,10 @@ export interface ApiSearchResponse {
 
 export interface ApiPlacesResponse {
   places: Place[];
+}
+
+export interface ApiSeamarksResponse {
+  seamarks: Seamark[];
 }
 
 export interface ApiVessel {
@@ -67,13 +71,14 @@ export interface ApiCorridorResponse {
   estimate: 'archive' | 'average';
   graph: WaterwayFile;
   places: Place[];
+  seamarks: Seamark[];
 }
 
 export interface ApiMeta {
   ready: boolean;
   built?: string;
   source?: string;
-  counts?: { vertices: number; edges: number; places: number };
+  counts?: { vertices: number; edges: number; places: number; seamarks: number };
   /** official fairway data (Vaarweginformatie), when loaded; `matched` of `obstacles` graph bridges got its values */
   fis?: { generation: number; bridges: number; locks: number; berths: number; matched: number; obstacles: number };
   chart?: string | null;

@@ -608,6 +608,10 @@ body.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }
 .dest-note summary { cursor: pointer; }
 .dest-note div { white-space: pre-line; max-height: 7em; overflow-y: auto; margin-top: 2px; color: var(--fg-dim); }
 .dest-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.seamark-card .dest-title .btn { margin-left: auto; }
+.seamark-card .dest-info { margin-bottom: 0; }
+.seamark-card .result-ico img { display: block; }
+.seamark-card .result-text b { white-space: normal; }
 .dest-pin {
   width: 22px;
   height: 22px;

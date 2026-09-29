@@ -10,9 +10,10 @@ import type {
   ApiPlacesResponse,
   ApiRouteResponse,
   ApiSearchResponse,
+  ApiSeamarksResponse,
 } from '../src/core/api';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
-import type { Place } from '../src/core/waterway-data';
+import type { Place, Seamark } from '../src/core/waterway-data';
 import { startServer, type RunningServer } from '../server/app';
 import { RateLimiter } from '../server/http';
 import { fixture, latlon } from './graph-fixture';
@@ -51,14 +52,24 @@ const places: Place[] = [
   { name: 'Verweggistan', kind: 'town', ...at(0, 90000) },
 ];
 
-const write = (dir: string, tag: string, built: string) => {
+const seamarks: Seamark[] = [
+  { ...at(9000, 100), type: 'buoy_lateral', category: 'port', colour: 'red', name: 'IJ 1' },
+  { ...at(2000, 50), type: 'buoy_cardinal', category: 'north', name: 'Noord' },
+  { ...at(5000, 20), type: 'notice', name: 'Verbod' },
+  { ...at(9500, -60), type: 'light_minor', light: 'Fl W 5s', name: 'Haventoren' },
+  { ...at(0, 90000), type: 'buoy_lateral', name: 'Verweg' },
+];
+
+const write = (dir: string, tag: string, built: string, withSeamarks = true) => {
   writeFileSync(join(dir, `waterways-${tag}.json`), JSON.stringify({ ...graph, built }));
   writeFileSync(join(dir, `places-${tag}.json`), JSON.stringify(places));
+  writeFileSync(join(dir, `seamarks-${tag}.json`), JSON.stringify(seamarks));
   writeFileSync(
     join(dir, 'current.json'),
     JSON.stringify({
       waterways: `./data/waterways-${tag}.json`,
       places: `./data/places-${tag}.json`,
+      ...(withSeamarks ? { seamarks: `./data/seamarks-${tag}.json` } : {}),
       built,
       source: 'test',
     }),
@@ -66,29 +77,40 @@ const write = (dir: string, tag: string, built: string) => {
 };
 
 let dir: string;
+let old: string;
 let empty: string;
 let srv: RunningServer;
 let bare: RunningServer;
+let legacy: RunningServer;
 let limited: RunningServer;
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'plotter-data-'));
   empty = mkdtempSync(join(tmpdir(), 'plotter-empty-'));
+  old = mkdtempSync(join(tmpdir(), 'plotter-old-'));
   write(dir, 'a', '2026-01-01T00:00:00Z');
+  write(old, 'a', '2026-01-01T00:00:00Z', false);
   srv = await startServer({
     dataDir: dir,
     port: 0,
     pollMs: 0,
     maxTiles: 3000,
-    rateLimits: { search: 1000, route: 1000, corridor: 1000, places: 1000 },
+    rateLimits: { search: 1000, route: 1000, corridor: 1000, places: 1000, seamarks: 1000 },
   });
   bare = await startServer({ dataDir: empty, port: 0, pollMs: 0 });
-  limited = await startServer({ dataDir: dir, port: 0, pollMs: 0, rateLimits: { search: 3, places: 2 } });
+  legacy = await startServer({ dataDir: old, port: 0, pollMs: 0 });
+  limited = await startServer({
+    dataDir: dir,
+    port: 0,
+    pollMs: 0,
+    rateLimits: { search: 3, places: 2, seamarks: 2 },
+  });
 });
 
 afterAll(async () => {
-  await Promise.all([srv.close(), bare.close(), limited.close()]);
+  await Promise.all([srv.close(), bare.close(), legacy.close(), limited.close()]);
   rmSync(dir, { recursive: true, force: true });
+  rmSync(old, { recursive: true, force: true });
   rmSync(empty, { recursive: true, force: true });
 });
 
@@ -105,7 +127,7 @@ describe('health and meta', () => {
     expect((await get(srv, '/api/health')).status).toBe(200);
     const meta = (await (await get(srv, '/api/meta')).json()) as ApiMeta;
     expect(meta).toMatchObject({ ready: true, built: '2026-01-01T00:00:00Z', source: 'test' });
-    expect(meta.counts).toEqual({ vertices: 5, edges: 5, places: 6 });
+    expect(meta.counts).toEqual({ vertices: 5, edges: 5, places: 6, seamarks: 5 });
   });
 
   it('stays healthy without data and answers 503 for data endpoints', async () => {
@@ -229,6 +251,58 @@ describe('GET /api/places', () => {
   });
 });
 
+describe('GET /api/seamarks', () => {
+  const box = '4.99,51.99,5.2,52.01';
+  const list = async (query: string) =>
+    ((await (await get(srv, `/api/seamarks?${query}`)).json()) as ApiSeamarksResponse).seamarks;
+
+  it('returns the seamarks inside the bbox, marks before lights before notices', async () => {
+    expect((await list(`bbox=${box}`)).map((s) => s.name)).toEqual(['IJ 1', 'Noord', 'Haventoren', 'Verbod']);
+  });
+
+  it('passes the attributes through and leaves out what is missing', async () => {
+    const [buoy, , light] = await list(`bbox=${box}`);
+    expect(buoy).toMatchObject({ type: 'buoy_lateral', category: 'port', colour: 'red' });
+    expect('light' in buoy).toBe(false);
+    expect(light.light).toBe('Fl W 5s');
+  });
+
+  it('caps the result at limit', async () => {
+    expect((await list(`bbox=${box}&limit=2`)).map((s) => s.name)).toEqual(['IJ 1', 'Noord']);
+  });
+
+  it('is empty for a bbox without seamarks and clamps to the Netherlands', async () => {
+    expect(await list('bbox=6,52.5,6.1,52.6')).toEqual([]);
+    expect(await list('bbox=0,0,1,1')).toEqual([]);
+    expect(await list('bbox=4.99,49.5,5.2,52.01')).toHaveLength(4);
+  });
+
+  it('rejects a malformed, inverted, outside or oversized bbox and a bad limit', async () => {
+    const status = async (q: string) => (await get(srv, `/api/seamarks?${q}`)).status;
+    expect(await status('')).toBe(400);
+    expect(await status('bbox=1,2,3')).toBe(400);
+    expect(await status('bbox=a,b,c,d')).toBe(400);
+    expect(await status('bbox=5.2,51.99,4.99,52.01')).toBe(400);
+    expect(await status(`bbox=${box}&limit=0`)).toBe(400);
+    expect(await status('bbox=4,51,6,52')).toBe(422);
+    expect(await status('bbox=4,51,5,53')).toBe(422);
+  });
+
+  it('rate limits per client', async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 3; i++) codes.push((await get(limited, `/api/seamarks?bbox=${box}`)).status);
+    expect(codes).toEqual([200, 200, 429]);
+  });
+
+  it('answers 503 without data and an empty list when the data has no seamark file', async () => {
+    expect((await get(bare, `/api/seamarks?bbox=${box}`)).status).toBe(503);
+    const res = await get(legacy, `/api/seamarks?bbox=${box}`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ seamarks: [] });
+    expect(((await (await get(legacy, '/api/meta')).json()) as ApiMeta).counts?.seamarks).toBe(0);
+  });
+});
+
 describe('POST /api/route', () => {
   const req = { from: at(500, 20), to: at(9500, -20), destName: 'Hoorn' };
 
@@ -317,6 +391,17 @@ describe('POST /api/corridor', () => {
     expect(c.graph.names).toContain('Hoofdvaart');
     expect(c.places.map((p) => p.name)).toContain('Hoorn');
     expect(c.places.map((p) => p.name)).not.toContain('Verweggistan');
+  });
+
+  it('includes the seamarks along the course', async () => {
+    const res = await post(srv, '/api/corridor', { polyline, bufferMeters: 500, minZoom: 10, maxZoom: 11 });
+    const c = (await res.json()) as ApiCorridorResponse;
+    expect(c.seamarks.map((s) => s.name).sort()).toEqual(['Haventoren', 'IJ 1', 'Noord', 'Verbod']);
+  });
+
+  it('has no seamarks when the data has none', async () => {
+    const res = await post(legacy, '/api/corridor', { polyline, bufferMeters: 500, minZoom: 10, maxZoom: 11 });
+    expect(((await res.json()) as ApiCorridorResponse).seamarks).toEqual([]);
   });
 
   it('clamps the buffer and zoom range', async () => {

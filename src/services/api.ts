@@ -6,8 +6,9 @@ import type {
   ApiRouteRequest,
   ApiRouteResponse,
   ApiSearchResult,
+  ApiSeamarksResponse,
 } from '../core/api';
-import type { Place } from '../core/waterway-data';
+import type { Place, Seamark } from '../core/waterway-data';
 import { absUrl } from '../settings';
 
 /** `unavailable`: the service could not be reached or has no data yet; `rejected`: it answered and said no. */
@@ -64,6 +65,10 @@ export const api = {
   async places(bbox: [number, number, number, number], limit: number, signal?: AbortSignal): Promise<Place[]> {
     const params = new URLSearchParams({ bbox: bbox.map((v) => v.toFixed(4)).join(','), limit: String(limit) });
     return (await call<ApiPlacesResponse>(`/places?${params}`, { signal })).places;
+  },
+  async seamarks(bbox: [number, number, number, number], limit: number, signal?: AbortSignal): Promise<Seamark[]> {
+    const params = new URLSearchParams({ bbox: bbox.map((v) => v.toFixed(4)).join(','), limit: String(limit) });
+    return (await call<ApiSeamarksResponse>(`/seamarks?${params}`, { signal })).seamarks;
   },
   route: (req: ApiRouteRequest, signal?: AbortSignal) => call<ApiRouteResponse>('/route', json(req, signal)),
   corridor: (req: ApiCorridorRequest, signal?: AbortSignal) => call<ApiCorridorResponse>('/corridor', json(req, signal)),

@@ -11,7 +11,12 @@ export interface Settings {
   distanceUnit: DistanceUnit;
   cogMinutes: CogMinutes;
   theme: Theme;
+  /** vector seamark symbols; the seamarks button toggles it */
   seamarks: boolean;
+  /** OpenSeaMap raster tiles from the network */
+  openseamap: boolean;
+  /** PDOK aerial photo from the network, day palette only */
+  aerial: boolean;
   keepAwake: boolean;
   showTracks: boolean;
   pmtilesUrl: string;
@@ -36,6 +41,8 @@ export const DEFAULT_SETTINGS: Settings = {
   cogMinutes: 10,
   theme: 'day',
   seamarks: true,
+  openseamap: false,
+  aerial: false,
   keepAwake: true,
   showTracks: true,
   pmtilesUrl: import.meta.env.VITE_PMTILES_URL || DEFAULT_CHART_URL,

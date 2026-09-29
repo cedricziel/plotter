@@ -32,6 +32,17 @@ export function showTipOnce(): void {
 
 export const isPlacing = () => placing;
 
+/** Puts a card in the bottom bar in place of any sheet, placement bar or other card; a toolbar tool closes it. */
+export function showCard(app: App, card: HTMLElement): void {
+  closeSheet();
+  closeDestination();
+  document.body.classList.add('destcard');
+  const bar = $('#dest-bar');
+  bar.replaceChildren(card);
+  bar.hidden = false;
+  wire(app);
+}
+
 function wire(app: App): void {
   if (wired) return;
   wired = true;

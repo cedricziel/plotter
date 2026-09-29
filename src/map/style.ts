@@ -15,7 +15,11 @@ export interface StyleOptions {
   /** absolute URL of the .pmtiles archive */
   pmtilesUrl: string;
   glyphsUrl: string;
+  /** vector seamark symbols */
   seamarks: boolean;
+  /** OpenSeaMap raster tiles */
+  openseamap: boolean;
+  aerial: boolean;
 }
 
 /**
@@ -397,6 +401,13 @@ function osmRasterLayers(theme: Theme): LayerSpecification[] {
   ];
 }
 
+export const AERIAL_TILES =
+  'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg';
+export const AERIAL_ATTRIBUTION = 'Luchtfoto © <a href="https://www.pdok.nl">PDOK</a>';
+
+/** Where the aerial photo goes in the vector chart: over the fills, under lines, labels and overlays. */
+const AERIAL_AFTER = 'buildings';
+
 export const OSM_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export function buildStyle(o: StyleOptions): StyleSpecification {
@@ -423,25 +434,38 @@ export function buildStyle(o: StyleOptions): StyleSpecification {
     layers = osmRasterLayers(o.theme);
   }
 
-  sources.seamarks = {
-    type: 'raster',
-    tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    minzoom: 6,
-    maxzoom: 18,
-    attribution: '<a href="https://www.openseamap.org">OpenSeaMap</a>',
-  };
-  layers.push({
-    id: 'seamarks',
-    type: 'raster',
-    source: 'seamarks',
-    minzoom: 9,
-    layout: { visibility: o.seamarks ? 'visible' : 'none' },
-    paint: o.theme === 'night' ? { 'raster-saturation': -1, 'raster-brightness-max': 0.6 } : {},
-  });
+  if (o.aerial && o.theme === 'day') {
+    sources.aerial = {
+      type: 'raster',
+      tiles: [AERIAL_TILES],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: AERIAL_ATTRIBUTION,
+    };
+    const after = layers.findIndex((l) => l.id === AERIAL_AFTER);
+    layers.splice(after < 0 ? layers.length : after + 1, 0, { id: 'aerial', type: 'raster', source: 'aerial' });
+  }
+
+  if (o.openseamap) {
+    sources.openseamap = {
+      type: 'raster',
+      tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 6,
+      maxzoom: 18,
+      attribution: '<a href="https://www.openseamap.org">OpenSeaMap</a>',
+    };
+    layers.push({
+      id: 'openseamap',
+      type: 'raster',
+      source: 'openseamap',
+      minzoom: 9,
+      paint: o.theme === 'night' ? { 'raster-saturation': -1, 'raster-brightness-max': 0.6 } : {},
+    });
+  }
 
   Object.assign(sources, overlaySources());
-  layers.push(...overlayLayers(palette(o.theme), o.theme));
+  layers.push(...overlayLayers(palette(o.theme), o.theme, { seamarks: o.seamarks }));
 
   return {
     version: 8,
