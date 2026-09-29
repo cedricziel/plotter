@@ -10,7 +10,7 @@ import type {
 } from '../src/core/api';
 import { CorridorTooLarge, corridorTiles, placesInCorridor, subgraph } from '../src/core/corridor';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
-import { findRouteVia } from '../src/core/routing';
+import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
 import { HttpError, RateLimiter, clientKey, readJson, sendJson } from './http';
 import { openChart, type ChartArchive } from './tiles';
@@ -87,7 +87,20 @@ function parseRoute(body: unknown) {
   if (b.destName != null && (typeof b.destName !== 'string' || b.destName.length > 100)) {
     throw new HttpError(400, 'destName must be a string of at most 100 characters');
   }
-  return { stops: [from, ...via, to], profile, speed: b.speed, destName: b.destName };
+  const kinds: string[] = [
+    'harbour',
+    'marina',
+    'mooring',
+    'lock',
+    'bridge',
+    'city',
+    'town',
+    'village',
+    'waterway',
+    'waypoint',
+  ];
+  if (b.toKind != null && !kinds.includes(b.toKind)) throw new HttpError(400, 'toKind is not a known place kind');
+  return { from, via, to, toKind: b.toKind, profile, speed: b.speed, destName: b.destName };
 }
 
 export async function startServer(opts: ServerOptions): Promise<RunningServer> {
@@ -151,9 +164,13 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   }
 
   function route(body: unknown): ApiRouteResponse {
-    const { graph } = ready();
+    const { graph, places } = ready();
     const r = parseRoute(body);
-    const result = findRouteVia(graph, r.stops, { profile: r.profile, speed: r.speed, destName: r.destName });
+    const { result, end } = findRouteToPlace(graph, r.from, r.via, { ...r.to, kind: r.toKind }, places, {
+      profile: r.profile,
+      speed: r.speed,
+      destName: r.destName,
+    });
     if (!result.ok) {
       throw new HttpError(result.reason === 'no-snap' ? 422 : 404, result.message, { reason: result.reason });
     }
@@ -164,6 +181,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       maneuvers: result.maneuvers,
       warnings: result.warnings,
       snap: { from: result.snapStart.dist, to: result.snapEnd.dist },
+      ...(end ? { end: { name: end.name, lat: end.lat, lon: end.lon } } : {}),
     };
   }
 

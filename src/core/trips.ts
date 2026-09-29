@@ -1,6 +1,6 @@
 import { PlaceIndex } from './search';
-import { decodeGraph, findRouteVia, type Graph, type RouteOptions, type RouteResult } from './routing';
-import type { Place, WaterwayFile } from './waterway-data';
+import { decodeGraph, findRouteToPlace, type Graph, type RouteOptions, type RouteResult } from './routing';
+import type { Place, PlaceKind, WaterwayFile } from './waterway-data';
 
 /** A corridor saved for offline use: the part of the routing graph and the places along a charted course. */
 export interface Trip {
@@ -31,14 +31,17 @@ export class TripRouter {
   route(
     trips: Trip[],
     from: { lat: number; lon: number },
-    to: { lat: number; lon: number },
+    to: { lat: number; lon: number; kind?: PlaceKind },
     opts: RouteOptions,
     via: { lat: number; lon: number }[] = [],
-  ): { trip: Trip; result: Extract<RouteResult, { ok: true }> } | null {
+  ): { trip: Trip; result: Extract<RouteResult, { ok: true }>; end?: Place } | null {
     for (const trip of [...trips].sort((a, b) => b.savedAt - a.savedAt)) {
       if (trip.graph.edges.length === 0) continue;
-      const result = findRouteVia(this.graphOf(trip), [from, ...via, to], { ...opts, maxSnap: trip.bufferMeters });
-      if (result.ok) return { trip, result };
+      const { result, end } = findRouteToPlace(this.graphOf(trip), from, via, to, trip.places, {
+        ...opts,
+        maxSnap: trip.bufferMeters,
+      });
+      if (result.ok) return { trip, result, end };
     }
     return null;
   }

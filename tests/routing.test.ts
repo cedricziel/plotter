@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { decodeGraph, findRoute, findRouteVia, snapToGraph, type RouteResult } from '../src/core/routing';
+import {
+  decodeGraph,
+  findRoute,
+  findRouteToPlace,
+  findRouteVia,
+  snapToGraph,
+  type RouteResult,
+} from '../src/core/routing';
+import type { Place } from '../src/core/waterway-data';
 import { fixture, latlon, type FixtureEdge } from './graph-fixture';
 
 type Ok = Extract<RouteResult, { ok: true }>;
@@ -366,7 +374,9 @@ describe('via stops', () => {
   const g = decodeGraph(fixture(vertices, edges));
 
   it('chains legs into one route with a via maneuver at the stop', () => {
-    const r = ok(findRouteVia(g, [latlon(...S), latlon(5000, 100), latlon(...T)], { destName: 'Einde', profile: { airDraft: 4 } }));
+    const r = ok(
+      findRouteVia(g, [latlon(...S), latlon(5000, 100), latlon(...T)], { destName: 'Einde', profile: { airDraft: 4 } }),
+    );
     expect(r.distance).toBeCloseTo(10000, -1);
     expect(r.maneuvers.map((m) => m.type)).toEqual(['depart', 'via', 'continue', 'bridge-fixed', 'arrive']);
     expect(r.maneuvers[1].dist).toBeCloseTo(5000, -1);
@@ -376,6 +386,45 @@ describe('via stops', () => {
   });
 
   it('reports the failing leg', () => {
-    expect(findRouteVia(g, [latlon(...S), latlon(0, 400_000), latlon(...T)])).toMatchObject({ ok: false, reason: 'no-snap' });
+    expect(findRouteVia(g, [latlon(...S), latlon(0, 400_000), latlon(...T)])).toMatchObject({
+      ok: false,
+      reason: 'no-snap',
+    });
+  });
+});
+
+describe('routes to a town', () => {
+  const g = decodeGraph(fixture({ S, T }, [{ a: 'S', b: 'T', name: 'Kanaal' }]));
+  const town = { ...latlon(9000, 1400), name: 'Hoorn', kind: 'town' as const };
+  const place = (name: string, kind: Place['kind'], x: number, y: number): Place => ({ name, kind, ...latlon(x, y) });
+  const opts = { destName: 'Hoorn' };
+  const go = (to: { lat: number; lon: number; kind?: Place['kind'] }, places: Place[]) =>
+    findRouteToPlace(g, latlon(0, 20), [], to, places, opts);
+
+  it('ends at the harbour or marina near the town centre', () => {
+    const { result, end } = go(town, [place('Jachthaven', 'marina', 8500, 200)]);
+    expect(end?.name).toBe('Jachthaven');
+    const r = ok(result);
+    expect(r.maneuvers.at(-1)?.text).toBe('Arrive at Jachthaven (Hoorn)');
+    expect(r.distance).toBeCloseTo(8500, -1);
+    expect(r.snapEnd.dist).toBeCloseTo(200, -1);
+  });
+
+  it('prefers a marina over a closer mooring', () => {
+    const { end } = go(town, [place('Steiger', 'mooring', 9000, 300), place('Jachthaven', 'marina', 8000, 250)]);
+    expect(end?.name).toBe('Jachthaven');
+  });
+
+  it('ignores harbours out of reach or away from the waterways and keeps the town', () => {
+    const far = place('Ver', 'marina', 3000, 100);
+    const inland = place('Binnendijks', 'harbour', 9000, 1000);
+    const { result, end } = go(town, [far, inland]);
+    expect(end).toBeUndefined();
+    expect(ok(result).snapEnd.dist).toBeCloseTo(1400, -1);
+  });
+
+  it('does not look for a harbour when the destination is not a settlement', () => {
+    const { end } = go({ ...town, kind: 'waterway' }, [place('Jachthaven', 'marina', 8500, 200)]);
+    expect(end).toBeUndefined();
   });
 });

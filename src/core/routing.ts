@@ -1,5 +1,13 @@
 import { angleDiff, bearing, distance } from './geo';
-import { FLAG, KIND, OBSTACLE, type ObstacleTuple, type WaterwayFile } from './waterway-data';
+import {
+  FLAG,
+  KIND,
+  OBSTACLE,
+  type ObstacleTuple,
+  type Place,
+  type PlaceKind,
+  type WaterwayFile,
+} from './waterway-data';
 
 export interface VesselProfile {
   /** metres above the waterline; blocks fixed bridges and edges lower than this */
@@ -816,4 +824,49 @@ export function findRouteVia(g: Graph, stops: { lat: number; lon: number }[], op
     snapEnd: legs[legs.length - 1].snapEnd,
     edges,
   };
+}
+
+const SETTLEMENT: PlaceKind[] = ['city', 'town', 'village'];
+const BERTH_RANK: Partial<Record<PlaceKind, number>> = { harbour: 0, marina: 0, mooring: 1 };
+/** How far from a town or village centre a harbour still counts as its harbour, metres. */
+export const HARBOUR_REACH = 2000;
+const HARBOUR_SNAP = 300;
+
+/** "Jachthaven X (Hoorn)", unless the harbour's name already says the town. */
+function namedAfter(harbour: string, town?: string): string {
+  return town && !harbour.toLowerCase().includes(town.toLowerCase()) ? `${harbour} (${town})` : harbour;
+}
+
+/** Harbours, marinas and moorings near a town centre, best first: harbours and marinas, then closest. */
+export function harboursNear(places: Place[], to: { lat: number; lon: number }, reach = HARBOUR_REACH): Place[] {
+  return places
+    .filter((p) => p.kind in BERTH_RANK && distance(p, to) <= reach)
+    .sort((a, b) => BERTH_RANK[a.kind]! - BERTH_RANK[b.kind]! || distance(a, to) - distance(b, to));
+}
+
+/**
+ * Route to a place. A town, city or village has no water of its own, so the
+ * route ends at the best harbour, marina or mooring within reach that lies on
+ * the waterways; `end` names it. Otherwise the route ends at the place itself.
+ */
+export function findRouteToPlace(
+  g: Graph,
+  from: { lat: number; lon: number },
+  via: { lat: number; lon: number }[],
+  to: { lat: number; lon: number; kind?: PlaceKind },
+  places: Place[],
+  opts: RouteOptions = {},
+): { result: RouteResult; end?: Place } {
+  if (to.kind && SETTLEMENT.includes(to.kind)) {
+    for (const harbour of harboursNear(places, to)
+      .filter((h) => snapToGraph(g, h, { maxDist: HARBOUR_SNAP }))
+      .slice(0, 3)) {
+      const result = findRouteVia(g, [from, ...via, harbour], {
+        ...opts,
+        destName: namedAfter(harbour.name, opts.destName),
+      });
+      if (result.ok) return { result, end: harbour };
+    }
+  }
+  return { result: findRouteVia(g, [from, ...via, to], opts) };
 }

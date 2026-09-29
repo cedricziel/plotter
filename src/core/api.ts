@@ -29,6 +29,8 @@ export interface ApiRouteRequest {
   /** cruise speed in m/s, used for the duration and lock delays */
   speed?: number;
   destName?: string;
+  /** what `to` is; a town, city or village ends the route at its harbour when there is one */
+  toKind?: PlaceKind;
 }
 
 export interface ApiRouteResponse {
@@ -40,6 +42,8 @@ export interface ApiRouteResponse {
   warnings: string[];
   /** metres between the requested points and the waterway they were snapped to */
   snap: { from: number; to: number };
+  /** where the route ends when that is not `to` itself: the harbour of a town */
+  end?: { name: string; lat: number; lon: number };
 }
 
 export interface ApiCorridorRequest {

@@ -190,6 +190,14 @@ describe('POST /api/route', () => {
     expect(fast.duration).toBeCloseTo(fast.distance / 5, 0);
   });
 
+  it('ends a route to a town at its harbour and says so', async () => {
+    const body = { from: at(500, 20), to: { ...at(9000, 200) }, toKind: 'town', destName: 'Hoorn' };
+    const r = (await (await post(srv, '/api/route', body)).json()) as ApiRouteResponse;
+    expect(r.end?.name).toBe('Jachthaven Hoorn');
+    expect(r.maneuvers.at(-1)?.text).toBe('Arrive at Jachthaven Hoorn');
+    expect((await post(srv, '/api/route', { ...body, toKind: 'castle' })).status).toBe(400);
+  });
+
   it('routes via intermediate stops', async () => {
     const r = (await (await post(srv, '/api/route', { ...req, via: [at(5000, 3000)] })).json()) as ApiRouteResponse;
     expect(r.maneuvers.some((m) => m.type === 'via')).toBe(true);
