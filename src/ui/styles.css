@@ -100,9 +100,6 @@ button {
   padding-top: var(--safe-t);
   z-index: 3;
 }
-@media (display-mode: standalone) {
-  #instruments { padding-top: calc(var(--safe-t) + 12px); }
-}
 .inst {
   padding: 4px 10px 6px;
   min-height: 52px;
