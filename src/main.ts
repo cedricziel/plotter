@@ -29,8 +29,24 @@ async function main() {
     if (!app.fix) return toast('Waiting for GPS fix…');
     app.setFollow(true);
   };
-  $('#btn-zoom-in').onclick = () => app.map.zoomIn();
-  $('#btn-zoom-out').onclick = () => app.map.zoomOut();
+  $('#btn-zoom-in').onclick = () => {
+    app.autoZoom = false;
+    app.map.zoomIn();
+  };
+  $('#btn-zoom-out').onclick = () => {
+    app.autoZoom = false;
+    app.map.zoomOut();
+  };
+  $('#btn-orient').onclick = () => {
+    const orientation = app.settings.orientation === 'course' ? 'north' : 'course';
+    void app.updateSettings({ orientation }).then(() => {
+      toast(orientation === 'course' ? 'Course up' : 'North up');
+      if (app.follow) app.setFollow(true);
+      else if (orientation === 'north') app.map.easeTo({ bearing: 0, duration: 400 });
+    });
+  };
+  const needle = $('#btn-orient .needle');
+  app.map.on('rotate', () => (needle.style.transform = `rotate(${-app.map.getBearing()}deg)`));
   $('#btn-seamarks').onclick = () => void app.updateSettings({ seamarks: !app.settings.seamarks });
   $('#alarm-silence').onclick = () => app.silenceAlarm();
   $('#alarm-disarm').onclick = () => void app.armAnchor(false);
@@ -41,6 +57,11 @@ async function main() {
     b.classList.toggle('recording', !!app.recording);
     b.classList.toggle('anchor-armed', !!app.anchor?.armed);
     b.classList.toggle('seamarks-on', app.settings.seamarks);
+    b.classList.toggle('north-up', app.settings.orientation === 'north');
+    const orient = $('#btn-orient');
+    const courseUp = app.settings.orientation === 'course';
+    orient.setAttribute('aria-label', courseUp ? 'Course up' : 'North up');
+    orient.title = courseUp ? 'Course up (tap for north up)' : 'North up (tap for course up)';
     const alarm = $('#alarm');
     alarm.hidden = !app.alarmReason;
     $('#alarm-reason').textContent = app.alarmReason ?? '';

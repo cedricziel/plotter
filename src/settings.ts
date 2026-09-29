@@ -1,3 +1,4 @@
+import type { Orientation } from './core/camera';
 import type { DistanceUnit, SpeedUnit } from './core/units';
 import type { Theme } from './map/style';
 import { DEFAULT_CHART_URL } from './services/chart';
@@ -23,6 +24,8 @@ export interface Settings {
   /** m/s, used for ETA while the boat is (nearly) stationary */
   cruiseSpeed: number;
   voicePrompts: boolean;
+  /** Map orientation while following a route. */
+  orientation: Orientation;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -42,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   beam: null,
   cruiseSpeed: 2.5,
   voicePrompts: false,
+  orientation: 'course',
 };
 
 export async function loadSettings(): Promise<Settings> {

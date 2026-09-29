@@ -128,10 +128,12 @@ export async function chartAndShow(app: App, to: Place | { lat: number; lon: num
     ],
     {
       padding: { top: 40, bottom: 200, left: 40, right: 40 },
+      bearing: 0,
       maxZoom: 15,
       duration: 800,
     },
   );
+  app.resumeFollowAfter(5000);
   const total = shapeInfo(route.shape).total;
   const note = route.warnings?.length ? ` · ${route.warnings[0]}` : '';
   toast(
