@@ -313,4 +313,70 @@ describe('places', () => {
     const { places } = build([node(90, { leisure: 'marina' }, 5.0, 52.0)]);
     expect(places).toHaveLength(0);
   });
+
+  describe('info', () => {
+    const info = (lines: string[], name: string) => build(lines).places.find((p) => p.name === name)?.info;
+
+    it('keeps VHF, contact, hours, berths and operator from the tags', () => {
+      const tags = {
+        leisure: 'marina',
+        name: 'Jachthaven Zaan',
+        'contact:vhf': '31',
+        'contact:phone': '+31 75 123',
+        url: 'https://haven.example/',
+        opening_hours: 'Apr-Oct 08:00-20:00',
+        'capacity:berths': '120 berths',
+        operator: 'WSV Zaan',
+      };
+      expect(info([node(90, tags, 5.03, 52.005)], tags.name)).toEqual({
+        vhf: '31',
+        phone: '+31 75 123',
+        website: 'https://haven.example/',
+        openingHours: 'Apr-Oct 08:00-20:00',
+        berths: 120,
+        operator: 'WSV Zaan',
+      });
+    });
+
+    it('omits info when no tag applies and drops non-http websites', () => {
+      const bare = node(90, { leisure: 'marina', name: 'A' }, 5.0, 52.0);
+      const js = node(91, { leisure: 'marina', name: 'B', website: 'javascript:alert(1)' }, 5.1, 52.0);
+      const { places } = build([bare, js]);
+      expect(places.every((p) => !('info' in p))).toBe(true);
+    });
+
+    it('adds clearance and opening hours to bridges and hours to locks', () => {
+      const { places } = build([
+        water,
+        way(
+          2,
+          {
+            highway: 'residential',
+            bridge: 'movable',
+            name: 'Zaanbrug',
+            maxheight: '3',
+            clearance: '4.5',
+            opening_hours: 'Mo-Fr 06:00-22:00',
+          },
+          [
+            [20, 5.02, 51.999],
+            [21, 5.02, 52.001],
+          ],
+        ),
+        way(3, { ...canal, lock: 'yes', lock_name: 'Zaansluis', opening_hours: '24/7', operator: 'Rijkswaterstaat' }, [
+          [11, 5.01, 52.0],
+          [50, 5.015, 52.0],
+          [12, 5.02, 52.0],
+        ]),
+      ]);
+      expect(places.find((p) => p.kind === 'bridge')?.info).toEqual({
+        clearance: 4.5,
+        openingHours: 'Mo-Fr 06:00-22:00',
+      });
+      expect(places.find((p) => p.kind === 'lock')?.info).toEqual({
+        openingHours: '24/7',
+        operator: 'Rijkswaterstaat',
+      });
+    });
+  });
 });
