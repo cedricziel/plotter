@@ -29,6 +29,7 @@ import { logEvent, traced } from './telemetry';
 import { WakeLock } from './services/wakelock';
 import { navBearing, navZoom } from './core/camera';
 import { absUrl, loadSettings, saveSettings, type Settings } from './settings';
+import { onUserActivation } from './ui/activation';
 import { $, h, toast } from './ui/dom';
 
 /** Centre of the Netherlands' main waterways, used before the first fix. */
@@ -165,11 +166,10 @@ export class App {
     this.nextIndex = (await db.getKv<number>('nextIndex').catch(() => 0)) ?? 0;
 
     // Audio contexts and wake locks need a user gesture on some browsers.
-    const unlock = () => {
+    onUserActivation(document, () => {
       if (this.anchor?.armed) this.alarm.prime();
       void this.updateWakeLock();
-    };
-    document.addEventListener('pointerdown', unlock, { passive: true });
+    });
 
     this.applyTheme();
     this.renderWaypointMarkers();
@@ -312,6 +312,8 @@ export class App {
       ...summary,
       'plotter.compass.enabled': this.settings.compass,
       'plotter.compass.reading': this.heading != null,
+      'plotter.wakelock.wanted': this.wantsWakeLock,
+      'plotter.wakelock.active': this.wakeLock.active,
     });
   }
 
@@ -1158,9 +1160,13 @@ export class App {
 
   // ---- wake lock ---------------------------------------------------------
 
+  /** The screen stays on when asked to, and always while the anchor alarm or a track recording runs. */
+  private get wantsWakeLock(): boolean {
+    return this.settings.keepAwake || !!this.anchor?.armed || !!this.recording;
+  }
+
   async updateWakeLock(): Promise<void> {
-    const want = this.settings.keepAwake || !!this.anchor?.armed || !!this.recording;
-    if (want) await this.wakeLock.enable();
+    if (this.wantsWakeLock) await this.wakeLock.enable();
     else await this.wakeLock.disable();
     this.emit();
   }
