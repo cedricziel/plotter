@@ -482,6 +482,7 @@ select {
   touch-action: none;
   cursor: pointer;
 }
+.modal.closing { opacity: 0; }
 .modal-card {
   background: var(--panel);
   color: var(--fg);
