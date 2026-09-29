@@ -5,7 +5,7 @@
  * Writes waterways-<date>.json, places-<date>.json and, last, current.json.
  */
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, chown, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -19,15 +19,23 @@ const { values } = parseArgs({
     source: { type: 'string', default: 'unknown' },
     date: { type: 'string' },
     input: { type: 'string' },
+    chown: { type: 'string' },
   },
 });
 if (!values.out) {
-  console.error('usage: cli.ts --out DIR [--source URL] [--date YYYYMMDD] [--input file.opl]');
+  console.error('usage: cli.ts --out DIR [--source URL] [--date YYYYMMDD] [--input file.opl] [--chown UID:GID]');
   process.exit(2);
 }
 const out = values.out;
 const built = new Date();
+const owner = values.chown?.split(':').map(Number);
 const date = values.date ?? built.toISOString().slice(0, 10).replaceAll('-', '');
+
+/** World-readable and, when asked for, owned by the uid that serves the files; must happen before the manifest is published. */
+async function share(path: string): Promise<void> {
+  await chmod(path, 0o644);
+  if (owner) await chown(path, owner[0], owner[1]).catch(() => {});
+}
 
 async function writeJson(path: string, head: string, edges: unknown[], tail: string): Promise<void> {
   const s = createWriteStream(path);
@@ -65,6 +73,8 @@ const wName = `waterways-${date}.json`;
 const pName = `places-${date}.json`;
 await writeGraph(join(out, `${wName}.part`), file);
 await writePlaces(join(out, `${pName}.part`), places);
+await share(join(out, `${wName}.part`));
+await share(join(out, `${pName}.part`));
 await rename(join(out, `${wName}.part`), join(out, wName));
 await rename(join(out, `${pName}.part`), join(out, pName));
 
@@ -75,6 +85,7 @@ const manifest: DataManifest = {
   source: file.source,
 };
 await writeFile(join(out, 'current.json.new'), `${JSON.stringify(manifest)}\n`);
+await share(join(out, 'current.json.new'));
 await rename(join(out, 'current.json.new'), join(out, 'current.json'));
 
 for (const f of await readdir(out)) {
