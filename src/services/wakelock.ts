@@ -43,8 +43,13 @@ export class WakeLock {
 
   private async request(): Promise<boolean> {
     try {
-      this.sentinel = await navigator.wakeLock.request('screen');
-      this.sentinel.addEventListener('release', () => this.report());
+      const sentinel = await navigator.wakeLock.request('screen');
+      if (this.wanted) {
+        this.sentinel = sentinel;
+        sentinel.addEventListener('release', () => this.report());
+      } else {
+        await sentinel.release();
+      }
     } catch {
       /* refused, e.g. no user gesture yet */
     }
