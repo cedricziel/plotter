@@ -444,7 +444,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     const path = (req.url ?? '/').split('?')[0];
     const route = routeOf(path);
     const run = () => handle(req, res).catch((e: unknown) => respond(req, res, e));
-    if (route === '/api/otel/*') return void run();
+    if (route === '/api/otel/*' || route === '/api/health') return void run();
 
     const started = performance.now();
     const parent = propagation.extract(ROOT_CONTEXT, req.headers);

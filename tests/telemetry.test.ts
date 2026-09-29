@@ -183,12 +183,17 @@ describe('request spans', () => {
 
   it('joins the trace of an incoming traceparent', async () => {
     const traceId = '4bf92f3577b34da6a3ce929d0e0e4736';
-    await fetch(`${traced.url}/api/health`, {
+    await fetch(`${traced.url}/api/meta`, {
       headers: { traceparent: `00-${traceId}-00f067aa0ba902b7-01` },
     });
-    const span = find('GET /api/health');
+    const span = find('GET /api/meta');
     expect(span?.spanContext().traceId).toBe(traceId);
     expect(span?.parentSpanContext?.spanId).toBe('00f067aa0ba902b7');
+  });
+
+  it('does not trace health checks', async () => {
+    await fetch(`${traced.url}/api/health`);
+    expect(find('GET /api/health')).toBeUndefined();
   });
 
   it('marks unknown paths and records client errors without an error status', async () => {
