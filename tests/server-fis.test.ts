@@ -124,6 +124,9 @@ describe('server with fairway data', () => {
   it('routes a tall vessel around a bridge the official clearance makes too low', async () => {
     const before = await route(without);
     expect(before.warnings).toEqual(['1 fixed bridge with unknown clearance']);
+    expect(before.warningDetails).toEqual([
+      { code: 'unknown-clearance', params: { count: 1 }, text: '1 fixed bridge with unknown clearance' },
+    ]);
     expect(before.distance).toBeCloseTo(10000, -1);
 
     const after = await route(withFis);

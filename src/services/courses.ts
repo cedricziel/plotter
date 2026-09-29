@@ -1,4 +1,4 @@
-import type { ApiRouteRequest, ApiRouteResponse } from '../core/api';
+import type { ApiRouteRequest, ApiRouteResponse, CourseWarning } from '../core/api';
 import type { CourseDestination } from '../core/model';
 import { decodePolyline } from '../core/polyline';
 import type { Maneuver, VesselProfile } from '../core/routing';
@@ -11,7 +11,7 @@ import { ApiError } from './api';
 export interface Charted {
   shape: [number, number][];
   maneuvers: Maneuver[];
-  warnings: string[];
+  warnings: CourseWarning[];
   source: 'online' | 'offline';
   /** metres between the requested start and destination and the waterway */
   snap: { from: number; to: number };
@@ -57,7 +57,7 @@ export async function planCourse(deps: PlanDeps, req: CourseRequest): Promise<Pl
       charted: {
         shape: decodePolyline(r.polyline),
         maneuvers: r.maneuvers,
-        warnings: r.warnings,
+        warnings: r.warningDetails ?? r.warnings,
         source: 'online',
         snap: r.snap,
         end: r.end,

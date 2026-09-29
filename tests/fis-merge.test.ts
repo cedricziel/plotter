@@ -45,7 +45,7 @@ const unknownBridge: FixtureObstacle = { pos: 5000, type: 'fixed' };
 describe('merging FIS into the routing graph', () => {
   it('turns a fixed bridge of unknown clearance into a blocker for a tall vessel', () => {
     const g = network(unknownBridge);
-    expect(route(g, { airDraft: 4 }).warnings).toEqual(['1 fixed bridge with unknown clearance']);
+    expect(route(g, { airDraft: 4 }).warnings.map((w) => w.text)).toEqual(['1 fixed bridge with unknown clearance']);
     expect(route(g, { airDraft: 4 }).distance).toBeCloseTo(10000, -1);
 
     const merged = mergeFisIntoGraph(g, fis({ bridges: [bridge(5000, 12, { clearance: 2.9 })] }));

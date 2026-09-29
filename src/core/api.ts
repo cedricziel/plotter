@@ -47,11 +47,32 @@ export interface ApiRouteResponse {
   /** encoded polyline, precision 6 */
   polyline: string;
   maneuvers: Maneuver[];
+  /** English, for clients that predate `warningDetails` */
   warnings: string[];
+  /** the same warnings as `warnings`, in order, with a code for the client to word them */
+  warningDetails?: ApiWarning[];
   /** metres between the requested points and the waterway they were snapped to */
   snap: { from: number; to: number };
   /** where the route ends when that is not `to` itself: the harbour of a town */
   end?: { name: string; lat: number; lon: number };
+}
+
+/** A route warning: `text` is English; the client words a `code` it knows in the chosen language. */
+export interface ApiWarning {
+  code: string;
+  params?: Record<string, string | number>;
+  text: string;
+}
+
+/** A warning as a course keeps it: plain strings come from older servers and from the device itself. */
+export type CourseWarning = string | ApiWarning;
+
+/** An error answer: `error` is English; the client words a `code` it knows in the chosen language. */
+export interface ApiErrorBody {
+  error: string;
+  code?: string;
+  params?: Record<string, string | number>;
+  reason?: string;
 }
 
 export interface ApiCorridorRequest {

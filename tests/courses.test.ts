@@ -56,6 +56,12 @@ describe('planCourse', () => {
     expect(plan).toMatchObject({ charted: { source: 'online', warnings: ['w'], snap: { from: 20, to: 20 } } });
   });
 
+  it('keeps the coded warnings when the service sends them', async () => {
+    const coded = { code: 'unknown-clearance', params: { count: 1 }, text: 'w' };
+    const plan = await planCourse(deps(vi.fn().mockResolvedValue({ ...online, warningDetails: [coded] })), req());
+    expect(plan).toMatchObject({ charted: { warnings: [coded] } });
+  });
+
   it('passes the destination kind so the service can pick a harbour', async () => {
     const route = vi.fn().mockResolvedValue({ ...online, end: { name: 'Haven', lat: 52, lon: 5 } });
     const plan = await planCourse(deps(route), req({ kind: 'town' }));

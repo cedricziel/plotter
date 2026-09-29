@@ -96,7 +96,7 @@ function inNetherlands(lat: number, lon: number): boolean {
 function point(v: unknown, name: string): { lat: number; lon: number } {
   const p = v as { lat?: unknown; lon?: unknown } | null;
   if (!p || !num(p.lat) || !num(p.lon)) throw new HttpError(400, `${name} must be {lat, lon} numbers`);
-  if (!inNetherlands(p.lat, p.lon)) throw new HttpError(422, `${name} is outside the Netherlands`);
+  if (!inNetherlands(p.lat, p.lon)) throw new HttpError(422, `${name} is outside the Netherlands`, {}, 'outside-area');
   return { lat: p.lat, lon: p.lon };
 }
 
@@ -286,14 +286,21 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       return found;
     });
     if (!result.ok) {
-      throw new HttpError(result.reason === 'no-snap' ? 422 : 404, result.message, { reason: result.reason });
+      const { reason, code, params } = result;
+      throw new HttpError(
+        reason === 'no-snap' ? 422 : 404,
+        result.message,
+        { ...(params && { params }), reason },
+        code,
+      );
     }
     return {
       distance: result.distance,
       duration: result.duration,
       polyline: encodePolyline(result.shape),
       maneuvers: result.maneuvers,
-      warnings: result.warnings,
+      warnings: result.warnings.map((w) => w.text),
+      warningDetails: result.warnings,
       snap: { from: result.snapStart.dist, to: result.snapEnd.dist },
       ...(end ? { end: { name: end.name, lat: end.lat, lon: end.lon } } : {}),
     };
@@ -313,12 +320,17 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     if (shape.length > MAX_CORRIDOR_POINTS)
       throw new HttpError(400, `polyline has more than ${MAX_CORRIDOR_POINTS} points`);
     if (shape.some(([lon, lat]) => !inNetherlands(lat, lon)))
-      throw new HttpError(422, 'polyline leaves the Netherlands');
+      throw new HttpError(422, 'polyline leaves the Netherlands', {}, 'outside-area');
     let length = 0;
     for (let i = 1; i < shape.length; i++)
       length += distance({ lat: shape[i - 1][1], lon: shape[i - 1][0] }, { lat: shape[i][1], lon: shape[i][0] });
     if (length > MAX_CORRIDOR_METERS)
-      throw new HttpError(422, `polyline is longer than ${MAX_CORRIDOR_METERS / 1000} km`);
+      throw new HttpError(
+        422,
+        `polyline is longer than ${MAX_CORRIDOR_METERS / 1000} km`,
+        { params: { km: MAX_CORRIDOR_METERS / 1000 } },
+        'corridor-too-long',
+      );
     for (const k of ['bufferMeters', 'minZoom', 'maxZoom'] as const) {
       if (b[k] != null && !num(b[k])) throw new HttpError(400, `${k} must be a number`);
     }
@@ -337,6 +349,8 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         throw new HttpError(
           422,
           `Corridor too large: more than ${maxTiles} tiles. Use a shorter route, a narrower buffer or a lower maximum zoom.`,
+          { params: { maxTiles } },
+          'corridor-too-large',
         );
       }
       throw e;
@@ -468,7 +482,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     if (e instanceof HttpError) {
       if (typeof e.extra.retryAfter === 'number') res.setHeader('retry-after', String(e.extra.retryAfter));
       const { retryAfter: _, ...extra } = e.extra;
-      return sendJson(req, res, e.status, { error: e.message, ...extra });
+      return sendJson(req, res, e.status, { error: e.message, code: e.code, ...extra });
     }
     console.error(e);
     trace.getActiveSpan()?.recordException(e as Error);
@@ -477,7 +491,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       'exception.message': (e as Error)?.message ?? String(e),
       'exception.stacktrace': (e as Error)?.stack ?? '',
     });
-    return sendJson(req, res, 500, { error: 'internal error' });
+    return sendJson(req, res, 500, { error: 'internal error', code: 'internal' });
   };
 
   const server = createServer((req, res) => {
