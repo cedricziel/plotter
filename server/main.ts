@@ -8,7 +8,7 @@ const running = await startServer({
   host: env.HOST ?? '0.0.0.0',
   pollMs: Number(env.POLL_MS ?? 600_000),
   maxTiles: Number(env.MAX_TILES ?? 20_000),
-  trustProxy: env.TRUST_PROXY !== '0',
+  trustProxy: env.TRUST_PROXY === '1',
 });
 console.log(`plotter server listening on :${running.port}`);
 

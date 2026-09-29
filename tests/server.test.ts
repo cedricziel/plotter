@@ -8,6 +8,7 @@ import type { ApiCorridorResponse, ApiMeta, ApiRouteResponse, ApiSearchResponse 
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
 import type { Place } from '../src/core/waterway-data';
 import { startServer, type RunningServer } from '../server/app';
+import { RateLimiter } from '../server/http';
 import { fixture, latlon } from './graph-fixture';
 
 const vertices: Record<string, [number, number]> = {
@@ -280,6 +281,17 @@ describe('POST /api/corridor', () => {
     expect(((await res.json()) as { error: string }).error).toMatch(/too large/);
   });
 
+  it('rejects a polyline longer than 600 km', async () => {
+    const zigzag = encodePolyline([
+      [3.5, 51],
+      [7, 53.5],
+      [3.5, 51],
+    ]);
+    const res = await post(srv, '/api/corridor', { polyline: zigzag, minZoom: 0, maxZoom: 0 });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { error: string }).error).toMatch(/longer than 600 km/);
+  });
+
   it('validates the polyline', async () => {
     expect((await post(srv, '/api/corridor', {})).status).toBe(400);
     expect((await post(srv, '/api/corridor', { polyline: '_' })).status).toBe(400);
@@ -356,5 +368,14 @@ describe('data reload', () => {
       await s.close();
       rmSync(d, { recursive: true, force: true });
     }
+  });
+});
+
+describe('RateLimiter', () => {
+  it('keeps the key map bounded when every request uses a new key', () => {
+    const rl = new RateLimiter(60_000);
+    for (let i = 0; i < 25_000; i++) rl.check(`k${i}`, 5, 0);
+    expect((rl as unknown as { hits: Map<string, unknown> }).hits.size).toBeLessThanOrEqual(10_000);
+    expect(rl.check('k24999', 1, 0)).toBeGreaterThan(0);
   });
 });

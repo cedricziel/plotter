@@ -9,6 +9,7 @@ import type {
   ApiSearchResponse,
 } from '../src/core/api';
 import { CorridorTooLarge, corridorTiles, placesInCorridor, subgraph } from '../src/core/corridor';
+import { distance } from '../src/core/geo';
 import { decodePolyline, encodePolyline } from '../src/core/polyline';
 import { findRouteToPlace } from '../src/core/routing';
 import { DataStore } from './data';
@@ -42,6 +43,7 @@ const BBOX = { minLat: 50.6, maxLat: 53.8, minLon: 3.0, maxLon: 7.4 };
 const AVERAGE_TILE_BYTES = 20_000;
 const MAX_CHART_ZOOM = 15;
 const MAX_CORRIDOR_POINTS = 20_000;
+const MAX_CORRIDOR_METERS = 600_000;
 const LIMITS = { search: 120, route: 30, corridor: 6 };
 const BODY_LIMITS = { route: 16 * 1024, corridor: 1024 * 1024 };
 
@@ -200,6 +202,11 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       throw new HttpError(400, `polyline has more than ${MAX_CORRIDOR_POINTS} points`);
     if (shape.some(([lon, lat]) => !inNetherlands(lat, lon)))
       throw new HttpError(422, 'polyline leaves the Netherlands');
+    let length = 0;
+    for (let i = 1; i < shape.length; i++)
+      length += distance({ lat: shape[i - 1][1], lon: shape[i - 1][0] }, { lat: shape[i][1], lon: shape[i][0] });
+    if (length > MAX_CORRIDOR_METERS)
+      throw new HttpError(422, `polyline is longer than ${MAX_CORRIDOR_METERS / 1000} km`);
     for (const k of ['bufferMeters', 'minZoom', 'maxZoom'] as const) {
       if (b[k] != null && !num(b[k])) throw new HttpError(400, `${k} must be a number`);
     }

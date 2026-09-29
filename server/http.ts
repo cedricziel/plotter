@@ -54,6 +54,8 @@ export async function sendJson(
   res.end(payload);
 }
 
+const MAX_KEYS = 10_000;
+
 /** Fixed-window request counter per key. */
 export class RateLimiter {
   private hits = new Map<string, { count: number; reset: number }>();
@@ -65,8 +67,12 @@ export class RateLimiter {
 
   /** Seconds to wait when over the limit, otherwise 0. */
   check(key: string, max: number, now = Date.now()): number {
-    if (this.hits.size > 10_000) {
+    if (this.hits.size >= MAX_KEYS) {
       for (const [k, v] of this.hits) if (v.reset <= now) this.hits.delete(k);
+      for (const k of this.hits.keys()) {
+        if (this.hits.size < MAX_KEYS) break;
+        this.hits.delete(k);
+      }
     }
     const h = this.hits.get(key);
     if (!h || h.reset <= now) {
