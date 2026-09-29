@@ -6,7 +6,9 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { SpanStatusCode, trace, type Attributes, type Span } from '@opentelemetry/api';
+import { logs } from '@opentelemetry/api-logs';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { deviceAttributes } from './core/device';
 
 const KEY = 'plotter.telemetry';
 const API_BASE = import.meta.env.VITE_API_URL || './api';
@@ -59,6 +61,16 @@ function startTelemetry(): void {
     logLevel: 'NONE',
     serviceName: 'plotter-web',
     serviceVersion: __BUILD_ID__,
+    resourceAttributes: deviceAttributes({
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints ?? 0,
+      screenWidth: screen.width,
+      screenHeight: screen.height,
+      pixelRatio: devicePixelRatio,
+      standalone:
+        matchMedia('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+    }),
     logs: { processors: [stripUrlQuery], exportConfig: { url: `${relay}/v1/logs` } },
     traces: { exportConfig: { url: `${relay}/v1/traces` } },
   });
@@ -95,4 +107,9 @@ export async function traced<T>(name: string, fn: (span: Span) => Promise<T>, at
       span.end();
     }
   });
+}
+
+/** Records a named event with attributes; a no-op while telemetry is off. */
+export function logEvent(name: string, attributes: Attributes): void {
+  logs.getLogger('plotter-web').emit({ eventName: name, body: name, attributes });
 }
