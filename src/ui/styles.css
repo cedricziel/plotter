@@ -76,10 +76,6 @@ body {
   grid-template-columns: minmax(0, 1fr);
   position: fixed;
   inset: 0;
-  /* --app-h: set by fitStandaloneViewport() when iOS reports a short viewport; overrides bottom. */
-  height: var(--app-h, auto);
-  /* Fixed-position overlays (fabs, sheet, notice) anchor to the body, not the short viewport. */
-  contain: layout;
 }
 #instruments { grid-row: 1; }
 #navstrip { grid-row: 2; }
