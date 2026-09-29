@@ -15,7 +15,8 @@
     "build:server": "vite build -c vite.server.config.ts",
     "serve": "node server-dist/server.mjs",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test:layout": "storybook build --quiet && playwright test"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@maplibre/maplibre-gl-style-spec": "^26.4.4",
+    "@playwright/test": "^1.63.0",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",

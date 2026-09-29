@@ -16,5 +16,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client", "geojson", "node"]
   },
-  "include": ["src", ".storybook", "tests", "tools", "server", "vite.server.config.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", ".storybook", "tests", "e2e", "playwright.config.ts", "tools", "server", "vite.server.config.ts", "vite.config.ts", "vitest.config.ts"]
 }
