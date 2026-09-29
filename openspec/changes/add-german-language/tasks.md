@@ -26,39 +26,41 @@
 
 - [x] 3.3 **Voice prompts (test first).** Extend `tests/course.test.ts` so `Announcer` with the German phrase function returns "In 500 Metern, rechts abbiegen in Pikmar" and "In 100 Metern, …". Implement the phrase function argument, and `speak(text, lang)` with `de-DE` / `en-GB` in `src/services/voice.ts`. Verify: the tests pass.
 
-## 4. Live switching and static labels
+## 4. Live switching
 
-- [ ] 4.1 **Switching test first.** Write `tests/language-switch.test.ts` (happy-dom), loading `index.html`'s body markup. Setting German must:
+- [ ] 4.1 **Switching test first.** Write `tests/language-switch.test.tsx` (happy-dom, Testing Library), rendering `<Shell>` over a real `App` with a stub map. Setting German through `App.updateSettings` must:
   - relabel the toolbar to Route, Track, Anker, Nacht and Menü, with German `aria-label`s on the floating buttons
   - relabel the chart notice to "Nur Navigationshilfe – nicht zur Navigation"
   - set `<html lang="de">`
-  - relabel an open Settings sheet to German while it stays open
+  - relabel an open Settings sheet's head to German while it stays open
+  - relabel an open destination card
+  - keep an armed anchor watch
 
   Show it failing.
 
-- [ ] 4.2 **Static labels.** Add `data-i18n` / `data-i18n-attr` to `index.html`, implement `applyStaticLabels()`, and wire `App.updateSettings` and startup to `setLanguage` → `applyStaticLabels` → `emit`. Verify: the 4.1 tests pass.
+- [ ] 4.2 **Language value and wiring.** Give `src/i18n` a subscribable language (`setLanguage` also sets `<html lang>`), add `useLanguage()` to `src/ui/store.ts`, let `openSheet` take a title function, subscribe the shell, the destination card, the seamark card and the disclaimer, and wire `App.init` and `App.updateSettings` to resolve and set the language before `emit`. Translate the shell's own texts (toolbar, floating buttons, notice, alarm) and the sheet heads. In `src/main.tsx`, set the language from the stored setting before `showDisclaimerOnce()`. Verify: the 4.1 tests pass.
 
 ## 5. Translate the UI (each task: strings to `t()`, German entries, stories)
 
 - [ ] 5.1 **Instrument bar and guidance strip.**
-  - Translate their labels in `src/ui/instruments.ts`, including the waiting/denied texts, stop and recalculate. Use `maneuverText` and `language()` for numbers.
-  - Add the stories `Instrument bar / German good fix`, `Guidance strip / German long maneuver`, `German off course` and `German waiting for GPS`.
-  - Verify: `tests/stories.test.ts` and `tests/instruments.test.ts` pass, and the German stories show no horizontal overflow at 360 px in day and night themes.
+  - Translate `src/ui/instruments.tsx`, including the waiting/denied texts, stop and recalculate. Use `maneuverText` and `language()` for numbers.
+  - Add the stories `Navigation/Instruments / German good fix` and `Navigation/Guidance strip / German long maneuver`, `German off course` and `German waiting for GPS`.
+  - Verify: `tests/stories.test.tsx` and `tests/instruments.test.tsx` pass, and the German stories show no horizontal overflow at 360 px in day and night themes.
 - [ ] 5.2 **Sheets.**
-  - Translate route, track, anchor, waypoint and settings (`src/ui/panels.ts`), including the route sheet's maneuver list through `maneuverText`.
-  - Add the Language control (Auto / English / Deutsch) to Settings, with a hint that spoken prompts use the device's voice.
-  - Extend `tests/panels.test.ts` so the Language control saves `language`.
+  - Translate route, track, anchor, waypoint and settings (`src/ui/panels/bodies.tsx`), including the route sheet's maneuver list through `maneuverText`.
+  - Add the Language control (Auto / English / Deutsch) to Settings, with a hint that spoken prompts use the device's voice, and a `Sheets/Settings / German` story.
+  - Extend `tests/panels.test.tsx` so the Language control saves `language`.
   - Verify: the tests pass.
-- [ ] 5.3 **Destination card, search, disclaimer, alarm, toasts and update prompt.**
-  - Translate `src/ui/destination.ts`, `search.ts`, `disclaimer.ts`, the alarm in `index.html`, the toasts in `src/app.ts` and `src/update.ts`, and `dom.ts` helpers.
+- [ ] 5.3 **Destination card, search, seamark card, disclaimer, alarm, toasts and update prompt.**
+  - Translate `src/ui/destination.tsx`, `search.tsx`, `seamark-card.tsx`, `disclaimer.tsx`, the alarm reason, the toasts in `src/app.ts`, `src/update.ts` and the shell, and the texts from services and map labels.
   - Add the stories `Destination card / German opening bridge` and `Disclaimer / German`.
-  - Verify: `tests/stories.test.ts` passes.
+  - Verify: `tests/stories.test.tsx` passes.
 - [ ] 5.4 **Voice wiring.** In `src/app.ts`, pass the i18n phrase function and `language()` to the announcer and `speak`. Verify: extend `tests/course.test.ts` or an app-level unit test to assert the German prompt is passed with `de-DE`.
-- [ ] 5.5 **Guard against missed strings.** Add a test that scans `src/ui/*.ts` for `h(...)` calls with an English letter in a string-literal child or in a `title`/`aria-label` attribute, with an allowlist for symbols. Verify: the test passes after 5.1–5.3 and fails when an English literal is added.
+- [ ] 5.5 **Guard against missed strings.** Add `tests/untranslated.test.ts`, which parses `src/ui/**/*.tsx` with Vite's `parseAst` and fails on JSX text with an English letter or an English string literal (or template text) in a `title`, `aria-label`, `placeholder` or `alt` attribute, with an allowlist for symbols, units and instrument abbreviations. Verify: the test passes after 5.1–5.3 and fails when an English literal is added.
 
 ## 6. Storybook language global
 
-- [ ] 6.1 **Global and dual-language render.** Add the `language` global (English / Deutsch) and the decorator that calls `setLanguage` and `applyStaticLabels` in `.storybook/preview.ts`. Extend `tests/stories.test.ts` to render every story in both languages. Verify: `npm test` and `npm run build-storybook` pass.
+- [ ] 6.1 **Global and dual-language render.** Add the `language` global (English / Deutsch) and the decorator that calls `setLanguage` in `.storybook/preview.tsx`. Extend `tests/stories.test.tsx` to compose every story with the preview's annotations and render it in both languages, checking the page language. Verify: `npm test` and `npm run build-storybook` pass.
 
 ## 7. Integration and device verification
 

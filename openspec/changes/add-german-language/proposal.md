@@ -48,8 +48,8 @@ Plotter is built for Dutch inland waterways, and many of the recreational boater
   - There is no change to safe-area or standalone handling.
 - **Code**:
   - New `src/i18n/`: the English source dictionary, the German dictionary, `t()`, language resolution and formatters.
-  - Hard-coded strings in `src/ui/*.ts`, `src/app.ts` and `src/update.ts` are replaced.
-  - `index.html` static labels get `data-i18n`.
+  - Hard-coded strings in the React components (`src/ui/*.tsx`, `src/ui/panels/*.tsx`), `src/app.ts` and `src/update.ts` are replaced.
+  - `src/main.tsx` settles the language before the disclaimer shows.
   - `src/core/units.ts` formatters take a locale.
   - `src/core/course.ts` (`Announcer`) takes a phrase builder.
   - `src/services/voice.ts` takes a language.
@@ -66,10 +66,10 @@ Plotter is built for Dutch inland waterways, and many of the recreational boater
     - the fallback to `text` when `name` is missing
   - `tests/course.test.ts`: German `Announcer` prompts.
   - `tests/routing.test.ts`: every maneuver carries a `name` field (`null` when unnamed).
-  - `tests/language-switch.test.ts` (happy-dom): changing the setting relabels the toolbar, notice and an open sheet without a reload, and sets `<html lang>`.
-  - `tests/stories.test.ts`: renders every story in both languages.
+  - `tests/language-switch.test.tsx` (happy-dom): changing the setting relabels the toolbar, notice and an open sheet without a reload, and sets `<html lang>`.
+  - `tests/stories.test.tsx`: renders every story in both languages.
 - **Storybook**:
-  - A new **Language** toolbar global (English / Deutsch) in `.storybook/preview.ts`.
+  - A new **Language** toolbar global (English / Deutsch) in `.storybook/preview.tsx`.
   - New German stories:
     - `Guidance strip`: long German maneuver, off course, waiting for GPS
     - `Destination card`: opening bridge
