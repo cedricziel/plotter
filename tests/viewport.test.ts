@@ -149,15 +149,37 @@ describe('viewportLoader', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the saved data when loading fails and tries again on the next move', async () => {
+  it('falls back to the saved data when loading fails and tries the same area again only after a while', async () => {
     load.mockRejectedValueOnce(new Error('offline'));
     mount();
     await vi.advanceTimersByTimeAsync(0);
     expect(fallback).toHaveBeenCalledWith(view);
     expect(render).toHaveBeenLastCalledWith(['saved']);
     await moveTo([5.001, 52.001, 5.051, 52.031]);
+    expect(load).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await moveTo([5.002, 52.002, 5.052, 52.032]);
     expect(load).toHaveBeenCalledTimes(2);
     expect(render).toHaveBeenLastCalledWith(['a']);
+  });
+
+  it('tries at once after a failure when the view leaves the failed area', async () => {
+    load.mockRejectedValueOnce(new Error('offline'));
+    mount();
+    await vi.advanceTimersByTimeAsync(0);
+    await moveTo([5.3, 52.2, 5.35, 52.23]);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back for the view shown when loading fails, not the one it started for', async () => {
+    let fail: (e: Error) => void = () => {};
+    load.mockImplementationOnce(() => new Promise((_, reject) => (fail = reject)));
+    mount();
+    const later: Box = [5.002, 52.002, 5.052, 52.032];
+    await moveTo(later);
+    fail(new Error('offline'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fallback).toHaveBeenLastCalledWith(later);
   });
 
   it('renders again when the style is replaced', async () => {

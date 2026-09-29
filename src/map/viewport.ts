@@ -25,6 +25,9 @@ export interface ViewportLoaderOptions<T> {
   render: (items: T[]) => void;
 }
 
+/** After a failed load the same area is not asked for again before this, so offline use stays quiet. */
+const RETRY_MS = 30_000;
+
 /**
  * Keeps `render` supplied with the items of the visible map area: loads a padded box once the map settles,
  * skips moves that stay inside the loaded box, and shows `fallback` while loading fails.
@@ -32,17 +35,23 @@ export interface ViewportLoaderOptions<T> {
 export function viewportLoader<T>(map: MlMap, o: ViewportLoaderOptions<T>): { refresh: () => Promise<void> } {
   let shown: T[] = [];
   let fetched: { box: Box; zoom: number } | null = null;
+  let failed: { box: Box; zoom: number; at: number } | null = null;
   let loading: { box: Box; zoom: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AbortController | undefined;
 
+  const currentView = (): Box => {
+    const b = map.getBounds();
+    return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  };
+
   const refresh = async () => {
     const zoom = map.getZoom();
     if (zoom < o.minZoom || o.enabled?.() === false) return;
-    const b = map.getBounds();
-    const view: Box = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    const view = currentView();
     const covers = (c: { box: Box; zoom: number } | null) => c && inside(view, c.box) && Math.abs(zoom - c.zoom) < 1;
     if (covers(fetched) || covers(loading)) return;
+    if (failed && Date.now() - failed.at < RETRY_MS && covers(failed)) return;
     pending?.abort();
     const ctl = (pending = new AbortController());
     const box = padded(view, o.pad, o.maxSpan);
@@ -50,10 +59,12 @@ export function viewportLoader<T>(map: MlMap, o: ViewportLoaderOptions<T>): { re
     try {
       shown = await o.load(box, ctl.signal);
       fetched = { box, zoom };
+      failed = null;
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      shown = o.fallback(view);
+      shown = o.fallback(currentView());
       fetched = null;
+      failed = { box, zoom, at: Date.now() };
     } finally {
       if (pending === ctl) loading = null;
     }
