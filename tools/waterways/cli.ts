@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Builds the routing graph and place index from OPL on stdin:
+ * Builds the routing graph, place index and seamark list from OPL on stdin:
  *   osmium add-locations-to-ways --ignore-missing-nodes -f opl in.osm.pbf | node tools/waterways/cli.ts --out DIR --source URL
- * Writes waterways-<date>.json, places-<date>.json and, last, current.json.
+ * Writes waterways-<date>.json, places-<date>.json, seamarks-<date>.json and, last, current.json.
  */
 import { createReadStream, createWriteStream } from 'node:fs';
 import { chmod, chown, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
@@ -10,8 +10,9 @@ import { once } from 'node:events';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
-import type { DataManifest, Place, WaterwayFile } from '../../src/core/waterway-data.ts';
+import type { DataManifest, Place, Seamark, WaterwayFile } from '../../src/core/waterway-data.ts';
 import { WaterwayBuilder } from './build.ts';
+import { SeamarkBuilder } from './seamarks.ts';
 
 const { values } = parseArgs({
   options: {
@@ -55,28 +56,31 @@ async function writeGraph(path: string, f: WaterwayFile): Promise<void> {
   await writeJson(path, head, f.edges, '\n]}\n');
 }
 
-async function writePlaces(path: string, places: Place[]): Promise<void> {
-  await writeJson(path, '[', places, '\n]\n');
+async function writeList(path: string, items: Place[] | Seamark[]): Promise<void> {
+  await writeJson(path, '[', items, '\n]\n');
 }
 
 const t0 = Date.now();
 const builder = new WaterwayBuilder({ source: values.source!, built: built.toISOString() });
+const seamarkBuilder = new SeamarkBuilder();
 const input = values.input ? createReadStream(values.input) : process.stdin;
 let lines = 0;
 for await (const line of createInterface({ input, crlfDelay: Infinity })) {
   builder.add(line);
+  seamarkBuilder.add(line);
   lines++;
 }
 const { file, places, stats } = builder.finish();
+const seamarks = seamarkBuilder.finish();
 
 const wName = `waterways-${date}.json`;
 const pName = `places-${date}.json`;
+const sName = `seamarks-${date}.json`;
 await writeGraph(join(out, `${wName}.part`), file);
-await writePlaces(join(out, `${pName}.part`), places);
-await share(join(out, `${wName}.part`));
-await share(join(out, `${pName}.part`));
-await rename(join(out, `${wName}.part`), join(out, wName));
-await rename(join(out, `${pName}.part`), join(out, pName));
+await writeList(join(out, `${pName}.part`), places);
+await writeList(join(out, `${sName}.part`), seamarks);
+for (const name of [wName, pName, sName]) await share(join(out, `${name}.part`));
+for (const name of [wName, pName, sName]) await rename(join(out, `${name}.part`), join(out, name));
 
 const previous = await readFile(join(out, 'current.json'), 'utf8')
   .then((s) => JSON.parse(s) as DataManifest)
@@ -85,6 +89,7 @@ const manifest: DataManifest = {
   ...(previous?.fis ? { fis: previous.fis, fisGeneration: previous.fisGeneration } : {}),
   waterways: `./data/${wName}`,
   places: `./data/${pName}`,
+  seamarks: `./data/${sName}`,
   built: file.built,
   source: file.source,
 };
@@ -93,8 +98,16 @@ await share(join(out, 'current.json.new'));
 await rename(join(out, 'current.json.new'), join(out, 'current.json'));
 
 for (const f of await readdir(out)) {
-  if (/^(waterways|places)-.*\.json(\.part)?$/.test(f) && f !== wName && f !== pName) await rm(join(out, f));
+  if (/^(waterways|places|seamarks)-.*\.json(\.part)?$/.test(f) && ![wName, pName, sName].includes(f)) {
+    await rm(join(out, f));
+  }
 }
 
-const sizes = { waterways: (await stat(join(out, wName))).size, places: (await stat(join(out, pName))).size };
-console.error(JSON.stringify({ lines, seconds: (Date.now() - t0) / 1000, sizes, stats }, null, 2));
+const sizes = {
+  waterways: (await stat(join(out, wName))).size,
+  places: (await stat(join(out, pName))).size,
+  seamarks: (await stat(join(out, sName))).size,
+};
+const seamarkTypes: Record<string, number> = {};
+for (const s of seamarks) seamarkTypes[s.type] = (seamarkTypes[s.type] ?? 0) + 1;
+console.error(JSON.stringify({ lines, seconds: (Date.now() - t0) / 1000, sizes, stats, seamarkTypes }, null, 2));

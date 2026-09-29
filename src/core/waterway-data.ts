@@ -97,9 +97,26 @@ export interface Place {
   info?: PlaceInfo;
 }
 
+/** A buoy, beacon, light or notice from OpenStreetMap; `type` is the OSM `seamark:type` value. */
+export interface Seamark {
+  lat: number;
+  lon: number;
+  type: string;
+  category?: string;
+  /** OSM colour list, e.g. "red;green;red" */
+  colour?: string;
+  shape?: string;
+  topmark?: string;
+  /** light character, e.g. "Fl(2) G 5s" */
+  light?: string;
+  name?: string;
+}
+
 export interface DataManifest {
   waterways: string;
   places: string;
+  /** seamark file; absent in manifests written before seamarks existed */
+  seamarks?: string;
   built: string;
   source: string;
   /** fairway data file, published by its own job */

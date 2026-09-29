@@ -1,8 +1,8 @@
 #!/bin/sh
-# One-shot job: build the waterway routing graph and place index from OpenStreetMap.
+# One-shot job: build the waterway routing graph, place index and seamark list from OpenStreetMap.
 # Downloads the Netherlands extract (~1.6 GB), keeps only the objects the
-# router needs, builds waterways-<date>.json + places-<date>.json and publishes
-# them by writing current.json last. The API server hot-swaps to the new data.
+# router and the chart need, builds waterways-, places- and seamarks-<date>.json
+# and publishes them by writing current.json last. The API server hot-swaps to the new data.
 # Skipped while current.json is younger than MAX_AGE_DAYS, unless FORCE=1.
 # Env: OUT (default /out/data), OSM_PBF_URL, MAX_AGE_DAYS (30), FORCE, WORK (scratch dir), OWNER (568:568).
 set -eu
@@ -30,6 +30,7 @@ osmium tags-filter "$WORK/nl.osm.pbf" \
   w/waterway=river,canal,fairway w/bridge w/seamark:type=bridge n/seamark:type=bridge \
   n/waterway=lock_gate w/lock=yes nw/leisure=marina nw/harbour nw/seamark:type=harbour \
   nw/mooring n/place=city,town,village \
+  n/seamark:type=buoy_lateral,buoy_cardinal,buoy_isolated_danger,buoy_safe_water,buoy_special_purpose,beacon_lateral,beacon_cardinal,beacon_isolated_danger,beacon_safe_water,beacon_special_purpose,light_minor,light_major,light_float,light_vessel,notice \
   -o "$WORK/filtered.osm.pbf" --overwrite
 rm -f "$WORK/nl.osm.pbf"
 
