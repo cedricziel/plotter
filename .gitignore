@@ -5,3 +5,4 @@ dev-dist/
 .DS_Store
 # PMTiles extracts are large; build them locally (see README)
 public/tiles/*.pmtiles
+server-dist/

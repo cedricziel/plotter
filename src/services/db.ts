@@ -1,28 +1,33 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Route, Track, Waypoint } from '../core/model';
+import type { Trip } from '../core/trips';
 
 interface PlotterDB extends DBSchema {
   waypoints: { key: string; value: Waypoint };
   routes: { key: string; value: Route };
   tracks: { key: string; value: Track };
+  trips: { key: string; value: Trip };
   kv: { key: string; value: unknown };
 }
 
 let dbp: Promise<IDBPDatabase<PlotterDB>> | null = null;
 
 function db() {
-  dbp ??= openDB<PlotterDB>('plotter', 1, {
-    upgrade(d) {
-      d.createObjectStore('waypoints', { keyPath: 'id' });
-      d.createObjectStore('routes', { keyPath: 'id' });
-      d.createObjectStore('tracks', { keyPath: 'id' });
-      d.createObjectStore('kv');
+  dbp ??= openDB<PlotterDB>('plotter', 2, {
+    upgrade(d, oldVersion) {
+      if (oldVersion < 1) {
+        d.createObjectStore('waypoints', { keyPath: 'id' });
+        d.createObjectStore('routes', { keyPath: 'id' });
+        d.createObjectStore('tracks', { keyPath: 'id' });
+        d.createObjectStore('kv');
+      }
+      if (oldVersion < 2) d.createObjectStore('trips', { keyPath: 'id' });
     },
   });
   return dbp;
 }
 
-type Store = 'waypoints' | 'routes' | 'tracks';
+type Store = 'waypoints' | 'routes' | 'tracks' | 'trips';
 type ValueOf<S extends Store> = PlotterDB[S]['value'];
 
 export async function all<S extends Store>(store: S): Promise<ValueOf<S>[]> {

@@ -8,3 +8,4 @@ public/tiles/*.pmtiles
 *.log
 .DS_Store
 deploy/docker-compose.yml
+server-dist

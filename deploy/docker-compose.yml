@@ -1,5 +1,6 @@
-# Image-based deployment (ghcr.io/cedricziel/plotter, built by .github/workflows/docker.yml):
-# a one-shot job that extracts the NL chart once, and nginx serving app + chart on host port 30250.
+# Image-based deployment (ghcr.io/cedricziel/plotter and plotter-server, built by .github/workflows/docker.yml):
+# one-shot jobs that extract the NL chart and build the OpenStreetMap waterway data, the API server for
+# search and routing, and nginx serving the app + chart + /api on host port 30250.
 # Used as a TrueNAS custom app on "hive"; works with plain `docker compose up -d`.
 # Pin a version with PLOTTER_TAG (e.g. main, v1.0.0, sha-1234567); default is latest.
 services:
@@ -13,9 +14,40 @@ services:
       MAXZOOM: "14"
     volumes:
       - /mnt/hive/apps/plotter/tiles:/out/tiles
+  waterways:
+    image: ghcr.io/cedricziel/plotter-server:${PLOTTER_TAG:-latest}
+    restart: on-failure:3
+    # Root so it can write and chown the dataset for uid 568. The first run downloads ~1.6 GB and
+    # takes a few minutes; later runs exit at once while the data is younger than MAX_AGE_DAYS.
+    user: "0:0"
+    entrypoint: ["plotter-waterways"]
+    environment:
+      OUT: /out/data
+      MAX_AGE_DAYS: "30"
+      # geofabrik works from here too: https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
+      OSM_PBF_URL: https://download.openstreetmap.fr/extracts/europe/netherlands-latest.osm.pbf
+    volumes:
+      - /mnt/hive/apps/plotter/data:/out/data
+  server:
+    image: ghcr.io/cedricziel/plotter-server:${PLOTTER_TAG:-latest}
+    restart: unless-stopped
+    # Starts without data and picks up the waterways job's output when it appears (polls every 10 min).
+    environment:
+      DATA_DIR: /srv/data
+      TILES_DIR: /srv/tiles
+      TRUST_PROXY: "1"
+    volumes:
+      - /mnt/hive/apps/plotter/data:/srv/data:ro
+      - /mnt/hive/apps/plotter/tiles:/srv/tiles:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
   web:
     image: ghcr.io/cedricziel/plotter:${PLOTTER_TAG:-latest}
     restart: unless-stopped
+    # Waits for the chart job only: /api/ answers 502 until the server is up, the app copes with that.
     depends_on:
       tiles:
         condition: service_completed_successfully

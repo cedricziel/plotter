@@ -2,11 +2,13 @@ import type { App } from '../app';
 import { bearing, distance, routeLegs, timeToGo } from '../core/geo';
 import { parseGpx, toGpx } from '../core/gpx';
 import type { Route } from '../core/model';
-import { formatBearing, formatCoord, formatDistance, formatDuration, formatTime } from '../core/units';
+import { convertSpeed, formatBearing, formatCoord, formatDistance, formatDuration, formatTime, speedLabel } from '../core/units';
 import { type CogMinutes, DEFAULT_SETTINGS } from '../settings';
-import { startPlacement } from './destination';
+import { chartAndShow, showDestinationCard, startPlacement } from './destination';
 import { DISCLAIMER, showDisclaimerOnce } from './disclaimer';
 import { download, fileStamp, h, pickFile, toast } from './dom';
+import { maneuverIcon, iconEl } from './icons';
+import { searchBox } from './search';
 import { closeSheet, openSheet, sheetOpen, updateSheet } from './sheet';
 
 type Opt<T> = { value: T; label: string };
@@ -79,12 +81,15 @@ function routeBody(app: App): HTMLElement {
   );
 
   const parts: (HTMLElement | null)[] = [
+    searchBox(app, 'sheet', (p) => showDestinationCard(app, p)),
     h('button', { class: 'btn primary block', onclick: () => startPlacement(app) }, '⌖ Set destination'),
     route ? h('button', { class: 'btn danger block', onclick: () => void app.stopNavigation() }, '■ Stop navigation') : null,
     picker,
   ];
 
-  if (route) {
+  if (route?.maneuvers) {
+    parts.push(courseBlock(app, route));
+  } else if (route) {
     const pts = app.routePoints(route);
     const { legs, total } = routeLegs(pts);
     const sog = app.fix?.sog ?? null;
@@ -181,6 +186,7 @@ function routeBody(app: App): HTMLElement {
   // All waypoints
   const fix = app.fix;
   const wps = [...app.waypoints.values()]
+    .filter((w) => !w.hidden)
     .map((w) => ({ w, d: fix ? distance(fix, w) : null }))
     .sort((a, b) => (a.d ?? 0) - (b.d ?? 0) || a.w.name.localeCompare(b.w.name));
   parts.push(
@@ -203,9 +209,205 @@ function routeBody(app: App): HTMLElement {
           ),
         )
       : h('p', { class: 'hint' }, 'Long-press the map (right-click on desktop) to drop a waypoint.'),
+    tripsBlock(app),
   );
 
   return h('div', null, parts);
+}
+
+
+const megabytes = (b: number) => `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`;
+
+/** Summary, warnings, actions and the maneuver list of a charted course. */
+function courseBlock(app: App, route: Route): HTMLElement {
+  const du = app.settings.distanceUnit;
+  const prog = app.progress;
+  const maneuvers = route.maneuvers ?? [];
+  const total = maneuvers[maneuvers.length - 1]?.dist ?? 0;
+  const now = Date.now();
+  const nextWp = route.waypointIds[prog?.nextIndex ?? 0];
+  const toGo = prog ? prog.remaining : total;
+  const job = app.offline?.routeId === route.id ? app.offline : null;
+
+  const rows = maneuvers.map((m, i) => {
+    const passed = !!prog && i > 0 && route.waypointIds.indexOf(m.wp ?? '') < prog.nextIndex;
+    const isNext = !!nextWp && m.wp === nextWp;
+    const ahead = prog ? Math.max(0, m.dist - (total - prog.remaining)) : null;
+    return h(
+      'li',
+      { class: `maneuver${passed ? ' done' : ''}${isNext ? ' next' : ''}` },
+      h(
+        'button',
+        {
+          class: 'maneuver-row link',
+          onclick: () => {
+            app.setFollow(false);
+            app.map.easeTo({ center: [m.lon, m.lat], zoom: Math.max(app.map.getZoom(), 15) });
+          },
+        },
+        iconEl(maneuverIcon(m.type), 'maneuver-ico'),
+        h(
+          'span',
+          { class: 'maneuver-text' },
+          m.text,
+          h('small', null, ahead != null && i > 0 && !passed ? `in ${formatDistance(ahead, du)}` : i === 0 ? 'start' : formatDistance(m.dist, du)),
+        ),
+      ),
+    );
+  });
+
+  return h(
+    'div',
+    { class: 'course' },
+    h(
+      'div',
+      { class: 'stats' },
+      stat('Total', formatDistance(total, du)),
+      stat('To go', formatDistance(toGo, du)),
+      stat('ETA', prog?.ttg != null ? formatTime(new Date(now + prog.ttg * 1000)) : '--:--'),
+      stat('TTG', formatDuration(prog?.ttg ?? null)),
+    ),
+    route.source === 'offline' ? h('p', { class: 'hint' }, 'Charted offline from a saved corridor.') : null,
+    route.warnings?.length
+      ? h('ul', { class: 'warnings' }, route.warnings.map((w) => h('li', null, `⚠ ${w}`)))
+      : null,
+    h(
+      'div',
+      { class: 'row wrap' },
+      h(
+        'button',
+        { class: 'btn grow', disabled: app.recalculating, onclick: () => void app.recalculate() },
+        app.recalculating ? 'Recalculating…' : '↻ Recalculate',
+      ),
+      route.tripId
+        ? h('button', { class: 'btn grow', disabled: true }, '✓ Saved offline')
+        : h(
+            'button',
+            { class: 'btn grow', disabled: !!app.offline, onclick: () => void app.saveForOffline(route) },
+            job ? 'Saving…' : '⇩ Save for offline',
+          ),
+    ),
+    job
+      ? h(
+          'div',
+          { class: 'row' },
+          h('progress', { class: 'grow', max: Math.max(1, job.total), value: job.done }),
+          h('small', null, job.phase === 'estimating' ? 'Estimating…' : `${job.done}/${job.total}`),
+          h('button', { class: 'btn', onclick: () => job.cancel() }, 'Cancel'),
+        )
+      : null,
+    h('ol', { class: 'maneuvers' }, rows),
+    h(
+      'div',
+      { class: 'row wrap' },
+      h('button', { class: 'btn', onclick: () => exportRoute(app, route) }, 'Export GPX'),
+      h(
+        'button',
+        {
+          class: 'btn danger',
+          onclick: () => {
+            if (confirm(`Delete course “${route.name}”?`)) void app.deleteRoute(route.id);
+          },
+        },
+        'Delete',
+      ),
+    ),
+  );
+}
+
+/** Corridors saved for offline use, with their size and a delete action. */
+function tripsBlock(app: App): HTMLElement | null {
+  if (!app.trips.length) return null;
+  const trips = [...app.trips].sort((a, b) => b.savedAt - a.savedAt);
+  return h(
+    'div',
+    { class: 'trips' },
+    h('h3', null, `Saved offline (${trips.length})`),
+    h(
+      'ul',
+      { class: 'list' },
+      trips.map((t) =>
+        h(
+          'li',
+          { class: 'track-item' },
+          h(
+            'div',
+            { class: 'list-item grow' },
+            h('span', null, t.name),
+            h('small', null, `${megabytes(t.bytes)} · ${t.tileCount} tiles · ${new Date(t.savedAt).toLocaleDateString()}`),
+          ),
+          h(
+            'button',
+            {
+              class: 'icon-btn sm',
+              'aria-label': `Delete saved trip ${t.name}`,
+              onclick: () => {
+                if (confirm(`Delete the saved corridor “${t.name}”? Cached map tiles expire on their own or via Settings.`)) {
+                  void app.deleteTrip(t.id);
+                }
+              },
+            },
+            '✕',
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+function dimensionField(app: App, label: string, key: 'airDraft' | 'draft' | 'beam', value: number | null): HTMLElement {
+  const input = h('input', {
+    type: 'number',
+    inputmode: 'decimal',
+    min: 0,
+    max: 100,
+    step: 0.1,
+    value: value ?? '',
+    placeholder: 'unknown',
+    'aria-label': label,
+    onchange: () => {
+      const raw = input.value.trim().replace(',', '.');
+      const n = raw === '' ? null : Number(raw);
+      if (n != null && (!Number.isFinite(n) || n < 0 || n > 100)) {
+        toast('Enter a size in metres between 0 and 100, or leave it empty');
+        input.value = value == null ? '' : String(value);
+        return;
+      }
+      void app.updateSettings({ [key]: n });
+    },
+  });
+  return h('div', { class: 'field' }, h('label', { class: 'field-label' }, label), input);
+}
+
+function vesselFields(app: App): HTMLElement[] {
+  const s = app.settings;
+  const unit = s.speedUnit;
+  const speed = h('input', {
+    type: 'number',
+    inputmode: 'decimal',
+    min: 1,
+    max: 60,
+    step: 0.5,
+    value: Number(convertSpeed(s.cruiseSpeed, unit).toFixed(1)),
+    'aria-label': `Cruise speed (${speedLabel(unit)})`,
+    onchange: () => {
+      const n = Number(speed.value.replace(',', '.'));
+      if (!Number.isFinite(n) || n < 1 || n > 60) return toast('Enter a cruise speed between 1 and 60');
+      void app.updateSettings({ cruiseSpeed: n / convertSpeed(1, unit) });
+    },
+  });
+  return [
+    dimensionField(app, 'Air draft (m)', 'airDraft', s.airDraft),
+    dimensionField(app, 'Draft (m)', 'draft', s.draft),
+    dimensionField(app, 'Beam (m)', 'beam', s.beam),
+    h('div', { class: 'field' }, h('label', { class: 'field-label' }, `Cruise speed (${speedLabel(unit)})`), speed),
+    h(
+      'p',
+      { class: 'hint' },
+      'Charted courses avoid bridges, depths and widths that do not fit and warn about fixed bridges with unknown clearance. ' +
+        'The cruise speed gives the ETA while the boat is not moving. Leave a size empty if unknown.',
+    ),
+  ];
 }
 
 function moveInRoute(app: App, route: Route, i: number, dir: -1 | 1): void {
@@ -266,6 +468,17 @@ function waypointBody(app: App, id: string): HTMLElement {
         'button',
         {
           class: 'btn primary',
+          onclick: () => {
+            closeSheet();
+            void chartAndShow(app, { name: w.name, lat: w.lat, lon: w.lon });
+          },
+        },
+        'Chart course',
+      ),
+      h(
+        'button',
+        {
+          class: 'btn',
           onclick: async () => {
             await app.goTo(id);
             closeSheet();
@@ -487,6 +700,10 @@ function menuBody(app: App): HTMLElement {
     ], (v) => void app.updateSettings({ theme: v })),
     onOff('OpenSeaMap seamarks (online)', s.seamarks, (v) => void app.updateSettings({ seamarks: v })),
     onOff('Keep screen awake', s.keepAwake, (v) => void app.updateSettings({ keepAwake: v })),
+
+    h('h3', null, 'Vessel & routing'),
+    ...vesselFields(app),
+    onOff('Voice prompts', s.voicePrompts, (v) => void app.updateSettings({ voicePrompts: v })),
 
     h('h3', null, 'Data (GPX)'),
     h(

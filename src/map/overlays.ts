@@ -8,7 +8,7 @@ const OVERLAY = {
   night: { cog: '#ff5a5a', route: '#cc1a1a', track: '#990f0f', saved: '#5c0808', anchor: '#ff2222', acc: '#8a0f0f', nav: '#ff3b3b' },
 };
 
-export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor'] as const;
+export const OVERLAY_SOURCES = ['accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
 export type OverlaySource = (typeof OVERLAY_SOURCES)[number];
 
 export const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
@@ -66,6 +66,17 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpec
       filter: ['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'state'], 'active']],
       layout: { 'line-cap': 'round' },
       paint: { 'line-color': c.route, 'line-width': 7 },
+    },
+    {
+      id: 'maneuvers',
+      type: 'circle',
+      source: 'maneuvers',
+      paint: {
+        'circle-radius': ['case', ['get', 'next'], 7, 4],
+        'circle-color': ['case', ['get', 'next'], c.route, p.labelHalo],
+        'circle-stroke-color': c.route,
+        'circle-stroke-width': 2,
+      },
     },
     {
       id: 'nav-line-casing',
