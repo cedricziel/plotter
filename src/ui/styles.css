@@ -482,6 +482,7 @@ select {
   touch-action: none;
   cursor: pointer;
 }
+.modal.closing { opacity: 0; }
 .modal-card {
   background: var(--panel);
   color: var(--fg);
@@ -604,6 +605,8 @@ body.destcard .fabs { bottom: calc(var(--tap) + 190px + var(--safe-b)); }
 .dest-info dt { color: var(--fg-dim); font-weight: 700; }
 .dest-info dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .dest-info a { color: inherit; font-weight: 700; }
+.dest-note summary { cursor: pointer; }
+.dest-note div { white-space: pre-line; max-height: 7em; overflow-y: auto; margin-top: 2px; color: var(--fg-dim); }
 .dest-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .dest-pin {
   width: 22px;

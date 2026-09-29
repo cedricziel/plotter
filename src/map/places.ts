@@ -1,4 +1,5 @@
-import type { Map as MlMap, MapGeoJSONFeature } from 'maplibre-gl';
+import type { GeoJSONSource, Map as MlMap, MapGeoJSONFeature } from 'maplibre-gl';
+import { FIS_ATTRIBUTION, FIS_SOURCE } from '../core/fis';
 import type { Trip } from '../core/trips';
 import type { Place, PlaceKind } from '../core/waterway-data';
 import { api } from '../services/api';
@@ -20,6 +21,13 @@ const groupOf = (kind: PlaceKind) =>
     : kind === 'lock' || kind === 'bridge'
       ? 'structure'
       : 'town';
+
+export function markProps(p: Place, i: number) {
+  const bridge = p.kind === 'bridge';
+  const open = bridge && p.info?.canOpen === true;
+  const clearance = bridge && p.info?.clearance ? `\n${p.info.clearance.toFixed(1)} m${open ? ' opens' : ''}` : '';
+  return { i, name: p.name, group: groupOf(p.kind), detail: p.name + clearance, open };
+}
 
 export interface PlacesHooks {
   trips: () => Trip[];
@@ -83,15 +91,18 @@ export function mountPlaces(map: MlMap, hooks: PlacesHooks): void {
   let timer: number | undefined;
   let pending: AbortController | undefined;
 
-  const render = () =>
+  const render = () => {
+    const source = map.getSource('place-marks') as GeoJSONSource | undefined;
+    if (source) source.attribution = shown.some((p) => p.info?.source === FIS_SOURCE) ? FIS_ATTRIBUTION : '';
     setOverlay(map, 'place-marks', {
       type: 'FeatureCollection',
       features: shown.map((p, i) => ({
         type: 'Feature',
-        properties: { i, name: p.name, group: groupOf(p.kind) },
+        properties: markProps(p, i),
         geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
       })),
     });
+  };
 
   const refresh = async () => {
     const zoom = map.getZoom();

@@ -10,7 +10,7 @@ export default defineConfig({
     emptyOutDir: true,
     target: 'node22',
     rollupOptions: {
-      input: { server: 'server/main.ts', waterways: 'tools/waterways/cli.ts' },
+      input: { server: 'server/main.ts', waterways: 'tools/waterways/cli.ts', fis: 'tools/fis/cli.ts' },
       output: { entryFileNames: '[name].mjs' },
     },
   },

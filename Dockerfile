@@ -32,7 +32,8 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=server-build /app/server-dist /app
 COPY deploy/waterways.sh /usr/local/bin/plotter-waterways
-RUN chmod 755 /usr/local/bin/plotter-waterways
+COPY deploy/fis.sh /usr/local/bin/plotter-fis
+RUN chmod 755 /usr/local/bin/plotter-waterways /usr/local/bin/plotter-fis
 ENV NODE_ENV=production DATA_DIR=/srv/data TILES_DIR=/srv/tiles PORT=8080 BUILD_ID=${BUILD_ID}
 EXPOSE 8080
 # Runs as uid 568 ("apps" on TrueNAS) like the web workers; the waterways job

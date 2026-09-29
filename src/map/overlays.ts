@@ -9,8 +9,8 @@ const OVERLAY = {
 };
 
 const PLACE_COLORS = {
-  day: { harbour: '#0b7285', structure: '#5f3dc4', town: '#495057' },
-  night: { harbour: '#ff6b6b', structure: '#c92a2a', town: '#8a1f1f' },
+  day: { harbour: '#0b7285', structure: '#5f3dc4', town: '#495057', opening: '#d9480f' },
+  night: { harbour: '#ff6b6b', structure: '#c92a2a', town: '#8a1f1f', opening: '#ff8787' },
 };
 
 export const OVERLAY_SOURCES = ['place-marks', 'accuracy', 'cog', 'route', 'nav-line', 'track-live', 'tracks', 'anchor', 'maneuvers'] as const;
@@ -47,7 +47,7 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpec
       minzoom: 12,
       filter: ['!=', ['get', 'group'], 'town'],
       layout: {
-        'text-field': ['get', 'name'],
+        'text-field': ['step', ['zoom'], ['get', 'name'], 14, ['get', 'detail']],
         'text-font': ['Noto Sans Medium'],
         'text-size': 11,
         'text-offset': [0, 0.9],
@@ -55,7 +55,7 @@ export function overlayLayers(p: { labelHalo: string }, theme: Theme): LayerSpec
         'text-max-width': 8,
       },
       paint: {
-        'text-color': byGroup(pc.harbour, pc.structure, pc.town),
+        'text-color': ['case', ['==', ['get', 'open'], true], pc.opening, byGroup(pc.harbour, pc.structure, pc.town)] as ExpressionSpecification,
         'text-halo-color': p.labelHalo,
         'text-halo-width': 2,
       },

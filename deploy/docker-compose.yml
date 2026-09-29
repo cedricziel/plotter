@@ -28,6 +28,21 @@ services:
       OSM_PBF_URL: https://download.openstreetmap.fr/extracts/europe/netherlands-latest.osm.pbf
     volumes:
       - /mnt/hive/apps/plotter/data:/out/data
+  fis:
+    image: ghcr.io/cedricziel/plotter-server:${PLOTTER_TAG:-latest}
+    restart: on-failure:3
+    # Official fairway data (bridge clearances, locks, VHF, operating notes) from Vaarweginformatie.nl.
+    # Adds itself to the manifest the waterways job wrote, so it waits for that job; later runs exit at
+    # once while the published generation is still current. Set FORCE=1 to download again.
+    user: "0:0"
+    entrypoint: ["plotter-fis"]
+    depends_on:
+      waterways:
+        condition: service_completed_successfully
+    environment:
+      OUT: /out/data
+    volumes:
+      - /mnt/hive/apps/plotter/data:/out/data
   server:
     image: ghcr.io/cedricziel/plotter-server:${PLOTTER_TAG:-latest}
     restart: unless-stopped

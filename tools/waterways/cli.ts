@@ -5,7 +5,7 @@
  * Writes waterways-<date>.json, places-<date>.json and, last, current.json.
  */
 import { createReadStream, createWriteStream } from 'node:fs';
-import { chmod, chown, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, chown, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -78,7 +78,11 @@ await share(join(out, `${pName}.part`));
 await rename(join(out, `${wName}.part`), join(out, wName));
 await rename(join(out, `${pName}.part`), join(out, pName));
 
+const previous = await readFile(join(out, 'current.json'), 'utf8')
+  .then((s) => JSON.parse(s) as DataManifest)
+  .catch(() => null);
 const manifest: DataManifest = {
+  ...(previous?.fis ? { fis: previous.fis, fisGeneration: previous.fisGeneration } : {}),
   waterways: `./data/${wName}`,
   places: `./data/${pName}`,
   built: file.built,

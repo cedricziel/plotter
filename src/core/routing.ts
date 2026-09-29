@@ -743,6 +743,31 @@ function assemble(
   };
 }
 
+const POCKET_ESCAPE_M = 1000;
+const POCKET_ESCAPES = 4;
+const POCKET_MAX_EDGES = 5000;
+
+/** Edges a vessel can reach from a snap point, ignoring one-way rules. */
+function pocket(g: Graph, sn: Snap, profile: VesselProfile): Set<number> {
+  const edges = new Set<number>([sn.edge]);
+  const seen = new Set<number>();
+  const stack: number[] = [];
+  if (!rangeBlocked(g, sn.edge, 0, sn.pos, profile)) stack.push(g.ea[sn.edge]);
+  if (!rangeBlocked(g, sn.edge, sn.pos, g.elen[sn.edge], profile)) stack.push(g.eb[sn.edge]);
+  while (stack.length && edges.size < POCKET_MAX_EDGES) {
+    const v = stack.pop()!;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    for (let i = g.adjStart[v]; i < g.adjStart[v + 1]; i++) {
+      const e = g.adjEdge[i];
+      if (edges.has(e) || rangeBlocked(g, e, 0, g.elen[e], profile)) continue;
+      edges.add(e);
+      stack.push(g.ea[e] === v ? g.eb[e] : g.ea[e]);
+    }
+  }
+  return edges;
+}
+
 export function findRoute(
   g: Graph,
   from: { lat: number; lon: number },
@@ -770,6 +795,30 @@ export function findRoute(
   const found = search(g, s, d, profile, speed);
   if (found) return assemble(g, found.path, s, d, opts, speed);
   const constrained = !!(profile.airDraft || profile.draft || profile.beam);
+  if (constrained) {
+    // The nearest waterway can be a canal the vessel cannot leave; try the nearest one outside it.
+    const escapes = (pt: { lat: number; lon: number }, sn: Snap): Snap[] => {
+      const out = [sn];
+      const trapped = new Set<number>();
+      const limit = Math.min(maxDist, sn.dist + POCKET_ESCAPE_M);
+      for (let i = 0; i < POCKET_ESCAPES; i++) {
+        for (const e of pocket(g, out[out.length - 1], profile)) trapped.add(e);
+        const next = snapToGraph(g, pt, { maxDist: limit, accept: (e) => accept(e) && !trapped.has(e) });
+        if (!next) break;
+        out.push(next);
+      }
+      return out;
+    };
+    const starts = escapes(from, s);
+    const ends = escapes(to, d);
+    for (const a of starts) {
+      for (const b of ends) {
+        if (a === s && b === d) continue;
+        const alt = search(g, a, b, profile, speed);
+        if (alt) return assemble(g, alt.path, a, b, opts, speed);
+      }
+    }
+  }
   if (constrained && search(g, s, d, {}, speed)) {
     return {
       ok: false,

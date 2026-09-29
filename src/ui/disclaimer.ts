@@ -26,12 +26,16 @@ export function showDisclaimerOnce(force = false): void {
 
   const dismiss = (e: Event) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (dlg.classList.contains('closing')) return dlg.remove();
     try {
       localStorage.setItem(KEY, String(Date.now()));
     } catch {
       /* ignore */
     }
-    dlg.remove();
+    // Keep the invisible modal for a moment so the click that follows a pointerup cannot reach the chart.
+    dlg.classList.add('closing');
+    setTimeout(() => dlg.remove(), 500);
   };
   // Dismiss on pointerup anywhere on the modal: a click can be lost on iOS while the map is busy.
   const dlg = h(
