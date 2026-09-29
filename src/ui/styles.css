@@ -74,8 +74,8 @@ body {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   grid-template-columns: minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
 }
 #instruments { grid-row: 1; }
 #navstrip { grid-row: 2; }
@@ -99,6 +99,9 @@ button {
   color: var(--inst-fg);
   padding-top: var(--safe-t);
   z-index: 3;
+}
+@media (display-mode: standalone) {
+  #instruments { padding-top: calc(var(--safe-t) + 12px); }
 }
 .inst {
   padding: 4px 10px 6px;
