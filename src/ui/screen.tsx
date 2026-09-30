@@ -139,8 +139,13 @@ export function ToolMenu({
   }, [onClose]);
   // Focus moves into the menu while it is open and back to the menu button when it closes.
   useEffect(() => {
-    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-    return () => document.getElementById('btn-menu')?.focus();
+    const menu = menuRef.current;
+    menu?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => {
+      // A pick may have moved focus on, such as into the Route sheet's search box; keep it there.
+      const active = document.activeElement;
+      if (!active || active === document.body || menu?.contains(active)) document.getElementById('btn-menu')?.focus();
+    };
   }, []);
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
