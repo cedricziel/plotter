@@ -950,7 +950,7 @@ select {
   left: calc(12px + var(--safe-l));
   bottom: calc(var(--tap) + 36px + var(--safe-b));
   transform: translateY(20px);
-  max-width: calc(100% - var(--tap) - 44px);
+  max-width: calc(100% - var(--tap) - 44px - var(--safe-l) - var(--safe-r));
   background: var(--fg);
   color: var(--bg);
   padding: 12px 16px;
