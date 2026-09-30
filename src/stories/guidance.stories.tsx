@@ -6,14 +6,14 @@ import { LONG_MANEUVER, makeGuidanceApp, type GuidanceOptions } from './fakes';
 const guidance =
   (options: GuidanceOptions) =>
   (device: DeviceName = 'phone-portrait') => (
-    <Device device={device} fit>
+    <Device device={device}>
       <NavStrip app={makeGuidanceApp(options)} />
     </Device>
   );
 
 const nextManeuver = guidance({ maneuver: 'Turn left at the lock' });
 
-const meta: Meta<typeof NavStrip> = { title: 'Navigation/Guidance strip', component: NavStrip };
+const meta: Meta<typeof NavStrip> = { title: 'Navigation/Guidance card', component: NavStrip };
 export default meta;
 
 type Story = StoryObj<typeof NavStrip>;

@@ -17,8 +17,10 @@ host, or a Raspberry Pi on board.
 - **Own ship** from the Geolocation API (`watchPosition`, high accuracy), ship
   symbol rotated by course over ground, accuracy circle, **COG vector** of
   5/10/30 minutes with minute ticks.
-- **Instrument bar**: SOG (tap to toggle km/h ↔ knots), COG, position
-  (degrees + decimal minutes), clock (24 h), GPS accuracy/status.
+- **Dashboard** at the bottom: SOG (tap to toggle km/h ↔ knots), COG and GPS
+  accuracy/status; while navigating, DTW and ETA (plus COG, cross-track error
+  and ETA at the end on tablets). Its menu button opens search, the destination
+  crosshair, the Route, Track, Anchor and Settings sheets, and the night palette.
 - **Waypoints**: long-press the map (right-click on desktop) to drop, tap to
   rename / go-to / delete, drag to move.
 - **Search and charted courses**: search harbours, marinas, locks, towns and
@@ -26,7 +28,7 @@ host, or a Raspberry Pi on board.
   distance), pick one and **Chart course**: the route follows the water, with
   locks, opening and fixed bridges (clearance where mapped) and turns listed as
   maneuvers. Details in [Search, routing and offline corridors](#search-routing-and-offline-corridors).
-- **Turn-by-turn** in the guidance strip (next maneuver, distance to it,
+- **Turn-by-turn** in the guidance card (next maneuver, distance to it,
   steering cue, cross-track error against the course line), **off-course
   detection** with recalculation, optional **voice prompts**, and a **vessel
   profile** (air draft, draft, beam) the router respects.
@@ -96,7 +98,8 @@ and says so; put the chart in place as described next.
 
 ## How to navigate to a destination
 
-1. Open **Route** and type in the search field (or tap **⚑+** and search there).
+1. Open the menu and pick **Search destination**, then type in the search field
+   (or pick **Set destination on map** and search there).
    Results are big rows with kind, name and straight-line distance; with an empty
    field you get your recent destinations.
 2. Tap a result: the map flies there and a card offers **Chart course** (along the
@@ -104,9 +107,9 @@ and says so; put the chart in place as described next.
    the crosshair bar (pan the map under the crosshair) and in the waypoint sheet.
    A town, city or village has no water of its own, so the course ends at its
    harbour, marina or mooring within 2 km when there is one on the waterways.
-3. The strip under the instruments counts down to the next maneuver ("In 1.2 km –
-   Turn left into Zaan"), with the steering cue, DTW, BTW, cross-track error and
-   ETA. The Route sheet lists every maneuver with its distance and the warnings
+3. The card at the top counts down to the next maneuver ("1.2 km – Turn left into
+   Zaan") with the steering cue; the dashboard shows DTW and ETA (on tablets also
+   the cross-track error and the ETA at the end). The Route sheet lists every maneuver with its distance and the warnings
    (for example "3 fixed bridges with unknown clearance").
 4. Far off the line for 20 s the strip shows **Off course – Recalculate** (also a
    toast to tap); after 60 s off course it recalculates once by itself.
@@ -459,7 +462,7 @@ src/
                router, place search, polyline, corridors, course progress
   map/         MapLibre style (day/night), overlays, long-press handling
   services/    GPS (+ simulator), IndexedDB, wake lock, alarm sound
-  ui/          instrument bar, bottom sheets, disclaimer, styles
+  ui/          dashboard, menu, sheets, disclaimer, styles
   app.ts       application state and map wiring
   main.ts      bootstrap
   sw.ts        service worker (Workbox): precache, PMTiles range cache, tile caches

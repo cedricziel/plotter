@@ -1,13 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Instruments } from '../ui/instruments';
+import { Dashboard } from '../ui/screen';
 import { Device, type DeviceName } from './device';
 import { makeFix, makeGuidanceApp, type GuidanceOptions } from './fakes';
 
 const instruments =
   (options: GuidanceOptions) =>
   (device: DeviceName = 'phone-portrait') => (
-    <Device device={device} fit>
-      <Instruments app={makeGuidanceApp({ progress: null, ...options })} />
+    <Device device={device}>
+      <Dashboard app={makeGuidanceApp({ progress: null, ...options })} />
     </Device>
   );
 
@@ -35,6 +36,10 @@ export const PhoneLandscape: Story = { render: () => instruments({})('phone-land
 export const TabletPortrait: Story = { render: () => instruments({})('tablet-portrait') };
 
 export const TabletLandscape: Story = { render: () => instruments({})('tablet-landscape') };
+
+export const Navigating: Story = { render: () => instruments({ progress: {} })() };
+
+export const NavigatingTablet: Story = { render: () => instruments({ progress: {} })('tablet-landscape') };
 
 export const GermanGoodFix: Story = {
   globals: { language: 'de' },

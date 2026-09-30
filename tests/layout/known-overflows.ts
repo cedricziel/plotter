@@ -34,11 +34,6 @@ export const KNOWN_OVERFLOWS: KnownOverflow[] = [
     reason: 'Destination bar: German button labels ("Hierhin", "Als Stopp") are wider than their buttons on phones.',
   },
   {
-    selector: '#btn-dest',
-    reason:
-      'The "⚑+" glyph is about 3 px wider than its round button in the fallback font; decorative, still readable.',
-  },
-  {
     selector: '#crosshair',
     reason: 'By design: the crosshair lines are pseudo-elements that stick out 12 px past the ring.',
   },

@@ -26,6 +26,19 @@
   --ship-line: #ffffff;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  /* Glass: the chrome floats over the chart, translucent by day, solid black by night. */
+  --glass: color-mix(in srgb, var(--panel) 80%, transparent);
+  --glass-2: color-mix(in srgb, var(--fg) 7%, transparent);
+  --stroke: color-mix(in srgb, var(--fg) 10%, transparent);
+  --lift: 0 10px 30px rgba(11, 15, 20, 0.16), 0 1px 3px rgba(11, 15, 20, 0.14);
+  --blur: blur(22px) saturate(1.6);
+  /* The dashboard, and the line everything that sits above it starts from. */
+  --dash-h: 80px;
+  --dash-b: max(8px, calc(var(--safe-b) - 12px));
+  --above-dash: calc(var(--dash-b) + var(--dash-h) + 10px);
+  --side-w: 390px;
   color-scheme: light;
   font-family:
     system-ui,
@@ -59,6 +72,10 @@
   --wp-halo: #000000;
   --ship-fill: #000000;
   --ship-line: #e01e1e;
+  --glass: color-mix(in srgb, #000 84%, transparent);
+  --glass-2: var(--panel-2);
+  --stroke: var(--border);
+  --lift: none;
   color-scheme: dark;
 }
 
@@ -75,28 +92,22 @@ body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
-/* The screen, and the size container its layout adapts to: the viewport in the app, a device frame in Storybook. */
+/* The screen, and the size container its layout adapts to: the viewport in the app, a device frame in Storybook. The
+   chart fills it; everything else floats over the chart. */
 .plotter {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  grid-template-columns: minmax(0, 1fr);
   position: fixed;
   inset: 0;
   container: plotter / size;
   background: var(--bg);
   color: var(--fg);
 }
-#instruments {
-  grid-row: 1;
-}
-#navstrip {
-  grid-row: 2;
-}
-#map {
-  grid-row: 3;
-}
-#toolbar {
-  grid-row: 4;
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px var(--stroke);
 }
 button {
   font: inherit;
@@ -104,184 +115,288 @@ button {
   touch-action: manipulation;
 }
 
-/* ---- instrument bar ------------------------------------------------------ */
-#instruments {
+/* ---- dashboard ------------------------------------------------------------ */
+#dash {
+  position: fixed;
+  left: calc(8px + var(--safe-l));
+  right: calc(8px + var(--safe-r));
+  bottom: var(--dash-b);
+  height: var(--dash-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 32px;
+  z-index: 8;
+}
+#btn-menu {
+  width: 64px;
+  height: 64px;
+  flex: none;
   display: grid;
-  grid-template-columns: 1fr 1fr 1.6fr;
-  grid-template-areas:
-    'sog cog pos'
-    'time acc pos';
-  gap: 1px;
-  background: var(--inst-bg);
-  color: var(--inst-fg);
-  padding-top: var(--safe-t);
-  z-index: 3;
+  place-items: center;
+  border: 0;
+  border-radius: 24px;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+#btn-menu .ico {
+  width: 26px;
+  height: 26px;
+}
+#instruments {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  font-variant-numeric: tabular-nums;
 }
 .inst {
-  padding: 4px 10px 6px;
-  min-height: 52px;
-  background: var(--inst-bg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 8px;
+}
+.inst + .inst {
+  border-left: 1px solid var(--stroke);
 }
 .inst-sog {
-  grid-area: sog;
   cursor: pointer;
-}
-.inst-cog {
-  grid-area: cog;
-}
-.inst-pos {
-  grid-area: pos;
-}
-.inst-time {
-  grid-area: time;
-}
-.inst-acc {
-  grid-area: acc;
 }
 .inst-label {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  opacity: 0.8;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .inst-value {
-  font-size: 28px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.05;
-  white-space: pre;
+  font-size: clamp(22px, 6.6cqw, 28px);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.inst-sog .inst-value,
-.inst-cog .inst-value {
-  font-size: 34px;
+.inst-value em {
+  font-style: normal;
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--fg-dim);
 }
-.inst-pos .inst-value {
-  font-size: 19px;
-  line-height: 1.35;
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-}
-.inst-time .inst-value,
-.inst-acc .inst-value {
-  font-size: 20px;
-}
-/* A status word instead of a reading: smaller, so GESPERRT or UNAVAILABLE fit the tile at 360 px. */
+/* A status word instead of a reading: smaller, so GESPERRT or UNAVAILABLE fit the cell. */
 .inst-acc.status .inst-value {
   font-size: 17px;
+  line-height: 31px;
 }
 .inst-acc.bad .inst-value {
-  color: #ffb3b3;
+  color: var(--danger);
 }
 .inst-acc.good .inst-value {
-  color: #b2f2bb;
+  color: var(--ok);
 }
 [data-theme='night'] .inst-acc.bad .inst-value,
 [data-theme='night'] .inst-acc.good .inst-value {
   color: inherit;
 }
+.inst.warn .inst-value {
+  color: var(--warn);
+}
 #instruments.stale .inst-sog .inst-value,
 #instruments.stale .inst-cog .inst-value {
   opacity: 0.45;
 }
-
-/* A 360 px phone: the position's two lines and the SOG and COG readings only fit side by side when a bit smaller. */
-@container plotter (max-width: 380px) {
-  .inst {
-    padding-inline: 8px;
-  }
-  .inst-pos .inst-value {
-    font-size: 17px;
-  }
+/* Course, cross-track and the end of the route join the leg only where there is room. */
+.inst.wide {
+  display: none;
 }
-
 @container plotter (min-width: 720px) {
-  #instruments {
-    grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr;
-    grid-template-areas: 'sog cog pos time acc';
+  .inst.wide {
+    display: block;
+  }
+  .inst-value {
+    font-size: 32px;
+  }
+  .inst-acc.status .inst-value {
+    line-height: 35px;
+  }
+  /* The side sheet takes the right-hand side; the dashboard ends before it. */
+  .plotter[data-sheet] #dash {
+    right: calc(var(--side-w) + 24px + var(--safe-r));
   }
 }
 
+/* ---- status pill ---------------------------------------------------------- */
+#status-pill {
+  position: fixed;
+  top: calc(12px + var(--safe-t));
+  left: calc(12px + var(--safe-l));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
+}
+.plotter.navigating #status-pill,
+.plotter:is(.placing, .destcard) #status-pill {
+  display: none;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+.dot.bad {
+  background: var(--warn);
+}
+.dot.rec {
+  background: var(--danger);
+  animation: blink 1.2s steps(2) infinite;
+}
+.pill-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 10px 0;
+  background: var(--stroke);
+}
+
+/* ---- guidance card -------------------------------------------------------- */
 #navstrip {
-  min-width: 0;
-  overflow: hidden;
-  padding: 4px 12px 6px;
-  background: var(--panel);
-  color: var(--fg);
-  border-bottom: 2px solid var(--border);
+  position: fixed;
+  top: calc(8px + var(--safe-t));
+  left: calc(8px + var(--safe-l));
+  right: calc(8px + var(--safe-r));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 28px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: var(--lift);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  z-index: 2;
+  z-index: 6;
 }
-#navstrip small {
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--fg-dim);
-  letter-spacing: 0.04em;
+[data-theme='night'] #navstrip {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+@container plotter (min-width: 720px) {
+  #navstrip {
+    top: calc(12px + var(--safe-t));
+    right: auto;
+    width: 400px;
+  }
 }
 .nav-top {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
-.nav-to {
+.nav-ico {
+  flex: none;
+  display: grid;
+}
+.nav-ico .ico {
+  width: 56px;
+  height: 56px;
+}
+.nav-main {
   flex: 1;
   min-width: 0;
-  font-size: 24px;
+}
+.nav-dist {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.nav-text {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 4px;
+  text-wrap: pretty;
+}
+.nav-to {
+  font-size: 22px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.nav-dist + .nav-to {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
 .nav-wait {
-  padding: 4px 0 2px;
   font-size: 15px;
   font-weight: 600;
   opacity: 0.85;
 }
+.nav-sub {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--accent-fg) 22%, transparent);
+  font-size: 16px;
+}
+.nav-sub:empty {
+  display: none;
+}
+.nav-next {
+  flex: 1;
+  min-width: 0;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
 .nav-steer {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 800;
   white-space: nowrap;
-  color: var(--warn);
-}
-.nav-steer.on {
-  color: var(--ok);
-  font-size: 20px;
 }
 .nav-steer.far {
-  color: var(--danger);
+  color: var(--wp-next);
 }
 .nav-stop {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-self: flex-start;
+  border: 0;
   border-radius: 50%;
-  border: 2px solid var(--border);
-  background: var(--panel-2);
+  background: color-mix(in srgb, var(--accent-fg) 18%, transparent);
+  color: inherit;
   font-size: 18px;
   font-weight: 800;
   line-height: 1;
   padding: 0;
 }
-.nav-cells {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 6px;
-  margin-top: 2px;
-}
-.nav-cell {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.nav-cell b {
-  font-size: clamp(13px, 4.2cqw, 20px);
+.nav-off {
+  min-height: 44px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--wp-next);
+  color: #111;
   font-weight: 800;
-  white-space: nowrap;
 }
-.nav-cell.warn b {
-  color: var(--warn);
+[data-theme='night'] .nav-off {
+  background: var(--danger);
+  color: #000;
 }
 #navstrip[hidden] {
   display: none;
@@ -289,8 +404,8 @@ button {
 
 /* ---- map ------------------------------------------------------------------ */
 #map {
-  position: relative;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
 }
 [data-theme='night'] .maplibregl-ctrl-attrib,
 [data-theme='night'] .maplibregl-ctrl-scale {
@@ -301,8 +416,9 @@ button {
 [data-theme='night'] .maplibregl-ctrl-attrib a {
   color: #8a0f0f;
 }
-.maplibregl-ctrl-bottom-left {
-  margin-bottom: 26px;
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  margin-bottom: calc(var(--above-dash) + 14px);
 }
 
 .ship {
@@ -372,83 +488,88 @@ button {
   pointer-events: none;
 }
 
-/* ---- floating buttons ----------------------------------------------------- */
-/* One column on tall screens; more columns as the screen gets shorter, so the buttons stay inside the chart. */
+/* ---- map buttons ---------------------------------------------------------- */
+/* One glass column on the right: centred on a phone in portrait, at the top on wide or short screens. */
 .fabs {
-  --fab: min(var(--tap), max(44px, 15cqh));
   position: fixed;
-  right: 10px;
-  bottom: calc(var(--tap) + 30px + var(--safe-b));
-  display: grid;
-  grid-template-rows: repeat(6, auto);
-  grid-auto-flow: column;
-  justify-content: end;
-  gap: min(10px, 2.5cqh);
+  right: calc(8px + var(--safe-r));
+  top: 50%;
+  transform: translateY(-60%);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
   z-index: 4;
 }
-@container plotter (max-height: 700px) {
+@container plotter (min-width: 720px) {
   .fabs {
-    grid-template-rows: repeat(3, auto);
+    top: calc(12px + var(--safe-t));
+    transform: none;
   }
 }
+/* Too short for zooming by button as well: pinch zooms. */
 @container plotter (max-height: 480px) {
   .fabs {
-    grid-template-rows: repeat(2, auto);
+    top: calc(12px + var(--safe-t));
+    transform: none;
+  }
+  #btn-zoom-in,
+  #btn-zoom-out {
+    display: none;
   }
 }
 .fab {
-  width: var(--fab);
-  height: var(--fab);
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: var(--panel);
-  color: var(--fg);
-  font-size: 28px;
-  font-weight: 700;
-  box-shadow: var(--shadow);
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+}
+.fab + .fab {
+  border-top: 1px solid var(--stroke);
 }
 .fab:active {
-  transform: scale(0.94);
+  background: var(--glass-2);
 }
-.plotter.following #btn-follow {
-  background: var(--accent);
-  color: var(--accent-fg);
+.plotter.following #btn-follow,
+.plotter.seamarks-on #btn-seamarks,
+.plotter.north-up #btn-orient {
+  color: var(--accent);
 }
-.plotter.seamarks-on #btn-seamarks {
-  background: var(--accent);
+[data-theme='night'] .plotter.following #btn-follow,
+[data-theme='night'] .plotter.seamarks-on #btn-seamarks,
+[data-theme='night'] .plotter.north-up #btn-orient,
+.plotter[data-theme='night'].following #btn-follow,
+.plotter[data-theme='night'].seamarks-on #btn-seamarks,
+.plotter[data-theme='night'].north-up #btn-orient {
   color: var(--accent-fg);
 }
 #btn-orient .needle {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-  font-size: 15px;
-  color: #d0342c;
+  display: grid;
   transition: transform 0.3s linear;
 }
-#btn-orient .needle small {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--fg);
+.ico-north path,
+.ico-rec path {
+  fill: currentColor;
 }
-.plotter.north-up #btn-orient {
-  background: var(--accent);
-}
-.plotter.north-up #btn-orient .needle small {
-  color: var(--accent-fg);
+.needle .ico-north {
+  color: var(--danger);
 }
 .plotter[data-sheet] .fabs {
   display: none;
 }
 
+/* Hidden while a sheet or the destination bar covers the line it sits on. */
+.plotter:is([data-sheet], .placing, .destcard) #notice {
+  display: none;
+}
 #notice {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--tap) + 16px + var(--safe-b));
+  bottom: calc(var(--above-dash) - 6px);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
@@ -461,75 +582,96 @@ button {
   white-space: nowrap;
 }
 
-/* ---- toolbar -------------------------------------------------------------- */
-#toolbar {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  background: var(--panel);
-  border-top: 2px solid var(--border);
-  padding-bottom: var(--safe-b);
-  z-index: 6;
+/* ---- menu ----------------------------------------------------------------- */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
 }
-.tool {
-  min-height: calc(var(--tap) + 8px);
+#menu {
+  position: fixed;
+  left: calc(8px + var(--safe-l));
+  bottom: var(--above-dash);
+  width: 280px;
+  max-height: calc(100% - var(--above-dash) - var(--safe-t) - 8px);
+  overflow-y: auto;
+  border-radius: 24px;
+  z-index: 9;
+}
+/* Short screens: beside the menu button instead of above the dashboard. */
+@container plotter (max-height: 480px) {
+  #menu {
+    left: calc(84px + var(--safe-l));
+    bottom: var(--dash-b);
+    max-height: calc(100% - var(--dash-b) - 8px);
+  }
+  #menu [role='menuitem'] {
+    min-height: 46px;
+  }
+}
+#menu [role='menuitem'] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
   border: 0;
   background: transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 17px;
+  text-align: left;
+  position: relative;
 }
-.tool-ico {
-  font-size: 26px;
-  line-height: 1;
+#menu [role='menuitem'] + [role='menuitem']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 0;
+  border-top: 1px solid var(--stroke);
 }
-.tool:active {
-  background: var(--panel-2);
+#menu [role='menuitem'] span {
+  flex: 1;
 }
-.plotter[data-sheet='route'] #btn-route,
-.plotter[data-sheet='track'] #btn-track,
-.plotter[data-sheet='anchor'] #btn-anchor,
-.plotter[data-sheet='menu'] #btn-menu {
-  background: var(--panel-2);
-  box-shadow: inset 0 4px 0 var(--accent);
+#menu [role='menuitem']:active {
+  background: var(--glass-2);
 }
-.plotter.recording #btn-track .rec-dot {
+#menu hr {
+  border: 0;
+  height: 8px;
+  margin: 0;
+  background: var(--glass-2);
+}
+.menu-rec {
   color: var(--danger);
-  animation: blink 1.2s steps(2) infinite;
+  font-size: 15px;
 }
-.plotter.anchor-armed #btn-anchor {
+.plotter.anchor-armed #btn-anchor .ico {
   color: var(--ok);
 }
-[data-theme='night'] #btn-night .tool-ico::before {
-  content: '☀';
-}
-[data-theme='night'] #btn-night .tool-ico {
-  font-size: 0;
-}
-[data-theme='night'] #btn-night .tool-ico::before {
-  font-size: 26px;
-}
 
-/* ---- bottom sheet ---------------------------------------------------------- */
+/* ---- sheet ---------------------------------------------------------------- */
+/* Above the dashboard on a phone, so the readings stay in view; a full-height side panel on wide screens. */
 #sheet {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--tap) + 10px + var(--safe-b));
-  max-height: 62cqh;
+  left: calc(8px + var(--safe-l));
+  right: calc(8px + var(--safe-r));
+  bottom: var(--above-dash);
+  max-height: calc(100% - var(--above-dash) - var(--safe-t) - 8px);
   display: flex;
   flex-direction: column;
-  background: var(--panel);
+  overflow: hidden;
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px var(--stroke);
   color: var(--fg);
-  border-top: 3px solid var(--border);
-  border-radius: var(--radius) var(--radius) 0 0;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
-  transform: translateY(110%);
+  border-radius: 32px;
+  transform: translateY(calc(100% + var(--above-dash)));
   transition: transform 0.18s ease-out;
-  z-index: 5;
+  z-index: 7;
 }
 #sheet.open {
   transform: none;
@@ -537,33 +679,43 @@ button {
 @container plotter (min-width: 720px) {
   #sheet {
     left: auto;
-    width: 440px;
-    right: 12px;
-    border-radius: var(--radius);
-    border: 3px solid var(--border);
+    right: calc(12px + var(--safe-r));
+    top: calc(12px + var(--safe-t));
+    bottom: calc(12px + var(--safe-b));
+    width: var(--side-w);
+    max-height: none;
+    transform: translateX(calc(100% + 24px));
   }
 }
 .sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px 6px 16px;
-  border-bottom: 1px solid var(--panel-2);
+  gap: 12px;
+  padding: 12px 12px 6px 20px;
 }
 .sheet-head h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.sheet-head .icon-btn {
+  border-radius: 50%;
+  border: 0;
+  background: var(--glass-2);
+  color: var(--fg-dim);
 }
 .sheet-body {
   overflow-y: auto;
-  padding: 12px 16px 20px;
+  padding: 4px 16px 20px;
   -webkit-overflow-scrolling: touch;
 }
 .sheet-body h3 {
   margin: 18px 0 8px;
-  font-size: 15px;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--fg-dim);
 }
 
@@ -945,10 +1097,10 @@ select {
 
 #toast {
   position: fixed;
-  left: 12px;
-  bottom: calc(var(--tap) + 36px + var(--safe-b));
+  left: calc(12px + var(--safe-l));
+  bottom: calc(var(--above-dash) + 14px);
   transform: translateY(20px);
-  max-width: calc(100% - var(--tap) - 44px);
+  max-width: calc(100% - 90px - var(--safe-l) - var(--safe-r));
   background: var(--fg);
   color: var(--bg);
   padding: 12px 16px;
@@ -1023,14 +1175,20 @@ select {
 }
 #dest-bar {
   position: fixed;
-  left: 8px;
-  right: 8px;
-  bottom: calc(var(--tap) + 12px + var(--safe-b));
-  padding: 10px;
-  background: var(--panel);
+  left: calc(8px + var(--safe-l));
+  right: calc(8px + var(--safe-r));
+  bottom: var(--above-dash);
+  max-height: calc(100% - var(--above-dash) - var(--safe-t) - 8px);
+  overflow-y: auto;
+  padding: 16px;
   color: var(--fg);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 30px;
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px var(--stroke);
   z-index: 7;
 }
 #dest-bar[hidden] {
@@ -1043,27 +1201,23 @@ select {
   margin-bottom: 8px;
   font-variant-numeric: tabular-nums;
 }
-.plotter.placing #btn-seamarks,
-.plotter.placing #btn-follow,
-.plotter.placing #btn-orient,
-.plotter.placing #btn-dest,
-.plotter.destcard #btn-seamarks,
-.plotter.destcard #btn-follow,
-.plotter.destcard #btn-orient,
-.plotter.destcard #btn-dest {
+/* The zoom buttons stay for placing; the column moves above the bar by its measured height (set by PlotterScreen). */
+.plotter:is(.placing, .destcard) :is(#btn-seamarks, #btn-follow, #btn-orient) {
   display: none;
 }
-/* Above the bar by its measured height (set by PlotterScreen); on wide screens the bar leaves the buttons room instead. */
 .plotter:is(.placing, .destcard) .fabs {
-  bottom: calc(var(--tap) + 24px + var(--safe-b) + var(--bottom-bar-h, 0px));
-  grid-template-rows: repeat(2, auto);
+  top: auto;
+  transform: none;
+  bottom: calc(var(--above-dash) + var(--bottom-bar-h, 0px) + 12px);
 }
 @container plotter (min-width: 720px) {
   #dest-bar {
-    right: calc(var(--tap) + 28px);
+    right: auto;
+    width: 400px;
   }
   .plotter:is(.placing, .destcard) .fabs {
-    bottom: calc(var(--tap) + 30px + var(--safe-b));
+    top: calc(12px + var(--safe-t));
+    bottom: auto;
   }
 }
 #dest-bar .search-results {

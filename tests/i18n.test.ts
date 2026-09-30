@@ -63,9 +63,9 @@ describe('t', () => {
   afterEach(() => setLanguage('en'));
 
   it('looks up the current language', () => {
-    expect(t('toolbar.anchor')).toBe('Anchor');
+    expect(t('sheet.anchor')).toBe('Anchor alarm');
     setLanguage('de');
-    expect(t('toolbar.anchor')).toBe('Anker');
+    expect(t('sheet.anchor')).toBe('Ankeralarm');
   });
 
   it('fills in placeholders and leaves unknown ones', () => {

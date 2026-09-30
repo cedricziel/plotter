@@ -11,16 +11,40 @@ afterEach(() => {
   setLanguage('en');
 });
 
-describe('navigation strip', () => {
+const labels = (bar: HTMLElement) => [...bar.querySelectorAll('.inst-label')].map((e) => e.firstChild!.textContent);
+const wide = (bar: HTMLElement) =>
+  [...bar.querySelectorAll('.inst.wide .inst-label')].map((e) => e.firstChild!.textContent);
+
+describe('dashboard', () => {
+  it('shows speed, course and GPS while not navigating', () => {
+    const bar = render(<Instruments app={makeGuidanceApp({ progress: null })} />).container;
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'GPS']);
+    expect(wide(bar)).toEqual([]);
+  });
+
+  it('shows the leg while navigating, with course, cross-track and the end only on wide screens', () => {
+    const bar = render(<Instruments app={makeGuidanceApp()} />).container;
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'DTW', 'XTE ◀', 'ETA', 'END 15.4 km']);
+    expect(wide(bar)).toEqual(['COG', 'XTE ◀', 'END 15.4 km']);
+  });
+
   it('shows the arrival time at the destination as the value of the end cell', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 8, 30, 10, 0));
-    const nav = render(<NavStrip app={makeGuidanceApp({ progress: { ttg: 3600, ttgNext: 900 } })} />).container;
-    const [, , , eta, end] = nav.querySelectorAll('.nav-cell');
-    expect(eta.querySelector('small')!.textContent).toBe('ETA');
-    expect(eta.querySelector('b')!.textContent).toBe('10:15');
-    expect(end.querySelector('small')!.textContent).toBe('END 15.4 km');
-    expect(end.querySelector('b')!.textContent).toBe('11:00');
+    const bar = render(<Instruments app={makeGuidanceApp({ progress: { ttg: 3600, ttgNext: 900 } })} />).container;
+    expect(bar.querySelector('[data-value="eta"]')!.textContent).toBe('10:15');
+    expect(bar.querySelector('[data-value="end"]')!.textContent).toBe('11:00');
+  });
+});
+
+describe('guidance card', () => {
+  it('shows the distance to the next maneuver apart from its text', () => {
+    const nav = render(
+      <NavStrip app={makeGuidanceApp({ maneuver: { type: 'turn-left', name: 'IJ' }, progress: { dtw: 253 } })} />,
+    ).container;
+    expect(nav.querySelector('.nav-dist')!.textContent).toBe('253 m');
+    expect(nav.querySelector('.nav-text')!.textContent).toBe('Turn left into IJ');
+    expect(nav.querySelector('.nav-next')!.textContent).toContain('Schellingwoude');
   });
 
   it('keeps its buttons across updates so a tap in progress still lands', () => {
@@ -63,10 +87,15 @@ describe('instruments in German', () => {
   it('shows the next maneuver in German with the name unchanged', () => {
     setLanguage('de');
     const nav = strip({ maneuver: { type: 'turn-left', name: 'IJ' }, progress: { dtw: 253 } });
-    expect(nav.querySelector('.nav-text')!.textContent).toBe('In 253 m — Links abbiegen in IJ');
+    expect(nav.querySelector('.nav-dist')!.textContent).toBe('253 m');
+    expect(nav.querySelector('.nav-text')!.textContent).toBe('Links abbiegen in IJ');
     expect(nav.querySelector('.nav-stop')!.getAttribute('aria-label')).toBe('Navigation beenden');
-    expect(nav.textContent).toContain('15,4 km');
-    expect(nav.textContent).toContain('ZIEL');
+  });
+
+  it('writes the leg cells in German', () => {
+    setLanguage('de');
+    const bar = render(<Instruments app={makeGuidanceApp()} />).container;
+    expect(bar.querySelector('.inst-end .inst-label')!.textContent).toBe('ZIEL 15,4 km');
   });
 
   it('keeps the stored text of a maneuver saved before names existed', () => {
@@ -97,7 +126,6 @@ describe('instruments in German', () => {
     const fix = makeFix({ lat: 53 + 5.288 / 60, lon: 5 + 50.524 / 60, sog: 9.7 / 3.6 });
     const bar = render(<Instruments app={makeGuidanceApp({ fix, progress: null })} />).container;
     expect(bar.querySelector('[data-value="sog"]')!.textContent).toBe('9,7');
-    expect(bar.querySelector('[data-value="pos"]')!.textContent).toBe('53°05,288′N\n005°50,524′E');
   });
 
   it('names the GPS state in German', () => {

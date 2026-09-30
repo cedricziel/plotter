@@ -1,12 +1,13 @@
 import type { en } from './en';
 
 export const de: Record<keyof typeof en, string> = {
-  'toolbar.route': 'Route',
-  'toolbar.track': 'Track',
-  'toolbar.anchor': 'Anker',
-  'toolbar.night': 'Nacht',
-  'toolbar.menu': 'Menü',
-  'toolbar.label': 'Werkzeuge',
+  'tools.open': 'Menü',
+  'tools.label': 'Werkzeuge',
+  'tools.search': 'Ziel suchen',
+  'tools.placeDest': 'Ziel auf der Karte setzen',
+  'tools.night': 'Nachtpalette',
+  'tools.day': 'Tagpalette',
+  'status.rec': 'REC',
   notice: 'Nur Navigationshilfe – nicht zur Navigation',
   'map.label': 'Karte',
   'map.ownVessel': 'Eigenes Schiff',
@@ -30,8 +31,6 @@ export const de: Record<keyof typeof en, string> = {
   'sheet.waypoint': 'Wegpunkt',
   'sheet.track': 'Trackaufzeichnung',
   'sheet.anchor': 'Ankeralarm',
-  'inst.position': 'POSITION',
-  'inst.time': 'ZEIT',
   'inst.sogTitle': 'Tippen: km/h oder Knoten',
 
   'inst.gps.searching': 'Suche…',
@@ -43,7 +42,6 @@ export const de: Record<keyof typeof en, string> = {
   'nav.onCourse': 'auf Kurs',
   'nav.arrived': 'Angekommen',
   'nav.stop': 'Navigation beenden',
-  'nav.inDistance': 'In {distance} — {text}',
   'nav.recalculating': 'Wird neu berechnet…',
   'nav.offCourse': 'Vom Kurs abgekommen — Neu berechnen',
   'nav.end': 'ZIEL',
