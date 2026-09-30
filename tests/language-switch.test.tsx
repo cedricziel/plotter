@@ -109,7 +109,8 @@ describe('switching the language', () => {
   it('relabels the status pill', async () => {
     const app = makeApp();
     await switchTo(app, 'de');
-    expect(text('#status-pill')).toMatch(/^GPS (Suche…|AUS|GESPERRT|FEHLT|VERLOREN)/);
+    expect(text('#status-pill .pill-gps')).toMatch(/^GPS (Suche…|AUS|GESPERRT|FEHLT|VERLOREN)/);
+    expect(aria('#status-pill .pill-pos')).toBe('Position');
   });
 
   it('relabels an open destination card', async () => {

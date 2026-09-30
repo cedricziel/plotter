@@ -31,6 +31,7 @@ export const de: Record<keyof typeof en, string> = {
   'sheet.waypoint': 'Wegpunkt',
   'sheet.track': 'Trackaufzeichnung',
   'sheet.anchor': 'Ankeralarm',
+  'inst.position': 'Position',
   'inst.sogTitle': 'Tippen: km/h oder Knoten',
 
   'inst.gps.searching': 'Suche…',

@@ -1,6 +1,6 @@
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import type { App } from '../app';
-import { formatBearing, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
+import { formatBearing, formatCoord, formatDistance, formatSpeed, formatTime, speedLabel } from '../core/units';
 import { language, t } from '../i18n';
 import { maneuverText } from '../i18n/maneuvers';
 import { ManeuverIcon } from './icons';
@@ -164,24 +164,42 @@ const elapsed = (secs: number) => {
   return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 };
 
-/** The pill over the chart's top-left corner: the GPS state and, while a track records, how long it has run. */
+/**
+ * The status card over the chart's top-left corner (bottom-left while navigating): the clock, the GPS state, how long a
+ * track has recorded, and the position.
+ */
 export function StatusPill({ app }: { app: Pick<App, 'fix' | 'gpsStatus' | 'recording'> }) {
   const f = app.fix;
+  const lang = language();
   const st = app.gpsStatus;
   const reading = st === 'ok' && !!f;
   const good = reading && f.accuracy <= 30;
+  const stale = !f || Date.now() - f.time > 15_000;
   const rec = app.recording;
   return (
     <div id="status-pill" className="glass">
-      <i className={`dot${good ? '' : ' bad'}`} />
-      {`GPS ${reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}`}
-      {rec && (
-        <>
-          <span className="pill-sep" aria-hidden="true" />
-          <i className="dot rec" />
-          {`${t('status.rec')} ${elapsed(Math.max(0, Math.floor((Date.now() - rec.started) / 1000)))}`}
-        </>
-      )}
+      <div className="pill-row">
+        <b className="pill-time" data-value="time">
+          {formatTime(new Date(), lang)}
+        </b>
+        <span className="pill-sep" aria-hidden="true" />
+        <span className="pill-gps">
+          <i className={`dot${good ? '' : ' bad'}`} />
+          {`GPS ${reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}`}
+        </span>
+        {rec && (
+          <>
+            <span className="pill-sep" aria-hidden="true" />
+            <span className="pill-rec">
+              <i className="dot rec" />
+              {`${t('status.rec')} ${elapsed(Math.max(0, Math.floor((Date.now() - rec.started) / 1000)))}`}
+            </span>
+          </>
+        )}
+      </div>
+      <div className={`pill-pos${stale ? ' stale' : ''}`} data-value="pos" role="group" aria-label={t('inst.position')}>
+        {f ? `${formatCoord(f.lat, 'lat', lang)} ${formatCoord(f.lon, 'lon', lang)}` : '--°--.---′ ---°--.---′'}
+      </div>
     </div>
   );
 }

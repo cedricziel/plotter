@@ -4,7 +4,7 @@
 
 Changing the language SHALL relabel everything on screen at once, without a reload and without losing state:
 
-- the dashboard, the menu, the status pill, the map-button labels, the chart notice and the guidance card
+- the dashboard, the menu, the status card, the map-button labels, the chart notice and the guidance card
 - any open sheet
 - the page language exposed to assistive technology
 

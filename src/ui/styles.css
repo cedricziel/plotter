@@ -250,17 +250,18 @@ button {
   }
 }
 
-/* ---- status pill ---------------------------------------------------------- */
+/* ---- status card ---------------------------------------------------------- */
+/* Top left over the chart; while navigating the guidance card takes the top, so it moves just above the dashboard. */
 #status-pill {
   position: fixed;
   top: calc(12px + var(--safe-t));
   left: calc(12px + var(--safe-l));
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
+  max-width: calc(100% - 94px - var(--safe-l) - var(--safe-r));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 14px 9px;
+  border-radius: 20px;
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -268,9 +269,47 @@ button {
   z-index: 4;
   pointer-events: none;
 }
-.plotter.navigating #status-pill,
+.plotter.navigating #status-pill {
+  top: auto;
+  bottom: calc(var(--above-dash) + 18px);
+}
+/* Wide screens have room beside the guidance card, between it and the map buttons. */
+@container plotter (min-width: 720px) {
+  .plotter.navigating #status-pill {
+    top: calc(12px + var(--safe-t));
+    bottom: auto;
+    left: calc(424px + var(--safe-l));
+    max-width: calc(100% - 424px - 86px - var(--safe-l) - var(--safe-r));
+  }
+}
 .plotter:is(.placing, .destcard) #status-pill {
   display: none;
+}
+.pill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pill-time {
+  font-size: 17px;
+  font-weight: 700;
+}
+.pill-gps,
+.pill-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pill-pos {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pill-pos.stale {
+  opacity: 0.45;
 }
 .dot {
   width: 8px;
@@ -289,7 +328,7 @@ button {
 .pill-sep {
   width: 1px;
   align-self: stretch;
-  margin: 10px 0;
+  margin: 2px 0;
   background: var(--stroke);
 }
 

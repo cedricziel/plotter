@@ -30,6 +30,7 @@ export const en = {
   'sheet.waypoint': 'Waypoint',
   'sheet.track': 'Track recording',
   'sheet.anchor': 'Anchor alarm',
+  'inst.position': 'Position',
   'inst.sogTitle': 'Tap to switch km/h / knots',
 
   'inst.gps.searching': 'search…',

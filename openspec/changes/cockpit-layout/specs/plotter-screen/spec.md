@@ -2,7 +2,7 @@
 
 ### Requirement: Screen layout
 
-The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard at the bottom with the menu button and the instruments, a status pill at the top left (hidden while navigating), the guidance card at the top (only while a destination or route is active), and a column of map buttons on the right for zoom in, zoom out, map orientation, follow and seamarks. The menu button SHALL open a menu with Search destination, Set destination on map, Route & waypoints, Track recording, Anchor alarm, the night or day palette, and Settings. The map buttons SHALL stay inside the screen and SHALL NOT be covered by the destination card or the placement bar. The layout SHALL fill the whole screen without page scrolling and without horizontal overflow at widths from 360 px up.
+The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard at the bottom with the menu button and the instruments, a status card with the clock, the GPS state and the position at the top left (while navigating: beside the guidance card on wide screens, above the dashboard on phones), the guidance card at the top (only while a destination or route is active), and a column of map buttons on the right for zoom in, zoom out, map orientation, follow and seamarks. The menu button SHALL open a menu with Search destination, Set destination on map, Route & waypoints, Track recording, Anchor alarm, the night or day palette, and Settings. The map buttons SHALL stay inside the screen and SHALL NOT be covered by the destination card or the placement bar. The layout SHALL fill the whole screen without page scrolling and without horizontal overflow at widths from 360 px up.
 
 #### Scenario: Phone portrait
 
@@ -12,7 +12,7 @@ The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard
 #### Scenario: Home-screen app on iPhone
 
 - **WHEN** the app runs as an installed home-screen web app on an iPhone with a notch or Dynamic Island
-- **THEN** the status pill and the guidance card sit below the status bar, and no part of the dashboard is covered by the home indicator
+- **THEN** the status card and the guidance card sit below the status bar, and no part of the dashboard is covered by the home indicator
 
 #### Scenario: iPad
 
@@ -41,12 +41,12 @@ The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard
 
 ### Requirement: Instrument bar
 
-The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, distance to the next point (DTW) and ETA at the next point, and from 720 px wide also COG, cross-track error or VMG, and ETA at the end. While navigating without a GPS reading, the dashboard SHALL keep the GPS state in view. Values SHALL be marked stale when the last fix is older than 15 seconds. The status pill SHALL show the GPS state and, while a track records, how long it has recorded. While a track records or the anchor watch is armed, the menu button SHALL carry a badge.
+The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, distance to the next point (DTW) and ETA at the next point, and from 720 px wide also COG, cross-track error or VMG, and ETA at the end. While navigating without a GPS reading, the dashboard SHALL keep the GPS state in view. Values SHALL be marked stale when the last fix is older than 15 seconds. The status card SHALL show the local time, the GPS state, the position in degrees and decimal minutes (marked stale with the readings) and, while a track records, how long it has recorded. While a track records or the anchor watch is armed, the menu button SHALL carry a badge.
 
 #### Scenario: Good fix
 
 - **WHEN** a fix with 6 m accuracy arrives while moving at 9 km/h on 084°
-- **THEN** the dashboard shows SOG 9.0, COG 084° and GPS "±6 m"
+- **THEN** the dashboard shows SOG 9.0, COG 084° and GPS "±6 m", and the status card shows the time, "GPS ±6 m" and the position
 
 #### Scenario: Stationary boat
 
@@ -56,7 +56,7 @@ The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over
 #### Scenario: Location unavailable
 
 - **WHEN** location permission is denied, or no fix has arrived yet
-- **THEN** the GPS cell and the status pill show DENIED or "search…"
+- **THEN** the GPS cell and the status card show DENIED or "search…", and the position shows placeholders
 
 #### Scenario: GPS lost while navigating
 
@@ -66,7 +66,7 @@ The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over
 #### Scenario: Recording
 
 - **WHEN** a track has recorded for one hour
-- **THEN** the status pill shows "REC 1:00:00", and the menu button carries a blinking red badge that stays while navigating
+- **THEN** the status card shows "REC 1:00:00", and the menu button carries a blinking red badge that stays while navigating
 
 ### Requirement: Turn-by-turn guidance
 

@@ -3,7 +3,7 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setLanguage } from '../src/i18n';
 import { makeFix, makeGuidanceApp, type GuidanceOptions } from '../src/stories/fakes';
-import { Instruments, NavStrip } from '../src/ui/instruments';
+import { Instruments, NavStrip, StatusPill } from '../src/ui/instruments';
 
 afterEach(() => {
   cleanup();
@@ -140,6 +140,23 @@ describe('instruments in German', () => {
     const fix = makeFix({ lat: 53 + 5.288 / 60, lon: 5 + 50.524 / 60, sog: 9.7 / 3.6 });
     const bar = render(<Instruments app={makeGuidanceApp({ fix, progress: null })} />).container;
     expect(bar.querySelector('[data-value="sog"]')!.textContent).toBe('9,7');
+  });
+
+  it('writes the position and the clock in the status card with decimal commas', () => {
+    setLanguage('de');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30, 14, 32));
+    const fix = makeFix({ lat: 53 + 5.288 / 60, lon: 5 + 50.524 / 60, time: Date.now() });
+    const card = render(<StatusPill app={{ ...makeGuidanceApp({ fix }), recording: null }} />).container;
+    expect(card.querySelector('[data-value="pos"]')!.textContent).toBe('53°05,288′N 005°50,524′E');
+    expect(card.querySelector('[data-value="time"]')!.textContent).toBe('14:32');
+  });
+
+  it('shows placeholders for the position without a fix', () => {
+    const card = render(
+      <StatusPill app={{ ...makeGuidanceApp({ status: 'searching', fix: null }), recording: null }} />,
+    ).container;
+    expect(card.querySelector('[data-value="pos"]')!.textContent).toBe('--°--.---′ ---°--.---′');
   });
 
   it('names the GPS state in German', () => {

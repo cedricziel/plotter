@@ -21,6 +21,8 @@ host, or a Raspberry Pi on board.
   accuracy/status; while navigating, DTW and ETA (plus COG, cross-track error
   and ETA at the end on tablets). Its menu button opens search, the destination
   crosshair, the Route, Track, Anchor and Settings sheets, and the night palette.
+- **Status card** over the chart: clock (24 h), GPS accuracy/status, recording
+  time, and the position (degrees + decimal minutes).
 - **Waypoints**: long-press the map (right-click on desktop) to drop, tap to
   rename / go-to / delete, drag to move.
 - **Search and charted courses**: search harbours, marinas, locks, towns and
