@@ -21,6 +21,8 @@ export interface Motion {
 /** Below this speed COG is meaningless noise (≈ 1 km/h). */
 export const COG_MIN_SPEED = 0.28;
 const WINDOW_MS = 60_000;
+/** How long the device's last speed stands in for fixes that come without one. */
+const DEVICE_HOLD_MS = 10_000;
 /** How many standard errors the fitted velocity must clear before its direction counts. */
 const CONFIDENCE = 3;
 
@@ -36,6 +38,7 @@ export class MotionEstimator {
   private history: RawFix[] = [];
   private sog: number | null = null;
   private cog: number | null = null;
+  private lastDeviceSpeedAt = -Infinity;
 
   update(f: RawFix): Motion {
     this.history = this.history.filter((h) => h.time < f.time && f.time - h.time <= WINDOW_MS);
@@ -43,12 +46,15 @@ export class MotionEstimator {
     const fit = fitVelocity(this.history);
 
     const deviceSpeed = f.speed != null && Number.isFinite(f.speed) && f.speed >= 0 ? f.speed : null;
-    const rawSpeed = deviceSpeed ?? fit?.speed ?? null;
+    if (deviceSpeed != null) this.lastDeviceSpeedAt = f.time;
+    // iOS leaves the speed out of the odd poor fix; the fit over such a fix reads slow, so keep the device's.
+    const holdDevice = deviceSpeed == null && f.time - this.lastDeviceSpeedAt <= DEVICE_HOLD_MS;
+    const rawSpeed = holdDevice ? null : (deviceSpeed ?? fit?.speed ?? null);
     if (rawSpeed != null)
       this.sog = this.sog == null || deviceSpeed == null ? rawSpeed : this.sog * 0.6 + rawSpeed * 0.4;
 
     const deviceCourse = f.heading != null && Number.isFinite(f.heading) && f.heading >= 0 ? f.heading : null;
-    const rawCourse = deviceCourse ?? (fit?.reliable ? fit.course : null);
+    const rawCourse = deviceCourse ?? (!holdDevice && fit?.reliable ? fit.course : null);
     // Keep the last course while (nearly) stopped, for the ship symbol.
     const moving = rawSpeed ?? this.sog;
     if (rawCourse != null && (moving == null || moving >= COG_MIN_SPEED)) this.cog = rawCourse;
