@@ -26,6 +26,7 @@ describe('GpsStats', () => {
       'plotter.gps.accuracy_max_m': 65,
       'plotter.gps.device_speed_ratio': 0.5,
       'plotter.gps.device_course_ratio': 0.2,
+      'plotter.gps.restarts': 0,
     });
   });
 

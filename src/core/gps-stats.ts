@@ -22,6 +22,8 @@ const round = (v: number, digits = 1) => Math.round(v * 10 ** digits) / 10 ** di
  */
 export class GpsStats {
   private samples: FixSample[] = [];
+  /** Times the location watch was restarted because the device kept repeating a fix. */
+  restarts = 0;
 
   add(s: FixSample): void {
     this.samples.push(s);
@@ -29,6 +31,7 @@ export class GpsStats {
 
   reset(): void {
     this.samples = [];
+    this.restarts = 0;
   }
 
   summary(): Record<string, number> | null {
@@ -48,6 +51,7 @@ export class GpsStats {
       'plotter.gps.accuracy_max_m': round(accuracy[accuracy.length - 1]),
       'plotter.gps.device_speed_ratio': round(s.filter((x) => valid(x.speed)).length / s.length, 2),
       'plotter.gps.device_course_ratio': round(s.filter((x) => valid(x.heading)).length / s.length, 2),
+      'plotter.gps.restarts': this.restarts,
     };
   }
 }

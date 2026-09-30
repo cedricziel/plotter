@@ -1,6 +1,6 @@
 import { destination } from '../core/geo';
 import { GpsStats } from '../core/gps-stats';
-import { MotionEstimator } from '../core/motion';
+import { COG_MIN_SPEED, MotionEstimator } from '../core/motion';
 import { t } from '../i18n';
 
 export interface Fix {
@@ -24,6 +24,8 @@ export interface GpsCallbacks {
 }
 
 const LOST_AFTER_MS = 30_000;
+/** How long iOS may hand back the same fix, with fresh timestamps, while under way before the watch restarts. */
+const REPEAT_LIMIT_MS = 10_000;
 
 /**
  * Wraps navigator.geolocation.watchPosition and derives SOG/COG, falling back
@@ -36,6 +38,9 @@ export class Gps {
   /** Quality of the position source since the last report; never positions. */
   readonly stats = new GpsStats();
   private sim: Simulator | null = null;
+  private lastRaw: { lat: number; lon: number; speed: number | null; heading: number | null } | null = null;
+  private repeatSince: number | null = null;
+  private restartedAt: number | null = null;
 
   constructor(private cb: GpsCallbacks) {}
 
@@ -55,6 +60,10 @@ export class Gps {
       return;
     }
     this.cb.onStatus('searching');
+    this.watch();
+  }
+
+  private watch(): void {
     this.watchId = navigator.geolocation.watchPosition(
       (p) =>
         this.handle(
@@ -91,6 +100,15 @@ export class Gps {
     heading: number | null,
     time: number,
   ): void {
+    if (this.stalled(lat, lon, speed, heading, time)) {
+      if (this.restartedAt == null || time - this.restartedAt > REPEAT_LIMIT_MS) {
+        this.restartedAt = time;
+        this.stats.restarts++;
+        if (this.watchId != null) navigator.geolocation.clearWatch(this.watchId);
+        this.watch();
+      }
+      return;
+    }
     const { sog, cog } = this.motion.update({ lat, lon, accuracy, speed, heading, time });
     this.stats.add({ time, accuracy, speed, heading });
 
@@ -99,6 +117,21 @@ export class Gps {
 
     clearTimeout(this.lostTimer);
     this.lostTimer = window.setTimeout(() => this.cb.onStatus('lost', 'No GPS fix for 30 s'), LOST_AFTER_MS);
+  }
+
+  /** iOS sometimes freezes the watch and keeps repeating the last fix with a fresh timestamp. */
+  private stalled(lat: number, lon: number, speed: number | null, heading: number | null, time: number): boolean {
+    const prev = this.lastRaw;
+    const same =
+      prev != null && prev.lat === lat && prev.lon === lon && prev.speed === speed && prev.heading === heading;
+    this.lastRaw = { lat, lon, speed, heading };
+    if (!same || speed == null || speed < COG_MIN_SPEED) {
+      this.repeatSince = null;
+      this.restartedAt = null;
+      return false;
+    }
+    this.repeatSince ??= time;
+    return time - this.repeatSince > REPEAT_LIMIT_MS;
   }
 }
 
