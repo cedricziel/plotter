@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.stubGlobal('__APP_VERSION__', 'test');
@@ -48,7 +48,10 @@ function makeApp() {
 
 const switchTo = (app: InstanceType<typeof App>, language: 'auto' | 'en' | 'de') =>
   act(() => app.updateSettings({ language }));
-const toolbar = () => [...document.querySelectorAll('#toolbar .tool span:last-child')].map((e) => e.textContent);
+const menu = () => {
+  if (!document.querySelector('#menu')) fireEvent.click(document.querySelector('#btn-menu')!);
+  return [...document.querySelectorAll('#menu [role="menuitem"] span:first-child')].map((e) => e.textContent);
+};
 const aria = (sel: string) => document.querySelector(sel)!.getAttribute('aria-label');
 const text = (sel: string) => document.querySelector(sel)!.textContent;
 
@@ -63,20 +66,29 @@ afterEach(() => {
 });
 
 describe('switching the language', () => {
-  it('relabels the toolbar, the floating buttons and the chart notice, and sets the page language', async () => {
+  it('relabels the menu, the floating buttons and the chart notice, and sets the page language', async () => {
     const app = makeApp();
     await switchTo(app, 'de');
 
-    expect(toolbar()).toEqual(['Route', 'Track', 'Anker', 'Nacht', 'Menü']);
+    expect(menu()).toEqual([
+      'Ziel suchen',
+      'Ziel auf der Karte setzen',
+      'Route & Wegpunkte',
+      'Trackaufzeichnung',
+      'Ankeralarm',
+      'Nachtpalette',
+      'Einstellungen',
+    ]);
+    expect(aria('#btn-menu')).toBe('Menü');
     expect(aria('#btn-zoom-in')).toBe('Vergrößern');
     expect(aria('#btn-follow')).toBe('Auf eigene Position zentrieren');
-    expect(aria('#toolbar')).toBe('Werkzeuge');
+    expect(aria('#menu')).toBe('Werkzeuge');
     expect(text('#notice')).toBe('Nur Navigationshilfe – nicht zur Navigation');
     expect(text('#alarm-silence')).toBe('Stumm schalten');
     expect(document.documentElement.lang).toBe('de');
 
     await switchTo(app, 'en');
-    expect(toolbar()).toEqual(['Route', 'Track', 'Anchor', 'Night', 'Menu']);
+    expect(menu()).toContain('Anchor alarm');
     expect(aria('#btn-zoom-in')).toBe('Zoom in');
     expect(text('#notice')).toBe('Navigation aid only – not for navigation');
     expect(document.documentElement.lang).toBe('en');
@@ -94,11 +106,11 @@ describe('switching the language', () => {
     expect(aria('#sheet .sheet-head .icon-btn')).toBe('Schließen');
   });
 
-  it('relabels the instrument bar', async () => {
+  it('relabels the status pill', async () => {
     const app = makeApp();
     await switchTo(app, 'de');
-    const labels = [...document.querySelectorAll('#instruments .inst-label')].map((e) => e.firstChild!.textContent);
-    expect(labels).toEqual(['SOG', 'COG', 'POSITION', 'ZEIT', 'GPS']);
+    expect(text('#status-pill .pill-gps')).toMatch(/^GPS (Suche…|AUS|GESPERRT|FEHLT|VERLOREN)/);
+    expect(aria('#status-pill .pill-pos')).toBe('Position');
   });
 
   it('relabels an open destination card', async () => {
@@ -131,7 +143,7 @@ describe('switching the language', () => {
     const app = makeApp();
     await switchTo(app, 'auto');
     expect(document.documentElement.lang).toBe('de');
-    expect(toolbar()).toContain('Anker');
+    expect(menu()).toContain('Ankeralarm');
   });
 });
 

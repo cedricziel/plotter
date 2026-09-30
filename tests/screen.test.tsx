@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeScreenApp } from '../src/stories/fakes';
 import { PlotterScreen } from '../src/ui/screen';
@@ -95,5 +95,118 @@ describe('plotter screen', () => {
 
     resize(bar, 148);
     expect(root.style.getPropertyValue('--bottom-bar-h')).toBe('148px');
+  });
+
+  it('marks navigation on the root, so the guidance card replaces the status pill', () => {
+    const { container, rerender } = render(<PlotterScreen app={makeScreenApp()} />);
+    expect(container.querySelector('.plotter')!.classList).not.toContain('navigating');
+    rerender(<PlotterScreen app={makeScreenApp({ route: true })} />);
+    expect(container.querySelector('.plotter')!.classList).toContain('navigating');
+  });
+
+  it('does not count a new, empty route as navigating', () => {
+    const app = makeScreenApp({ route: true });
+    app.routePoints = () => [];
+    const { container } = render(<PlotterScreen app={app} />);
+    expect(container.querySelector('.plotter')!.classList).not.toContain('navigating');
+  });
+
+  it('shows how long a track has been recording in the status pill', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp({ recording: true })} />);
+    expect(container.querySelector('#status-pill')!.textContent).toContain('REC 1:00:00');
+  });
+});
+
+describe('menu', () => {
+  const items = (root: HTMLElement) =>
+    [...root.querySelectorAll('#menu [role="menuitem"] span:first-child')].map((e) => e.textContent);
+
+  it('opens from the dashboard and closes again', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp()} />);
+    const button = container.querySelector<HTMLElement>('#btn-menu')!;
+    expect(container.querySelector('#menu')).toBeNull();
+
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(items(container)).toEqual([
+      'Search destination',
+      'Set destination on map',
+      'Route & waypoints',
+      'Track recording',
+      'Anchor alarm',
+      'Night palette',
+      'Settings',
+    ]);
+
+    fireEvent.click(button);
+    expect(container.querySelector('#menu')).toBeNull();
+
+    fireEvent.click(button);
+    fireEvent.click(container.querySelector('.menu-scrim')!);
+    expect(container.querySelector('#menu')).toBeNull();
+  });
+
+  it('moves focus into the menu, along it with the arrow keys, and back to the button', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp()} />);
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    expect(document.activeElement!.id).toBe('btn-search');
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(document.activeElement!.id).toBe('btn-settings');
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement!.id).toBe('btn-search');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.activeElement!.id).toBe('btn-menu');
+  });
+
+  it('marks the open sheet', () => {
+    const { container } = render(
+      <PlotterScreen app={makeScreenApp()} sheet={{ key: 'track', title: 'Track', content: 'track' }} />,
+    );
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    expect(container.querySelector('#btn-track')!.getAttribute('aria-current')).toBe('true');
+    expect(container.querySelector('#btn-route')!.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('offers the day palette at night', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp({ settings: { theme: 'night' } })} />);
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    expect(container.querySelector('#btn-night')!.textContent).toBe('Day palette');
+  });
+
+  it('closes the destination card before opening a tool, and closes itself', () => {
+    const calls: string[] = [];
+    const { container } = render(
+      <PlotterScreen
+        app={makeScreenApp()}
+        controls={{
+          beforeTool: () => calls.push('before'),
+          tool: (t) => calls.push(t),
+          setDestination: () => calls.push('place'),
+          toggleNight: () => calls.push('night'),
+          search: () => calls.push('search'),
+        }}
+      />,
+    );
+    const pick = (id: string) => {
+      fireEvent.click(container.querySelector('#btn-menu')!);
+      fireEvent.click(container.querySelector(id)!);
+    };
+
+    pick('#btn-route');
+    expect(container.querySelector('#menu')).toBeNull();
+    pick('#btn-settings');
+    pick('#btn-search');
+    pick('#btn-dest');
+    pick('#btn-night');
+    expect(calls).toEqual(['before', 'route', 'before', 'menu', 'before', 'search', 'place', 'night']);
+  });
+
+  it('closes on Escape', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp()} />);
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('#menu')).toBeNull();
   });
 });

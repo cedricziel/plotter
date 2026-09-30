@@ -1,9 +1,20 @@
-import { useLayoutEffect, useRef, type ReactNode, type Ref, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from 'react';
 import type { App } from '../app';
 import { t } from '../i18n';
 import { alarmText } from '../i18n/texts';
 import { Disclaimer } from './disclaimer';
-import { Instruments, NavStrip, type InstrumentsApp } from './instruments';
+import { Icon, type IconName } from './icons';
+import { Instruments, NavStrip, StatusPill, type InstrumentsApp } from './instruments';
 import { SheetFrame } from './sheet';
 import { useLanguage } from './store';
 import { Toast } from './toast';
@@ -23,12 +34,14 @@ export interface ScreenControls {
   follow?: () => void;
   tool?: (tool: Tool) => void;
   toggleNight?: () => void;
+  /** Opens the Route sheet with its search box focused. */
+  search?: () => void;
   closeSheet?: () => void;
   /** Runs before any tool, so a tool replaces the placement bar and the destination card. */
   beforeTool?: () => void;
 }
 
-/** The round map buttons on the right: zoom, seamarks, destination, orientation and follow. */
+/** The map buttons on the right: zoom, orientation, follow and seamarks. */
 export function MapControls({
   courseUp = true,
   needleRef,
@@ -40,30 +53,12 @@ export function MapControls({
 }) {
   useLanguage();
   return (
-    <div className="fabs" role="toolbar" aria-label={t('fab.controls')}>
+    <div className="fabs glass" role="toolbar" aria-label={t('fab.controls')}>
       <button id="btn-zoom-in" className="fab" aria-label={t('fab.zoomIn')} onClick={controls.zoomIn}>
-        +
+        <Icon name="plus" />
       </button>
       <button id="btn-zoom-out" className="fab" aria-label={t('fab.zoomOut')} onClick={controls.zoomOut}>
-        −
-      </button>
-      <button
-        id="btn-seamarks"
-        className="fab"
-        aria-label={t('fab.seamarks')}
-        title={t('fab.seamarksTitle')}
-        onClick={controls.toggleSeamarks}
-      >
-        ⛯
-      </button>
-      <button
-        id="btn-dest"
-        className="fab"
-        aria-label={t('fab.destination')}
-        title={t('fab.destination')}
-        onClick={controls.setDestination}
-      >
-        ⚑+
+        <Icon name="minus" />
       </button>
       <button
         id="btn-orient"
@@ -73,43 +68,131 @@ export function MapControls({
         onClick={controls.toggleOrientation}
       >
         <span className="needle" ref={needleRef}>
-          ▲<small>N</small>
+          <Icon name="north" />
         </span>
       </button>
       <button id="btn-follow" className="fab" aria-label={t('fab.follow')} onClick={controls.follow}>
-        ⌖
+        <Icon name="locate" />
+      </button>
+      <button
+        id="btn-seamarks"
+        className="fab"
+        aria-label={t('fab.seamarks')}
+        title={t('fab.seamarksTitle')}
+        onClick={controls.toggleSeamarks}
+      >
+        <Icon name="layers" />
       </button>
     </div>
   );
 }
 
-/** The bottom toolbar: the four sheets and the night switch. */
-export function Toolbar({ controls = {} }: { controls?: ScreenControls }) {
+/** The dashboard at the bottom: the menu button and the instruments. */
+export function Dashboard({
+  app,
+  menuOpen = false,
+  onMenu,
+}: {
+  app: InstrumentsApp;
+  menuOpen?: boolean;
+  onMenu?: () => void;
+}) {
   useLanguage();
-  const tool = (t: Tool) => () => controls.tool?.(t);
   return (
-    <nav id="toolbar" aria-label={t('toolbar.label')} onClickCapture={controls.beforeTool}>
-      <button id="btn-route" className="tool" onClick={tool('route')}>
-        <span className="tool-ico">⚑</span>
-        <span>{t('toolbar.route')}</span>
+    <div id="dash" className="glass">
+      <button
+        id="btn-menu"
+        aria-label={t('tools.open')}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-controls={menuOpen ? 'menu' : undefined}
+        onClick={onMenu}
+      >
+        <Icon name={menuOpen ? 'x' : 'grid'} />
       </button>
-      <button id="btn-track" className="tool" onClick={tool('track')}>
-        <span className="tool-ico rec-dot">●</span>
-        <span>{t('toolbar.track')}</span>
-      </button>
-      <button id="btn-anchor" className="tool" onClick={tool('anchor')}>
-        <span className="tool-ico">⚓</span>
-        <span>{t('toolbar.anchor')}</span>
-      </button>
-      <button id="btn-night" className="tool" onClick={controls.toggleNight}>
-        <span className="tool-ico">☾</span>
-        <span>{t('toolbar.night')}</span>
-      </button>
-      <button id="btn-menu" className="tool" onClick={tool('menu')}>
-        <span className="tool-ico">☰</span>
-        <span>{t('toolbar.menu')}</span>
-      </button>
-    </nav>
+      <Instruments app={app} />
+    </div>
+  );
+}
+
+/** The menu above the dashboard's menu button: destination, the sheets and the palette. Closes on a pick or Escape. */
+export function ToolMenu({
+  night = false,
+  recording = false,
+  sheet,
+  controls = {},
+  onClose,
+}: {
+  night?: boolean;
+  recording?: boolean;
+  /** key of the open sheet, marked in the menu */
+  sheet?: string;
+  controls?: ScreenControls;
+  onClose?: () => void;
+}) {
+  useLanguage();
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && onClose?.();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  // Focus moves into the menu while it is open and back to the menu button when it closes.
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => document.getElementById('btn-menu')?.focus();
+  }, []);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+  };
+  const item = (id: string, icon: IconName, label: string, run?: () => void, extra?: ReactNode, key?: Tool) => (
+    <button
+      id={id}
+      role="menuitem"
+      aria-current={key && key === sheet ? 'true' : undefined}
+      onClick={() => {
+        onClose?.();
+        run?.();
+      }}
+    >
+      <span>{label}</span>
+      {extra}
+      <Icon name={icon} />
+    </button>
+  );
+  const tool = (x: Tool) => () => {
+    controls.beforeTool?.();
+    controls.tool?.(x);
+  };
+  const search = () => {
+    controls.beforeTool?.();
+    controls.search?.();
+  };
+  return (
+    <>
+      <div className="menu-scrim" onClick={onClose} />
+      <div id="menu" className="glass" role="menu" aria-label={t('tools.label')} ref={menuRef} onKeyDown={onKeyDown}>
+        {item('btn-search', 'search', t('tools.search'), search)}
+        {item('btn-dest', 'target', t('tools.placeDest'), controls.setDestination)}
+        {item('btn-route', 'route', t('sheet.route'), tool('route'), null, 'route')}
+        {item(
+          'btn-track',
+          'rec',
+          t('sheet.track'),
+          tool('track'),
+          recording && <b className="menu-rec">{t('status.rec')}</b>,
+          'track',
+        )}
+        {item('btn-anchor', 'anchor', t('sheet.anchor'), tool('anchor'), null, 'anchor')}
+        <hr />
+        {item('btn-night', night ? 'sun' : 'moon', night ? t('tools.day') : t('tools.night'), controls.toggleNight)}
+        {item('btn-settings', 'sliders', t('sheet.settings'), tool('menu'), null, 'menu')}
+      </div>
+    </>
   );
 }
 
@@ -169,7 +252,7 @@ function useBottomBarHeight(root: RefObject<HTMLElement | null>, bar: RefObject<
 }
 
 /**
- * The whole screen, drawn from props: instruments, guidance, chart, map buttons, toolbar, and whichever sheet, bottom
+ * The whole screen, drawn from props: chart, status pill, guidance, map buttons, dashboard and menu, and whichever sheet, bottom
  * bar, toast, alarm or disclaimer is up. `.plotter` is the layout's size container, so the screen adapts to whatever
  * box it is given: the viewport in the app, a device frame in Storybook.
  */
@@ -203,12 +286,15 @@ export function PlotterScreen({
     app.follow && 'following',
     app.recording && 'recording',
     app.anchor?.armed && 'anchor-armed',
+    app.routePoints(app.activeRoute).length > 0 && 'navigating',
     s.seamarks && 'seamarks-on',
     s.orientation === 'north' && 'north-up',
     bottom?.kind === 'placing' && 'placing',
     bottom?.kind === 'card' && 'destcard',
   ];
   const sheetUp = !!sheet && !sheet.closing;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const rootRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   useBottomBarHeight(rootRef, barRef);
@@ -219,8 +305,6 @@ export function PlotterScreen({
       data-theme={s.theme}
       data-sheet={sheetUp ? sheet.key : undefined}
     >
-      <Instruments app={app} />
-      <NavStrip app={app} />
       <main id="map" aria-label={t('map.label')} ref={mapRef}>
         {chart}
         {bottom?.kind === 'placing' && <div id="crosshair" aria-hidden="true" />}
@@ -229,13 +313,24 @@ export function PlotterScreen({
         {bottom?.content}
       </div>
 
+      <StatusPill app={app} />
+      <NavStrip app={app} />
       <MapControls courseUp={s.orientation === 'course'} needleRef={needleRef} controls={controls} />
 
       <div id="notice" aria-hidden="true">
         {t('notice')}
       </div>
 
-      <Toolbar controls={controls} />
+      <Dashboard app={app} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />
+      {menuOpen && (
+        <ToolMenu
+          night={s.theme === 'night'}
+          recording={!!app.recording}
+          sheet={sheetUp ? sheet.key : undefined}
+          controls={controls}
+          onClose={closeMenu}
+        />
+      )}
 
       <SheetFrame open={sheetUp} title={sheet?.title} bodyKey={sheet?.key} onClose={controls.closeSheet}>
         {sheet?.content}

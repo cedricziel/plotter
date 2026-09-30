@@ -67,3 +67,26 @@ export function KindIcon({ kind, className }: { kind: PlaceKind; className: stri
     </span>
   );
 }
+
+const CHROME = {
+  grid: 'M6 4h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M15 4h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M6 13h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z M15 13h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
+  x: 'M6 6l12 12M18 6 6 18',
+  search: 'M11 4a7 7 0 1 0 0.01 0z M16.5 16.5 21 21',
+  target: 'M12 5a7 7 0 1 0 0.01 0z M12 2v4M12 18v4M2 12h4M18 12h4',
+  route: 'M5 21V4 M5 4h12l-2.5 4 2.5 4H5',
+  rec: 'M12 7a5 5 0 1 0 0.01 0z',
+  anchor: 'M12 3a2 2 0 1 0 0.01 0z M12 7v14M5 13a7 7 0 0 0 14 0M8.5 10.5h7',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  sun: 'M12 8a4 4 0 1 0 0.01 0z M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9 M15 5a2 2 0 1 0 0.01 0z M9 15a2 2 0 1 0 0.01 0z',
+  layers: 'm12 3 9 5-9 5-9-5 9-5z m-9 10 9 5 9-5',
+  locate: 'M4 11 20 4l-7 16-2-7-7-2z',
+  north: 'M12 3 16 12H8z',
+  plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
+};
+
+export type IconName = keyof typeof CHROME;
+
+/** A line icon of the screen's chrome: menu, map buttons and tools. */
+export const Icon = ({ name }: { name: IconName }) => <Svg d={CHROME[name]} className={`ico ico-${name}`} />;

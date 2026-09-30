@@ -1,4 +1,5 @@
 import { useEffect, useRef, type Ref } from 'react';
+import { flushSync } from 'react-dom';
 import type { App } from '../app';
 import { t } from '../i18n';
 import { closeDestination, startPlacement, useDestBar } from './destination';
@@ -75,6 +76,11 @@ export function Shell({ app, mapRef }: { app: App; mapRef?: Ref<HTMLElement> }) 
           void app.updateSettings({
             theme: app.settings.theme === 'night' ? 'day' : 'night',
           }),
+        search: () => {
+          // Rendered before focusing, so iOS raises the keyboard within the tap.
+          if (!sheetOpen('route')) flushSync(() => openRoute(app));
+          document.querySelector<HTMLInputElement>('#sheet .search-input')?.focus();
+        },
         closeSheet,
         beforeTool: closeDestination,
       }}

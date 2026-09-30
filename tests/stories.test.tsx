@@ -45,11 +45,11 @@ describe('stories', () => {
     const story = (language: Language) => Object.fromEntries(compose(mod, language)).GoodFix;
     const Story = story('de');
     render(<Story />);
-    expect(document.querySelector('#instruments')!.textContent).toContain('ZEIT');
+    expect(document.querySelector('#btn-menu')!.getAttribute('aria-label')).toBe('Menü');
     cleanup();
     const English = story('en');
     render(<English />);
-    expect(document.querySelector('#instruments')!.textContent).toContain('TIME');
+    expect(document.querySelector('#btn-menu')!.getAttribute('aria-label')).toBe('Menu');
   });
 
   it('keeps a German story German whatever the toolbar says', () => {

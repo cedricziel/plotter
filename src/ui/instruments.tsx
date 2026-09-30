@@ -21,16 +21,12 @@ export type InstrumentsApp = Pick<
   | 'recalculate'
 >;
 
-const Cell = ({ label, value, cls = '' }: { label: string; value: string; cls?: string }) => (
-  <div className={`nav-cell ${cls}`}>
-    <small>{label}</small>
-    <b>{value}</b>
-  </div>
-);
+const steering = (steer: number | null, sog: number | null | undefined): steer is number =>
+  steer != null && sog != null && sog >= 0.5;
 
 /** Turn needed to reach the waypoint; hidden while COG is unknown or the boat is (nearly) stationary. */
 function SteerCue({ steer, sog }: { steer: number | null; sog: number | null | undefined }) {
-  if (steer == null || sog == null || sog < 0.5) return null;
+  if (!steering(steer, sog)) return null;
   const deg = Math.round(Math.abs(steer));
   if (deg <= 5) return <span className="nav-steer on">{`▲ ${t('nav.onCourse')}`}</span>;
   return <span className={`nav-steer${deg > 20 ? ' far' : ''}`}>{steer < 0 ? `◀ ${deg}°` : `${deg}° ▶`}</span>;
@@ -46,6 +42,18 @@ const StopButton = ({ app }: { app: InstrumentsApp }) => (
     ✕
   </button>
 );
+
+/** A reading with its unit set small after it, as in "1.3 km". */
+function Reading({ value }: { value: string }) {
+  const m = /^(.*\d) ([^\d\s]+)$/.exec(value);
+  if (!m) return value;
+  return (
+    <>
+      {m[1]}
+      <em>{` ${m[2]}`}</em>
+    </>
+  );
+}
 
 interface TileProps extends HTMLAttributes<HTMLDivElement> {
   id: string;
@@ -63,12 +71,12 @@ const Tile = ({ id, label, unit, value, className, ...rest }: TileProps) => (
       </span>
     </div>
     <div className="inst-value" data-value={id}>
-      {value}
+      <Reading value={value} />
     </div>
   </div>
 );
 
-/** Top instrument bar. */
+/** The dashboard's readings: speed, course and GPS; while navigating, speed and the leg. */
 export function Instruments({ app }: { app: InstrumentsApp }) {
   const f = app.fix;
   const lang = language();
@@ -86,9 +94,44 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
   const accClass = [st !== 'ok' || acc > 30 ? 'bad' : st === 'ok' && acc <= 10 ? 'good' : '', !reading && 'status']
     .filter(Boolean)
     .join(' ');
+  const p = app.progress;
+  const pts = app.routePoints(app.activeRoute);
+  const navigating = !!p && !!pts[p.nextIndex];
+
+  let leg: ReactNode = null;
+  if (navigating) {
+    const du = app.settings.distanceUnit;
+    const now = Date.now();
+    const dist = (m: number) => formatDistance(m, du, lang);
+    const time = (secs: number | null) => (secs != null ? formatTime(new Date(now + secs * 1000), lang) : '--:--');
+    leg = (
+      <>
+        <Tile id="dtw" label="DTW" value={dist(p.dtw)} />
+        {p.xte != null ? (
+          <Tile
+            id="xte"
+            label={`XTE ${p.xte > 0 ? '◀' : '▶'}`}
+            value={dist(Math.abs(p.xte))}
+            className={Math.abs(p.xte) > 50 ? 'wide warn' : 'wide'}
+          />
+        ) : (
+          <Tile
+            id="vmg"
+            label="VMG"
+            value={formatSpeed(p.vmg != null ? Math.max(0, p.vmg) : null, unit, lang)}
+            className="wide"
+          />
+        )}
+        <Tile id="eta" label="ETA" value={time(p.ttgNext)} />
+        {pts.length - p.nextIndex > 1 && (
+          <Tile id="end" label={`${t('nav.end')} ${dist(p.remaining)}`} value={time(p.ttg)} className="wide" />
+        )}
+      </>
+    );
+  }
 
   return (
-    <header id="instruments" aria-live="off" className={stale ? 'stale' : undefined}>
+    <div id="instruments" aria-live="off" className={stale ? 'stale' : undefined}>
       <Tile
         id="sog"
         label="SOG"
@@ -100,51 +143,89 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
         onClick={toggleSpeedUnit}
         onKeyDown={onKeyDown}
       />
-      <Tile id="cog" label="COG" value={formatBearing(f?.cog)} />
-      <Tile
-        id="pos"
-        label={t('inst.position')}
-        value={f ? `${formatCoord(f.lat, 'lat', lang)}\n${formatCoord(f.lon, 'lon', lang)}` : '--°--.---′\n---°--.---′'}
-      />
-      <Tile id="time" label={t('inst.time')} value={formatTime(new Date(), lang)} />
-      <Tile
-        id="acc"
-        label="GPS"
-        className={accClass}
-        value={reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}
-      />
-    </header>
+      <Tile id="cog" label="COG" value={formatBearing(f?.cog)} className={navigating ? 'wide' : undefined} />
+      {(!leg || !reading) && (
+        <Tile
+          id="acc"
+          label="GPS"
+          className={accClass}
+          value={reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}
+        />
+      )}
+      {leg}
+    </div>
   );
 }
 
-/** Navigation strip below the instruments. Keeps its elements across renders so a tap in progress still lands. */
+const elapsed = (secs: number) => {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor(secs / 60) % 60;
+  const s = String(secs % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+};
+
+/**
+ * The status card over the chart's top-left corner (bottom-left while navigating): the clock, the GPS state, how long a
+ * track has recorded, and the position.
+ */
+export function StatusPill({ app }: { app: Pick<App, 'fix' | 'gpsStatus' | 'recording'> }) {
+  const f = app.fix;
+  const lang = language();
+  const st = app.gpsStatus;
+  const reading = st === 'ok' && !!f;
+  const good = reading && f.accuracy <= 30;
+  const stale = !f || Date.now() - f.time > 15_000;
+  const rec = app.recording;
+  return (
+    <div id="status-pill" className="glass">
+      <div className="pill-row">
+        <b className="pill-time" data-value="time">
+          {formatTime(new Date(), lang)}
+        </b>
+        <span className="pill-sep" aria-hidden="true" />
+        <span className="pill-gps">
+          <i className={`dot${good ? '' : ' bad'}`} />
+          {`GPS ${reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}`}
+        </span>
+        {rec && (
+          <>
+            <span className="pill-sep" aria-hidden="true" />
+            <span className="pill-rec">
+              <i className="dot rec" />
+              {`${t('status.rec')} ${elapsed(Math.max(0, Math.floor((Date.now() - rec.started) / 1000)))}`}
+            </span>
+          </>
+        )}
+      </div>
+      <div className={`pill-pos${stale ? ' stale' : ''}`} data-value="pos" role="group" aria-label={t('inst.position')}>
+        {f ? `${formatCoord(f.lat, 'lat', lang)} ${formatCoord(f.lon, 'lon', lang)}` : '--°--.---′ ---°--.---′'}
+      </div>
+    </div>
+  );
+}
+
+/** The guidance card over the chart: the next maneuver, how far it is and which way to steer. Keeps its elements across renders so a tap in progress still lands. */
 export function NavStrip({ app }: { app: InstrumentsApp }) {
   const p = app.progress;
   const pts = app.routePoints(app.activeRoute);
   let content: ReactNode = null;
 
   if (p && pts[p.nextIndex]) {
-    const du = app.settings.distanceUnit;
     const lang = language();
-    const now = Date.now();
-    const dist = (m: number) => formatDistance(m, du, lang);
-    const time = (secs: number | null) => (secs != null ? formatTime(new Date(now + secs * 1000), lang) : '--:--');
-    const m = app.nextManeuver();
-    const text = m ? maneuverText(m) : '';
+    const dist = (m: number) => formatDistance(m, app.settings.distanceUnit, lang);
+    const m = p.finished ? null : app.nextManeuver();
     content = (
       <>
         <div className="nav-top">
-          {m && !p.finished ? (
-            <span className="nav-to nav-maneuver">
-              <ManeuverIcon type={m.type} className="nav-ico" />
-              <span className="nav-text">
-                {p.dtw > 40 ? t('nav.inDistance', { distance: dist(p.dtw), text }) : text}
-              </span>
-            </span>
-          ) : (
-            <span className="nav-to">{p.finished ? `⚑ ${t('nav.arrived')}` : `➤ ${pts[p.nextIndex].name}`}</span>
-          )}
-          <SteerCue steer={p.steer} sog={app.fix?.sog} />
+          {m && <ManeuverIcon type={m.type} className="nav-ico" />}
+          <div className="nav-main">
+            {!p.finished && <div className="nav-dist">{dist(p.dtw)}</div>}
+            {m ? (
+              <div className="nav-text">{maneuverText(m)}</div>
+            ) : (
+              <div className="nav-to">{p.finished ? `⚑ ${t('nav.arrived')}` : `➤ ${pts[p.nextIndex].name}`}</div>
+            )}
+          </div>
           <StopButton app={app} />
         </div>
         {(app.offCourse || app.recalculating) && (
@@ -152,23 +233,13 @@ export function NavStrip({ app }: { app: InstrumentsApp }) {
             {app.recalculating ? t('nav.recalculating') : t('nav.offCourse')}
           </button>
         )}
-        <div className="nav-cells">
-          <Cell label="DTW" value={dist(p.dtw)} />
-          <Cell label="BTW" value={formatBearing(p.btw)} />
-          {p.xte != null ? (
-            <Cell
-              label={`XTE ${p.xte > 0 ? '◀' : '▶'}`}
-              value={dist(Math.abs(p.xte))}
-              cls={Math.abs(p.xte) > 50 ? 'warn' : ''}
-            />
+        <div className="nav-sub">
+          {steering(p.steer, app.fix?.sog) ? (
+            <SteerCue steer={p.steer} sog={app.fix?.sog} />
           ) : (
-            <Cell
-              label="VMG"
-              value={formatSpeed(p.vmg != null ? Math.max(0, p.vmg) : null, app.settings.speedUnit, lang)}
-            />
+            <span className="nav-btw">{`BTW ${formatBearing(p.btw)}`}</span>
           )}
-          <Cell label="ETA" value={time(p.ttgNext)} />
-          {pts.length - p.nextIndex > 1 && <Cell label={`${t('nav.end')} ${dist(p.remaining)}`} value={time(p.ttg)} />}
+          {m && <span className="nav-next">{`➤ ${pts[p.nextIndex].name}`}</span>}
         </div>
       </>
     );
