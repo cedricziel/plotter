@@ -168,7 +168,7 @@ export function NavStrip({ app }: { app: InstrumentsApp }) {
             />
           )}
           <Cell label="ETA" value={time(p.ttgNext)} />
-          {pts.length - p.nextIndex > 1 && <Cell label={`${t('nav.end')} ${time(p.ttg)}`} value={dist(p.remaining)} />}
+          {pts.length - p.nextIndex > 1 && <Cell label={`${t('nav.end')} ${dist(p.remaining)}`} value={time(p.ttg)} />}
         </div>
       </>
     );

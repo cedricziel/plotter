@@ -1,16 +1,28 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setLanguage } from '../src/i18n';
 import { makeFix, makeGuidanceApp, type GuidanceOptions } from '../src/stories/fakes';
 import { Instruments, NavStrip } from '../src/ui/instruments';
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   setLanguage('en');
 });
 
 describe('navigation strip', () => {
+  it('shows the arrival time at the destination as the value of the end cell', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30, 10, 0));
+    const nav = render(<NavStrip app={makeGuidanceApp({ progress: { ttg: 3600, ttgNext: 900 } })} />).container;
+    const [, , , eta, end] = nav.querySelectorAll('.nav-cell');
+    expect(eta.querySelector('small')!.textContent).toBe('ETA');
+    expect(eta.querySelector('b')!.textContent).toBe('10:15');
+    expect(end.querySelector('small')!.textContent).toBe('END 15.4 km');
+    expect(end.querySelector('b')!.textContent).toBe('11:00');
+  });
+
   it('keeps its buttons across updates so a tap in progress still lands', () => {
     const app = makeGuidanceApp({ offCourse: true });
     const { container, rerender } = render(<NavStrip app={app} />);
