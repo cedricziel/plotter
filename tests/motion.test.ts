@@ -20,6 +20,15 @@ function fix(t: number, east: number, north: number, extra: Partial<RawFix> = {}
 const angleDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 describe('MotionEstimator', () => {
+  it('keeps the device speed through a fix that comes without one', () => {
+    // 10 km/h east; iOS drops the speed (-1) on a poor fix now and then.
+    const m = new MotionEstimator();
+    for (let t = 0; t <= 20; t++) m.update(fix(t, 2.8 * t, 0, { accuracy: 5, speed: 2.8, heading: 90 }));
+    const out = m.update(fix(21, 2.8 * 21 - 40, 30, { accuracy: 65, speed: -1, heading: -1 }));
+    expect(out.sog!).toBeGreaterThan(2.5);
+    expect(out.cog).toBe(90);
+  });
+
   it('ignores the -1 course iOS reports when it has none', () => {
     const m = new MotionEstimator();
     m.update(fix(0, 0, 0, { speed: 2, heading: 90 }));
