@@ -160,6 +160,22 @@ describe('menu', () => {
     expect(document.activeElement!.id).toBe('btn-menu');
   });
 
+  it("leaves focus where a pick moved it, such as the open Route sheet's search box", () => {
+    const input = document.body.appendChild(document.createElement('input'));
+    const { container } = render(
+      <PlotterScreen
+        app={makeScreenApp()}
+        sheet={{ key: 'route', title: 'Route', content: 'legs' }}
+        controls={{ search: () => input.focus() }}
+      />,
+    );
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    fireEvent.click(container.querySelector('#btn-search')!);
+    expect(container.querySelector('#menu')).toBeNull();
+    expect(document.activeElement).toBe(input);
+    input.remove();
+  });
+
   it('marks the open sheet', () => {
     const { container } = render(
       <PlotterScreen app={makeScreenApp()} sheet={{ key: 'track', title: 'Track', content: 'track' }} />,
