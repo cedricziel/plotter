@@ -43,7 +43,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["node", "/app/server.mjs"]
 
-FROM nginx:1.29-alpine AS web
+FROM nginx:1.31-alpine AS web
 ARG BUILD_ID=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/cedricziel/plotter" \
