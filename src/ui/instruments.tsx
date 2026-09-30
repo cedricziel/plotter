@@ -21,9 +21,12 @@ export type InstrumentsApp = Pick<
   | 'recalculate'
 >;
 
+const steering = (steer: number | null, sog: number | null | undefined): steer is number =>
+  steer != null && sog != null && sog >= 0.5;
+
 /** Turn needed to reach the waypoint; hidden while COG is unknown or the boat is (nearly) stationary. */
 function SteerCue({ steer, sog }: { steer: number | null; sog: number | null | undefined }) {
-  if (steer == null || sog == null || sog < 0.5) return null;
+  if (!steering(steer, sog)) return null;
   const deg = Math.round(Math.abs(steer));
   if (deg <= 5) return <span className="nav-steer on">{`▲ ${t('nav.onCourse')}`}</span>;
   return <span className={`nav-steer${deg > 20 ? ' far' : ''}`}>{steer < 0 ? `◀ ${deg}°` : `${deg}° ▶`}</span>;
@@ -141,7 +144,7 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
         onKeyDown={onKeyDown}
       />
       <Tile id="cog" label="COG" value={formatBearing(f?.cog)} className={navigating ? 'wide' : undefined} />
-      {leg ?? (
+      {(!leg || !reading) && (
         <Tile
           id="acc"
           label="GPS"
@@ -149,6 +152,7 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
           value={reading ? `±${Math.round(f.accuracy)} m` : t(`inst.gps.${st}`)}
         />
       )}
+      {leg}
     </div>
   );
 }
@@ -212,7 +216,11 @@ export function NavStrip({ app }: { app: InstrumentsApp }) {
           </button>
         )}
         <div className="nav-sub">
-          <SteerCue steer={p.steer} sog={app.fix?.sog} />
+          {steering(p.steer, app.fix?.sog) ? (
+            <SteerCue steer={p.steer} sog={app.fix?.sog} />
+          ) : (
+            <span className="nav-btw">{`BTW ${formatBearing(p.btw)}`}</span>
+          )}
           {m && <span className="nav-next">{`➤ ${pts[p.nextIndex].name}`}</span>}
         </div>
       </>

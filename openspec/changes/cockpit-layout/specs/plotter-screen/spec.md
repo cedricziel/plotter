@@ -41,7 +41,7 @@ The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard
 
 ### Requirement: Instrument bar
 
-The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, distance to the next point (DTW) and ETA at the next point, and from 720 px wide also COG, cross-track error or VMG, and ETA at the end. Values SHALL be marked stale when the last fix is older than 15 seconds. The status pill SHALL show the GPS state and, while a track records, how long it has recorded.
+The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, distance to the next point (DTW) and ETA at the next point, and from 720 px wide also COG, cross-track error or VMG, and ETA at the end. While navigating without a GPS reading, the dashboard SHALL keep the GPS state in view. Values SHALL be marked stale when the last fix is older than 15 seconds. The status pill SHALL show the GPS state and, while a track records, how long it has recorded. While a track records or the anchor watch is armed, the menu button SHALL carry a badge.
 
 #### Scenario: Good fix
 
@@ -58,14 +58,19 @@ The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over
 - **WHEN** location permission is denied, or no fix has arrived yet
 - **THEN** the GPS cell and the status pill show DENIED or "search…"
 
+#### Scenario: GPS lost while navigating
+
+- **WHEN** the GPS signal is lost while a route is followed
+- **THEN** the dashboard shows GPS "LOST" beside the leg's numbers
+
 #### Scenario: Recording
 
 - **WHEN** a track has recorded for one hour
-- **THEN** the status pill shows "REC 1:00:00"
+- **THEN** the status pill shows "REC 1:00:00", and the menu button carries a blinking red badge that stays while navigating
 
 ### Requirement: Turn-by-turn guidance
 
-While a course or route is active, the guidance card SHALL show the next maneuver with its icon, its distance and its text, a steer cue, the next waypoint, and a stop button; the dashboard SHALL show the leg's numbers. Voice prompts SHALL announce upcoming maneuvers when enabled. Leaving the course SHALL be flagged and offer a recalculation, which happens automatically after a while off course.
+While a course or route is active, the guidance card SHALL show the next maneuver with its icon, its distance and its text, a steer cue (or the bearing to the next point while the boat is too slow for one), the next waypoint, and a stop button; the dashboard SHALL show the leg's numbers. Voice prompts SHALL announce upcoming maneuvers when enabled. Leaving the course SHALL be flagged and offer a recalculation, which happens automatically after a while off course.
 
 #### Scenario: Next maneuver
 

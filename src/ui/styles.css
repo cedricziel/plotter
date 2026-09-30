@@ -140,6 +140,27 @@ button {
   background: var(--accent);
   color: var(--accent-fg);
 }
+/* Recording and an armed anchor watch stay visible while the menu is closed. */
+#btn-menu {
+  position: relative;
+}
+.plotter:is(.recording, .anchor-armed) #btn-menu::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.plotter.anchor-armed #btn-menu::after {
+  background: var(--ok);
+}
+.plotter.recording #btn-menu::after {
+  background: var(--danger);
+  animation: blink 1.2s steps(2) infinite;
+}
 #btn-menu .ico {
   width: 26px;
   height: 26px;
@@ -154,6 +175,8 @@ button {
   flex: 1 1 0;
   min-width: 0;
   padding: 4px 8px;
+  /* Readings scale with their own cell: three cells on a phone, six on a tablet, fewer pixels beside a sheet. */
+  container-type: inline-size;
 }
 .inst + .inst {
   border-left: 1px solid var(--stroke);
@@ -171,7 +194,7 @@ button {
   text-overflow: ellipsis;
 }
 .inst-value {
-  font-size: clamp(22px, 6.6cqw, 28px);
+  font-size: clamp(16px, 28cqi, 32px);
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
@@ -186,8 +209,8 @@ button {
 }
 /* A status word instead of a reading: smaller, so GESPERRT or UNAVAILABLE fit the cell. */
 .inst-acc.status .inst-value {
-  font-size: 17px;
-  line-height: 31px;
+  font-size: min(17px, 22cqi);
+  line-height: calc(clamp(16px, 28cqi, 32px) * 1.1);
 }
 .inst-acc.bad .inst-value {
   color: var(--danger);
@@ -214,15 +237,16 @@ button {
   .inst.wide {
     display: block;
   }
-  .inst-value {
-    font-size: 32px;
-  }
-  .inst-acc.status .inst-value {
-    line-height: 35px;
-  }
-  /* The side sheet takes the right-hand side; the dashboard ends before it. */
+  /* The side sheet takes the right-hand side; the dashboard and the guidance card end before it, and the dashboard
+     keeps only the phone's cells. */
   .plotter[data-sheet] #dash {
     right: calc(var(--side-w) + 24px + var(--safe-r));
+  }
+  .plotter[data-sheet] .inst.wide {
+    display: none;
+  }
+  .plotter[data-sheet] #navstrip {
+    width: min(400px, calc(100% - var(--side-w) - 36px - var(--safe-l) - var(--safe-r)));
   }
 }
 
@@ -326,6 +350,7 @@ button {
   line-height: 1.25;
   margin-top: 4px;
   text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
 .nav-to {
   font-size: 22px;
@@ -633,6 +658,13 @@ button {
 }
 #menu [role='menuitem'] span {
   flex: 1;
+}
+#menu [role='menuitem'][aria-current='true'] {
+  color: var(--accent);
+  font-weight: 700;
+}
+[data-theme='night'] #menu [role='menuitem'][aria-current='true'] {
+  color: var(--accent-fg);
 }
 #menu [role='menuitem']:active {
   background: var(--glass-2);
@@ -1208,6 +1240,14 @@ select {
   margin-bottom: 8px;
   font-variant-numeric: tabular-nums;
 }
+/* On a phone the guidance card takes the top; the column sits above the dashboard instead of in the middle. */
+@container plotter (max-width: 719.98px) {
+  .plotter.navigating .fabs {
+    top: auto;
+    transform: none;
+    bottom: calc(var(--above-dash) + 12px);
+  }
+}
 /* The zoom buttons stay for placing; the column moves above the bar by its measured height (set by PlotterScreen). */
 .plotter:is(.placing, .destcard) :is(#btn-seamarks, #btn-follow, #btn-orient) {
   display: none;
@@ -1414,47 +1454,4 @@ select {
 }
 progress {
   height: 14px;
-}
-.nav-maneuver {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: normal;
-  overflow: visible;
-}
-.nav-text {
-  min-width: 0;
-  font-size: clamp(15px, 4.6cqw, 19px);
-  line-height: 1.15;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-.nav-top:has(.nav-maneuver) .nav-steer {
-  font-size: 20px;
-}
-.nav-ico {
-  flex: none;
-  display: grid;
-  place-items: center;
-}
-.nav-ico .ico {
-  width: 30px;
-  height: 30px;
-}
-.nav-off {
-  width: 100%;
-  min-height: 44px;
-  margin: 4px 0;
-  border: 2px solid var(--danger);
-  border-radius: 10px;
-  background: var(--danger);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
-}
-[data-theme='night'] .nav-off {
-  color: #000;
 }

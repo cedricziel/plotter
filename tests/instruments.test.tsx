@@ -28,6 +28,12 @@ describe('dashboard', () => {
     expect(wide(bar)).toEqual(['COG', 'XTE ◀', 'END 15.4 km']);
   });
 
+  it('keeps the GPS state in view while navigating without a fix', () => {
+    const bar = render(<Instruments app={makeGuidanceApp({ status: 'lost' })} />).container;
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'GPS', 'DTW', 'XTE ◀', 'ETA', 'END 15.4 km']);
+    expect(bar.querySelector('[data-value="acc"]')!.textContent).toBe('LOST');
+  });
+
   it('shows the arrival time at the destination as the value of the end cell', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 8, 30, 10, 0));
@@ -45,6 +51,14 @@ describe('guidance card', () => {
     expect(nav.querySelector('.nav-dist')!.textContent).toBe('253 m');
     expect(nav.querySelector('.nav-text')!.textContent).toBe('Turn left into IJ');
     expect(nav.querySelector('.nav-next')!.textContent).toContain('Schellingwoude');
+  });
+
+  it('gives the bearing to the waypoint while there is no steer cue', () => {
+    const still = render(
+      <NavStrip app={makeGuidanceApp({ fix: makeFix({ sog: 0 }), progress: { btw: 81 } })} />,
+    ).container;
+    expect(still.querySelector('.nav-btw')!.textContent).toBe('BTW 081°');
+    expect(still.querySelector('.nav-steer')).toBeNull();
   });
 
   it('keeps its buttons across updates so a tap in progress still lands', () => {

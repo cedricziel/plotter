@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
   type Ref,
   type RefObject,
@@ -118,24 +119,41 @@ export function Dashboard({
 export function ToolMenu({
   night = false,
   recording = false,
+  sheet,
   controls = {},
   onClose,
 }: {
   night?: boolean;
   recording?: boolean;
+  /** key of the open sheet, marked in the menu */
+  sheet?: string;
   controls?: ScreenControls;
   onClose?: () => void;
 }) {
   useLanguage();
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && onClose?.();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
-  const item = (id: string, icon: IconName, label: string, run?: () => void, extra?: ReactNode) => (
+  // Focus moves into the menu while it is open and back to the menu button when it closes.
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => document.getElementById('btn-menu')?.focus();
+  }, []);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+  };
+  const item = (id: string, icon: IconName, label: string, run?: () => void, extra?: ReactNode, key?: Tool) => (
     <button
       id={id}
       role="menuitem"
+      aria-current={key && key === sheet ? 'true' : undefined}
       onClick={() => {
         onClose?.();
         run?.();
@@ -157,21 +175,22 @@ export function ToolMenu({
   return (
     <>
       <div className="menu-scrim" onClick={onClose} />
-      <div id="menu" className="glass" role="menu" aria-label={t('tools.label')}>
+      <div id="menu" className="glass" role="menu" aria-label={t('tools.label')} ref={menuRef} onKeyDown={onKeyDown}>
         {item('btn-search', 'search', t('tools.search'), search)}
         {item('btn-dest', 'target', t('tools.placeDest'), controls.setDestination)}
-        {item('btn-route', 'route', t('sheet.route'), tool('route'))}
+        {item('btn-route', 'route', t('sheet.route'), tool('route'), null, 'route')}
         {item(
           'btn-track',
           'rec',
           t('sheet.track'),
           tool('track'),
           recording && <b className="menu-rec">{t('status.rec')}</b>,
+          'track',
         )}
-        {item('btn-anchor', 'anchor', t('sheet.anchor'), tool('anchor'))}
+        {item('btn-anchor', 'anchor', t('sheet.anchor'), tool('anchor'), null, 'anchor')}
         <hr />
         {item('btn-night', night ? 'sun' : 'moon', night ? t('tools.day') : t('tools.night'), controls.toggleNight)}
-        {item('btn-settings', 'sliders', t('sheet.settings'), tool('menu'))}
+        {item('btn-settings', 'sliders', t('sheet.settings'), tool('menu'), null, 'menu')}
       </div>
     </>
   );
@@ -267,7 +286,7 @@ export function PlotterScreen({
     app.follow && 'following',
     app.recording && 'recording',
     app.anchor?.armed && 'anchor-armed',
-    app.activeRoute && 'navigating',
+    app.routePoints(app.activeRoute).length > 0 && 'navigating',
     s.seamarks && 'seamarks-on',
     s.orientation === 'north' && 'north-up',
     bottom?.kind === 'placing' && 'placing',
@@ -304,7 +323,13 @@ export function PlotterScreen({
 
       <Dashboard app={app} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />
       {menuOpen && (
-        <ToolMenu night={s.theme === 'night'} recording={!!app.recording} controls={controls} onClose={closeMenu} />
+        <ToolMenu
+          night={s.theme === 'night'}
+          recording={!!app.recording}
+          sheet={sheetUp ? sheet.key : undefined}
+          controls={controls}
+          onClose={closeMenu}
+        />
       )}
 
       <SheetFrame open={sheetUp} title={sheet?.title} bodyKey={sheet?.key} onClose={controls.closeSheet}>

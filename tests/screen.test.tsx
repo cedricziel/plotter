@@ -104,6 +104,13 @@ describe('plotter screen', () => {
     expect(container.querySelector('.plotter')!.classList).toContain('navigating');
   });
 
+  it('does not count a new, empty route as navigating', () => {
+    const app = makeScreenApp({ route: true });
+    app.routePoints = () => [];
+    const { container } = render(<PlotterScreen app={app} />);
+    expect(container.querySelector('.plotter')!.classList).not.toContain('navigating');
+  });
+
   it('shows how long a track has been recording in the status pill', () => {
     const { container } = render(<PlotterScreen app={makeScreenApp({ recording: true })} />);
     expect(container.querySelector('#status-pill')!.textContent).toContain('REC 1:00:00');
@@ -133,6 +140,33 @@ describe('menu', () => {
 
     fireEvent.click(button);
     expect(container.querySelector('#menu')).toBeNull();
+
+    fireEvent.click(button);
+    fireEvent.click(container.querySelector('.menu-scrim')!);
+    expect(container.querySelector('#menu')).toBeNull();
+  });
+
+  it('moves focus into the menu, along it with the arrow keys, and back to the button', () => {
+    const { container } = render(<PlotterScreen app={makeScreenApp()} />);
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    expect(document.activeElement!.id).toBe('btn-search');
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(document.activeElement!.id).toBe('btn-settings');
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement!.id).toBe('btn-search');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.activeElement!.id).toBe('btn-menu');
+  });
+
+  it('marks the open sheet', () => {
+    const { container } = render(
+      <PlotterScreen app={makeScreenApp()} sheet={{ key: 'track', title: 'Track', content: 'track' }} />,
+    );
+    fireEvent.click(container.querySelector('#btn-menu')!);
+    expect(container.querySelector('#btn-track')!.getAttribute('aria-current')).toBe('true');
+    expect(container.querySelector('#btn-route')!.hasAttribute('aria-current')).toBe(false);
   });
 
   it('offers the day palette at night', () => {
