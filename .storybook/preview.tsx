@@ -3,15 +3,23 @@ import { setLanguage } from '../src/i18n';
 import '../src/ui/styles.css';
 import './preview.css';
 
-const SAFE_AREAS = { none: ['0px', '0px'], notch: ['59px', '34px'] } as const;
+// top, bottom, left, right
+const SAFE_AREAS = {
+  none: ['0px', '0px', '0px', '0px'],
+  notch: ['59px', '34px', '0px', '0px'],
+  landscape: ['0px', '21px', '59px', '59px'],
+} as const;
 
 const withGlobals: Decorator = (Story, context) => {
   const root = document.documentElement;
   root.dataset.theme = context.globals.theme === 'night' ? 'night' : 'day';
   root.dataset.frame = context.globals.frame === 'viewport' ? 'viewport' : 'device';
-  const [top, bottom] = SAFE_AREAS[context.globals.safeAreas as keyof typeof SAFE_AREAS] ?? SAFE_AREAS.none;
+  const [top, bottom, left, right] =
+    SAFE_AREAS[context.globals.safeAreas as keyof typeof SAFE_AREAS] ?? SAFE_AREAS.none;
   root.style.setProperty('--safe-t', top);
   root.style.setProperty('--safe-b', bottom);
+  root.style.setProperty('--safe-l', left);
+  root.style.setProperty('--safe-r', right);
   setLanguage(context.globals.language === 'de' ? 'de' : 'en');
   return <Story />;
 };
@@ -71,6 +79,7 @@ const preview: Preview = {
         items: [
           { value: 'none', title: 'Safe areas: none' },
           { value: 'notch', title: 'Safe areas: iPhone notch' },
+          { value: 'landscape', title: 'Safe areas: iPhone landscape' },
         ],
       },
     },
