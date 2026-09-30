@@ -10,8 +10,8 @@ The screen stacks four opaque bands: the instrument bar, the guidance strip, the
 - **Guidance card** at the top while navigating: maneuver icon, distance, maneuver text, stop button, steer cue and the next waypoint. The leg's numbers move into the dashboard.
 - **Status pill** at the top left when not navigating: GPS state and accuracy, and "REC m:ss" while a track records.
 - **Map buttons**: one glass column on the right with zoom in, zoom out, orientation, follow and seamarks. Centred on a phone in portrait, at the top on wide or short screens. Below 480 px high the zoom buttons are hidden; pinch zooms.
-- **Sheets**: glass, rounded. On a phone above the dashboard, so the readings stay visible; from 720 px wide a full-height side panel on the right, and the dashboard ends before it.
-- **Destination card and placement bar**: glass, above the dashboard; from 720 px wide 400 px wide on the left.
+- **Sheets**: glass, rounded. On a phone above the dashboard, so the readings stay visible; from 720 px wide a 440 px full-height side panel on the right (as wide as before, so route legs fit), and the dashboard ends before it.
+- **Destination card and placement bar**: glass, above the dashboard; from 720 px wide 520 px wide on the left, so the German button labels fit.
 - The instrument bar no longer shows the position or the time. The device status bar shows the time. The position is no longer on the main screen; see the open question in the pull request.
 
 ## Capabilities

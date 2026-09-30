@@ -38,7 +38,7 @@
   --dash-h: 80px;
   --dash-b: max(8px, calc(var(--safe-b) - 12px));
   --above-dash: calc(var(--dash-b) + var(--dash-h) + 10px);
-  --side-w: 390px;
+  --side-w: 440px;
   color-scheme: light;
   font-family:
     system-ui,
@@ -691,7 +691,7 @@ button {
     bottom: calc(12px + var(--safe-b));
     width: var(--side-w);
     max-height: none;
-    transform: translateX(calc(100% + 24px));
+    transform: translateY(calc(100% + 24px + var(--safe-b)));
   }
 }
 .sheet-head {
@@ -1220,7 +1220,7 @@ select {
 @container plotter (min-width: 720px) {
   #dest-bar {
     right: auto;
-    width: 400px;
+    width: 520px;
   }
   .plotter:is(.placing, .destcard) .fabs {
     top: calc(12px + var(--safe-t));
