@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS src
+FROM --platform=$BUILDPLATFORM node:26-alpine AS src
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -16,7 +16,7 @@ RUN npm test && npm run build:server
 
 # API server and waterway data job (same image, different entrypoint).
 # Debian rather than Alpine: osmium-tool is not packaged for Alpine.
-FROM node:22-bookworm-slim AS server
+FROM node:26-bookworm-slim AS server
 ARG BUILD_ID=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/cedricziel/plotter" \
