@@ -592,7 +592,7 @@ button {
   position: fixed;
   left: calc(8px + var(--safe-l));
   bottom: var(--above-dash);
-  width: 280px;
+  width: min(280px, calc(100% - 16px - var(--safe-l) - var(--safe-r)));
   max-height: calc(100% - var(--above-dash) - var(--safe-t) - 8px);
   overflow-y: auto;
   border-radius: 24px;
@@ -602,6 +602,7 @@ button {
 @container plotter (max-height: 480px) {
   #menu {
     left: calc(84px + var(--safe-l));
+    width: min(280px, calc(100% - 92px - var(--safe-l) - var(--safe-r)));
     bottom: var(--dash-b);
     max-height: calc(100% - var(--dash-b) - 8px);
   }
@@ -670,11 +671,17 @@ button {
   color: var(--fg);
   border-radius: 32px;
   transform: translateY(calc(100% + var(--above-dash)));
-  transition: transform 0.18s ease-out;
+  /* Hidden once it has slid out, so the closed sheet takes no taps and no room past the screen's edge. */
+  visibility: hidden;
+  transition:
+    transform 0.18s ease-out,
+    visibility 0s 0.18s;
   z-index: 7;
 }
 #sheet.open {
   transform: none;
+  visibility: visible;
+  transition: transform 0.18s ease-out;
 }
 @container plotter (min-width: 720px) {
   #sheet {
