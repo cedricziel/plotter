@@ -65,6 +65,7 @@ export async function sendJson(
 }
 
 const MAX_KEYS = 10_000;
+const EVICT_BATCH = 1_000;
 
 /** Fixed-window request counter per key. */
 export class RateLimiter {
@@ -79,8 +80,9 @@ export class RateLimiter {
   check(key: string, max: number, now = Date.now()): number {
     if (this.hits.size >= MAX_KEYS) {
       for (const [k, v] of this.hits) if (v.reset <= now) this.hits.delete(k);
+      // Make room for a batch, so a flood of new keys pays for the scan once per batch, not per request.
       for (const k of this.hits.keys()) {
-        if (this.hits.size < MAX_KEYS) break;
+        if (this.hits.size < MAX_KEYS - EVICT_BATCH) break;
         this.hits.delete(k);
       }
     }
