@@ -65,7 +65,7 @@ The instrument bar SHALL show speed over ground (SOG) in the chosen unit, course
 
 ### Requirement: Chart
 
-The chart SHALL render the offline Netherlands vector chart when it is available and fall back to online OpenStreetMap tiles when it is not, SHALL show waterways, water, bridges, harbours and place names, and SHALL draw seamarks as vector symbols, toggled with the seamarks button. The user SHALL be able to pan and zoom but not rotate the chart by gesture. The chart attribution SHALL name the sources of what is shown.
+The chart SHALL render the offline Netherlands vector chart when it is available and fall back to online OpenStreetMap tiles when it is not, SHALL show waterways, water, bridges, harbours and place names, and SHALL draw seamarks as vector symbols, toggled with the seamarks button. The user SHALL be able to pan and zoom but not rotate the chart by gesture. The chart attribution SHALL name the sources of what is shown, and SHALL collapse to its info button a few seconds after it opens.
 
 #### Scenario: Offline chart present
 
@@ -86,6 +86,11 @@ The chart SHALL render the offline Netherlands vector chart when it is available
 
 - **WHEN** the OpenSeaMap overlay is off
 - **THEN** the chart attribution does not mention OpenSeaMap, and it mentions OpenSeaMap once the overlay is turned on
+
+#### Scenario: Attribution collapses
+
+- **WHEN** the chart has loaded, or the info button has opened the attribution, and about 5 seconds pass without a drag
+- **THEN** the attribution collapses to its info button and no longer covers the status card
 
 ### Requirement: Own boat and course line
 

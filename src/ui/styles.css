@@ -229,20 +229,25 @@ button {
 #instruments.stale .inst-cog .inst-value {
   opacity: 0.45;
 }
-/* Course, cross-track and the end of the route join the leg only where there is room. */
-.inst.wide {
+/* Course, cross-track, the distance to the waypoint and the distance to the end join the leg only where there is room. */
+.inst.wide,
+.inst-end .inst-unit {
   display: none;
 }
 @container plotter (min-width: 720px) {
   .inst.wide {
     display: block;
   }
+  .inst-end .inst-unit {
+    display: inline;
+  }
   /* The side sheet takes the right-hand side; the dashboard and the guidance card end before it, and the dashboard
      keeps only the phone's cells. */
   .plotter[data-sheet] #dash {
     right: calc(var(--side-w) + 24px + var(--safe-r));
   }
-  .plotter[data-sheet] .inst.wide {
+  .plotter[data-sheet] .inst.wide,
+  .plotter[data-sheet] .inst-end .inst-unit {
     display: none;
   }
   .plotter[data-sheet] #navstrip {

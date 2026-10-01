@@ -25,6 +25,7 @@ import { shouldLogPoint } from './core/track';
 import { formatDistance, formatDuration } from './core/units';
 import { language, num, resolveLanguage, setLanguage, t } from './i18n';
 import { announcement, maneuverText } from './i18n/maneuvers';
+import { collapseAfter } from './map/attribution';
 import { onLongPress } from './map/longpress';
 import { EMPTY, SEAMARK_LAYERS, setOverlay } from './map/overlays';
 import { buildStyle, type Basemap } from './map/style';
@@ -158,7 +159,9 @@ export class App {
       maxPitch: 0,
     });
     this.map.touchZoomRotate.disableRotation();
-    this.map.addControl(new AttributionControl({ compact: true }), 'bottom-left');
+    const attribution = new AttributionControl({ compact: true });
+    this.map.addControl(attribution, 'bottom-left');
+    collapseAfter(attribution._container, 5000);
     this.map.addControl(new ScaleControl({ unit: this.settings.distanceUnit }), 'bottom-left');
 
     this.ship = new Marker({ element: shipElement(), rotationAlignment: 'map', pitchAlignment: 'map' });
