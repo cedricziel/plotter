@@ -4,7 +4,7 @@
 
 Changing the language SHALL relabel everything on screen at once, without a reload and without losing state:
 
-- the dashboard, the menu, the status card, the map-button labels, the chart notice and the guidance card
+- the dashboard, the menu, the status card, the map-button labels and the guidance card
 - any open sheet
 - the page language exposed to assistive technology
 
@@ -13,7 +13,7 @@ An active route, a recording track and an armed anchor watch SHALL keep running.
 #### Scenario: Switching while navigating
 
 - **WHEN** a route is active, the Settings sheet is open, and the user picks Deutsch
-- **THEN** the menu reads Ziel suchen, Ziel auf der Karte setzen, Route & Wegpunkte, Trackaufzeichnung, Ankeralarm, Nachtpalette and Einstellungen, the chart notice and the guidance card are in German, the Settings sheet stays open in German, and guidance continues
+- **THEN** the menu reads Ziel suchen, Ziel auf der Karte setzen, Route & Wegpunkte, Trackaufzeichnung, Ankeralarm, Nachtpalette and Einstellungen, the guidance card is in German, the Settings sheet stays open in German, and guidance continues
 
 #### Scenario: Screen reader language
 

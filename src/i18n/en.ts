@@ -7,7 +7,6 @@ export const en = {
   'tools.night': 'Night palette',
   'tools.day': 'Day palette',
   'status.rec': 'REC',
-  notice: 'Navigation aid only – not for navigation',
   'map.label': 'Chart',
   'map.ownVessel': 'Own vessel',
   'fab.controls': 'Map controls',
