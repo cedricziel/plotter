@@ -110,6 +110,7 @@ export function SearchBox({ app, scope, onPick }: { app: App; scope: ScopeName; 
     <div className="search" data-scope={scope}>
       <input
         type="search"
+        name="search"
         className="search-input"
         placeholder={t('search.placeholder')}
         aria-label={t('search.label')}

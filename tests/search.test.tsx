@@ -122,6 +122,7 @@ describe('SearchBox', () => {
     expect(container.querySelector('.search')?.getAttribute('data-scope')).toBe('sheet');
     expect(input().getAttribute('enterkeyhint')).toBe('search');
     expect(input().getAttribute('autocomplete')).toBe('off');
+    expect(input().getAttribute('name')).toBe('search');
     expect(container.querySelector('.search-note')?.getAttribute('aria-live')).toBe('polite');
   });
 
