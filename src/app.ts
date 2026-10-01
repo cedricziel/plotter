@@ -816,8 +816,17 @@ export class App {
 
   /** The maneuver the strip and the voice prompts are counting down to. */
   nextManeuver(route: Route | null = this.activeRoute): CourseManeuver | null {
+    return this.maneuverAt(route, 0);
+  }
+
+  /** The maneuver after the next one, which the guidance card previews. */
+  followingManeuver(route: Route | null = this.activeRoute): CourseManeuver | null {
+    return this.maneuverAt(route, 1);
+  }
+
+  private maneuverAt(route: Route | null, ahead: number): CourseManeuver | null {
     if (!route?.maneuvers) return null;
-    const wp = route.waypointIds[this.progress?.nextIndex ?? this.nextIndex];
+    const wp = route.waypointIds[(this.progress?.nextIndex ?? this.nextIndex) + ahead];
     return route.maneuvers.find((m) => m.wp === wp) ?? null;
   }
 

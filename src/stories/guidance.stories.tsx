@@ -21,6 +21,13 @@ type Story = StoryObj<typeof NavStrip>;
 export const NextManeuver: Story = {
   render: () => guidance({ maneuver: 'Turn left at the lock' })(),
 };
+export const ThenAnotherManeuver: Story = {
+  render: () =>
+    guidance({
+      maneuver: { type: 'bridge-open', name: 'Spannenburg brug' },
+      following: { type: 'turn-right', name: 'Prinses Margrietkanaal' },
+    })(),
+};
 export const LongManeuverName: Story = {
   render: () => guidance({ maneuver: LONG_MANEUVER })(),
 };
