@@ -13,7 +13,8 @@
   },
   "enabledPlugins": {
     "oss@cedricziel": true,
-    "common@cedricziel": true
+    "common@cedricziel": true,
+    "coderabbit@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "cedricziel": {

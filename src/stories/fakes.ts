@@ -63,6 +63,8 @@ export interface GuidanceOptions {
   progress?: Partial<RouteProgress> | null;
   /** A text alone is a maneuver stored before the router sent names; fields make a structured one. */
   maneuver?: string | Partial<CourseManeuver> | null;
+  /** The maneuver after the next one, previewed on the card's second row. */
+  following?: Partial<CourseManeuver> | null;
   offCourse?: boolean;
   recalculating?: boolean;
 }
@@ -72,6 +74,7 @@ export function makeGuidanceApp({
   fix = makeFix(),
   progress = {},
   maneuver = null,
+  following = null,
   offCourse = false,
   recalculating = false,
 }: GuidanceOptions = {}): InstrumentsApp {
@@ -92,6 +95,10 @@ export function makeGuidanceApp({
         ...(typeof maneuver === 'string' ? {} : { name: null, ...maneuver }),
       }
     : null;
+  const then: CourseManeuver | null =
+    turn && following
+      ? { type: 'turn-right', lat: 52.36, lon: 4.9, dist: 6000, text: '', wp: 'c', name: null, ...following }
+      : null;
   return {
     fix,
     gpsStatus: status,
@@ -114,6 +121,7 @@ export function makeGuidanceApp({
     recalculating,
     routePoints: (r) => (r ? WAYPOINTS : []),
     nextManeuver: () => turn,
+    followingManeuver: () => then,
     updateSettings: async () => {},
     stopNavigation: async () => {},
     recalculate: async () => {},

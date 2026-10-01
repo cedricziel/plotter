@@ -8,7 +8,6 @@ export const de: Record<keyof typeof en, string> = {
   'tools.night': 'Nachtpalette',
   'tools.day': 'Tagpalette',
   'status.rec': 'REC',
-  notice: 'Nur Navigationshilfe – nicht zur Navigation',
   'map.label': 'Karte',
   'map.ownVessel': 'Eigenes Schiff',
   'fab.controls': 'Kartensteuerung',

@@ -42,7 +42,7 @@ The app SHALL offer the languages English and German with the choices Auto, Engl
 
 Changing the language SHALL relabel everything on screen at once, without a reload and without losing state:
 
-- the instrument bar, the toolbar, the floating-button labels, the chart notice and the guidance strip
+- the instrument bar, the toolbar, the floating-button labels and the guidance strip
 - any open sheet
 - the page language exposed to assistive technology
 
@@ -51,7 +51,7 @@ An active route, a recording track and an armed anchor watch SHALL keep running.
 #### Scenario: Switching while navigating
 
 - **WHEN** a route is active, the Settings sheet is open, and the user picks Deutsch
-- **THEN** the toolbar reads Route, Track, Anker, Nacht and Menü, the chart notice and the guidance strip are in German, the Settings sheet stays open in German, and guidance continues
+- **THEN** the toolbar reads Route, Track, Anker, Nacht and Menü, the guidance strip is in German, the Settings sheet stays open in German, and guidance continues
 
 #### Scenario: Screen reader language
 
@@ -76,7 +76,7 @@ The following SHALL stay as they are:
 #### Scenario: Disclaimer in German
 
 - **WHEN** the language is German and the disclaimer is shown
-- **THEN** it states in German that the app is a navigation aid only and not for navigation, and the permanent chart notice reads "Nur Navigationshilfe – nicht zur Navigation"
+- **THEN** it states in German that the app is a navigation aid only and not for navigation
 
 #### Scenario: Names are not translated
 

@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 describe('switching the language', () => {
-  it('relabels the menu, the floating buttons and the chart notice, and sets the page language', async () => {
+  it('relabels the menu, and the floating buttons, and sets the page language', async () => {
     const app = makeApp();
     await switchTo(app, 'de');
 
@@ -83,14 +83,12 @@ describe('switching the language', () => {
     expect(aria('#btn-zoom-in')).toBe('Vergrößern');
     expect(aria('#btn-follow')).toBe('Auf eigene Position zentrieren');
     expect(aria('#menu')).toBe('Werkzeuge');
-    expect(text('#notice')).toBe('Nur Navigationshilfe – nicht zur Navigation');
     expect(text('#alarm-silence')).toBe('Stumm schalten');
     expect(document.documentElement.lang).toBe('de');
 
     await switchTo(app, 'en');
     expect(menu()).toContain('Anchor alarm');
     expect(aria('#btn-zoom-in')).toBe('Zoom in');
-    expect(text('#notice')).toBe('Navigation aid only – not for navigation');
     expect(document.documentElement.lang).toBe('en');
   });
 

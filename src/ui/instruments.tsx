@@ -16,6 +16,7 @@ export type InstrumentsApp = Pick<
   | 'recalculating'
   | 'routePoints'
   | 'nextManeuver'
+  | 'followingManeuver'
   | 'updateSettings'
   | 'stopNavigation'
   | 'recalculate'
@@ -214,6 +215,7 @@ export function NavStrip({ app }: { app: InstrumentsApp }) {
     const lang = language();
     const dist = (m: number) => formatDistance(m, app.settings.distanceUnit, lang);
     const m = p.finished ? null : app.nextManeuver();
+    const then = m && app.followingManeuver();
     content = (
       <>
         <div className="nav-top">
@@ -239,7 +241,7 @@ export function NavStrip({ app }: { app: InstrumentsApp }) {
           ) : (
             <span className="nav-btw">{`BTW ${formatBearing(p.btw)}`}</span>
           )}
-          {m && <span className="nav-next">{`➤ ${pts[p.nextIndex].name}`}</span>}
+          {then && <span className="nav-next">{`➤ ${maneuverText(then)}`}</span>}
         </div>
       </>
     );

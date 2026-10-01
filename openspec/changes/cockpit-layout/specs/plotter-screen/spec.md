@@ -70,12 +70,17 @@ The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over
 
 ### Requirement: Turn-by-turn guidance
 
-While a course or route is active, the guidance card SHALL show the next maneuver with its icon, its distance and its text, a steer cue (or the bearing to the next point while the boat is too slow for one), the next waypoint, and a stop button; the dashboard SHALL show the leg's numbers. Voice prompts SHALL announce upcoming maneuvers when enabled. Leaving the course SHALL be flagged and offer a recalculation, which happens automatically after a while off course.
+While a course or route is active, the guidance card SHALL show the next maneuver with its icon, its distance and its text, a steer cue (or the bearing to the next point while the boat is too slow for one), the maneuver after the next one, and a stop button; the dashboard SHALL show the leg's numbers. Voice prompts SHALL announce upcoming maneuvers when enabled. Leaving the course SHALL be flagged and offer a recalculation, which happens automatically after a while off course.
 
 #### Scenario: Next maneuver
 
 - **WHEN** the next maneuver is a turn into the IJ 253 m ahead
 - **THEN** the card shows "253 m" above "Turn left into IJ", with a turn icon
+
+#### Scenario: Maneuver after the next one
+
+- **WHEN** the next maneuver is the opening bridge Spannenburg brug and the one after it a right turn into the Prinses Margrietkanaal
+- **THEN** the card's second row previews "Turn right into Prinses Margrietkanaal" instead of repeating the bridge
 
 #### Scenario: Off course
 

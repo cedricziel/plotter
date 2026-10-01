@@ -27,7 +27,7 @@ The screen SHALL show, from top to bottom, the instrument bar, the guidance stri
 
 ### Requirement: Safety notice
 
-The app SHALL show a disclaimer that it is a navigation aid only and not for navigation, which the user must acknowledge at most once every 12 hours on a device, and SHALL keep a permanent short notice on the chart. A tap or click anywhere on the disclaimer SHALL acknowledge it, including on iPhone and iPad while the chart is busy.
+The app SHALL show a disclaimer that it is a navigation aid only and not for navigation, which the user must acknowledge at most once every 12 hours on a device. A tap or click anywhere on the disclaimer SHALL acknowledge it, including on iPhone and iPad while the chart is busy.
 
 #### Scenario: First open
 
@@ -37,7 +37,7 @@ The app SHALL show a disclaimer that it is a navigation aid only and not for nav
 #### Scenario: Reload or crashed tab
 
 - **WHEN** the app is reloaded, or Safari reloads a crashed tab, within 12 hours of acknowledging
-- **THEN** the disclaimer is not shown again and the chart notice "Navigation aid only – not for navigation" stays visible
+- **THEN** the disclaimer is not shown again
 
 #### Scenario: Tap on iPhone while navigating
 

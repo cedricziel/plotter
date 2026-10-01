@@ -322,10 +322,6 @@ export function PlotterScreen({
       <NavStrip app={app} />
       <MapControls courseUp={s.orientation === 'course'} needleRef={needleRef} controls={controls} />
 
-      <div id="notice" aria-hidden="true">
-        {t('notice')}
-      </div>
-
       <Dashboard app={app} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />
       {menuOpen && (
         <ToolMenu

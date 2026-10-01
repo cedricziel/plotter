@@ -50,7 +50,26 @@ describe('guidance card', () => {
     ).container;
     expect(nav.querySelector('.nav-dist')!.textContent).toBe('253 m');
     expect(nav.querySelector('.nav-text')!.textContent).toBe('Turn left into IJ');
-    expect(nav.querySelector('.nav-next')!.textContent).toContain('Schellingwoude');
+  });
+
+  it('previews the maneuver after the next one rather than repeating it', () => {
+    const nav = render(
+      <NavStrip
+        app={makeGuidanceApp({
+          maneuver: { type: 'bridge-open', name: 'Spannenburg brug' },
+          following: { type: 'turn-right', name: 'Prinses Margrietkanaal' },
+        })}
+      />,
+    ).container;
+    expect(nav.querySelector('.nav-text')!.textContent).toBe('Opening bridge: Spannenburg brug');
+    expect(nav.querySelector('.nav-next')!.textContent).toBe('➤ Turn right into Prinses Margrietkanaal');
+  });
+
+  it('shows no preview on the last maneuver', () => {
+    const nav = render(
+      <NavStrip app={makeGuidanceApp({ maneuver: { type: 'arrive', name: 'Aalsmeer' } })} />,
+    ).container;
+    expect(nav.querySelector('.nav-next')).toBeNull();
   });
 
   it('gives the bearing to the waypoint while there is no steer cue', () => {
