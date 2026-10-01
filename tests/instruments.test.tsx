@@ -22,15 +22,21 @@ describe('dashboard', () => {
     expect(wide(bar)).toEqual([]);
   });
 
-  it('shows the leg while navigating, with course, cross-track and the end only on wide screens', () => {
+  it('shows the leg while navigating, with the arrival at the end on phones and the rest only on wide screens', () => {
     const bar = render(<Instruments app={makeGuidanceApp()} />).container;
-    expect(labels(bar)).toEqual(['SOG', 'COG', 'DTW', 'XTE ◀', 'ETA', 'END 15.4 km']);
-    expect(wide(bar)).toEqual(['COG', 'XTE ◀', 'END 15.4 km']);
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'DTW', 'XTE ◀', 'ETA', 'END']);
+    expect(wide(bar)).toEqual(['COG', 'DTW', 'XTE ◀']);
+  });
+
+  it('keeps the distance to the waypoint on phones on the last leg', () => {
+    const bar = render(<Instruments app={makeGuidanceApp({ progress: { nextIndex: 2 } })} />).container;
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'DTW', 'XTE ◀', 'ETA']);
+    expect(wide(bar)).toEqual(['COG', 'XTE ◀']);
   });
 
   it('keeps the GPS state in view while navigating without a fix', () => {
     const bar = render(<Instruments app={makeGuidanceApp({ status: 'lost' })} />).container;
-    expect(labels(bar)).toEqual(['SOG', 'COG', 'GPS', 'DTW', 'XTE ◀', 'ETA', 'END 15.4 km']);
+    expect(labels(bar)).toEqual(['SOG', 'COG', 'GPS', 'DTW', 'XTE ◀', 'ETA', 'END']);
     expect(bar.querySelector('[data-value="acc"]')!.textContent).toBe('LOST');
   });
 

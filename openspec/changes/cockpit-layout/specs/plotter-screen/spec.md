@@ -41,7 +41,7 @@ The chart SHALL fill the whole screen. Over it the screen SHALL show a dashboard
 
 ### Requirement: Instrument bar
 
-The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, distance to the next point (DTW) and ETA at the next point, and from 720 px wide also COG, cross-track error or VMG, and ETA at the end. While navigating without a GPS reading, the dashboard SHALL keep the GPS state in view. Values SHALL be marked stale when the last fix is older than 15 seconds. The status card SHALL show the local time, the GPS state, the position in degrees and decimal minutes (marked stale with the readings) and, while a track records, how long it has recorded. While a track records or the anchor watch is armed, the menu button SHALL carry a badge.
+The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over ground (COG) in degrees, and the GPS state with accuracy. While navigating it SHALL show SOG, ETA at the next point and ETA at the end (on the last leg distance to the next point (DTW) instead), and from 720 px wide also COG, DTW, cross-track error or VMG, and the distance to the end. While navigating without a GPS reading, the dashboard SHALL keep the GPS state in view. Values SHALL be marked stale when the last fix is older than 15 seconds. The status card SHALL show the local time, the GPS state, the position in degrees and decimal minutes (marked stale with the readings) and, while a track records, how long it has recorded. While a track records or the anchor watch is armed, the menu button SHALL carry a badge.
 
 #### Scenario: Good fix
 
@@ -57,6 +57,11 @@ The dashboard SHALL show speed over ground (SOG) in the chosen unit, course over
 
 - **WHEN** location permission is denied, or no fix has arrived yet
 - **THEN** the GPS cell and the status card show DENIED or "search…", and the position shows placeholders
+
+#### Scenario: Arrival at the destination on a phone
+
+- **WHEN** a course with several legs is followed on a phone
+- **THEN** the dashboard shows SOG, the ETA at the next point and the ETA at the end, and the guidance card shows the distance to the next point
 
 #### Scenario: GPS lost while navigating
 

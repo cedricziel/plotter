@@ -105,9 +105,11 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
     const now = Date.now();
     const dist = (m: number) => formatDistance(m, du, lang);
     const time = (secs: number | null) => (secs != null ? formatTime(new Date(now + secs * 1000), lang) : '--:--');
+    const toEnd = pts.length - p.nextIndex > 1;
     leg = (
       <>
-        <Tile id="dtw" label="DTW" value={dist(p.dtw)} />
+        {/* On a phone the arrival at the end takes the place of DTW, which the guidance card already shows. */}
+        <Tile id="dtw" label="DTW" value={dist(p.dtw)} className={toEnd ? 'wide' : undefined} />
         {p.xte != null ? (
           <Tile
             id="xte"
@@ -124,9 +126,7 @@ export function Instruments({ app }: { app: InstrumentsApp }) {
           />
         )}
         <Tile id="eta" label="ETA" value={time(p.ttgNext)} />
-        {pts.length - p.nextIndex > 1 && (
-          <Tile id="end" label={`${t('nav.end')} ${dist(p.remaining)}`} value={time(p.ttg)} className="wide" />
-        )}
+        {toEnd && <Tile id="end" label={t('nav.end')} unit={dist(p.remaining)} value={time(p.ttg)} />}
       </>
     );
   }
