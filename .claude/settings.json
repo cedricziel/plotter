@@ -21,7 +21,8 @@
       "source": {
         "source": "github",
         "repo": "cedricziel/claude-plugins",
-        "ref": "main"
+        "ref": "main",
+        "sha": "f6edc819219046d072d90968dcc4a748780cd50f"
       }
     }
   }
